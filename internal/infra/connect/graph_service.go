@@ -55,7 +55,8 @@ func (s *GraphService) SaveGraph(ctx context.Context, req *connectrpc.Request[gr
 
 func graphError(ctx context.Context, err error) *connectrpc.Error {
 	switch {
-	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired):
+	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired),
+		errors.Is(err, domain.ErrInvalidGraphDocument):
 		return connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
 	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)

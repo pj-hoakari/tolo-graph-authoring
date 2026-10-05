@@ -14,9 +14,13 @@ func TestGraphRepositorySaveThenFind(t *testing.T) {
 	t.Parallel()
 
 	repo := memory.NewGraphRepository()
-	graph := domain.NewVenueGraph("a1b2c3d4e5f60718", "fedcba9876543210", domain.GraphDocument{
+
+	graph, err := domain.NewVenueGraph("a1b2c3d4e5f60718", "fedcba9876543210", domain.GraphDocument{
 		Nodes: []domain.Node{{ID: "n1", Type: domain.NodeTypeGoal}},
-	}, "0123456789abcdef")
+	})
+	if err != nil {
+		t.Fatalf("NewVenueGraph() error = %v", err)
+	}
 
 	if err := repo.Save(context.Background(), graph); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -27,7 +31,7 @@ func TestGraphRepositorySaveThenFind(t *testing.T) {
 		t.Fatalf("FindByEventPublicID() error = %v", err)
 	}
 
-	if got.TenantPublicID() != "a1b2c3d4e5f60718" || got.DraftRevisionID() != "0123456789abcdef" || got.Draft().Nodes[0].ID != "n1" {
+	if got.TenantPublicID() != "a1b2c3d4e5f60718" || got.DraftRevisionID() != graph.DraftRevisionID() || got.Draft().Nodes[0].ID != "n1" {
 		t.Errorf("FindByEventPublicID() = %+v, want the saved graph", got)
 	}
 }

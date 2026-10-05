@@ -7,6 +7,7 @@ import (
 	"time"
 
 	connectrpc "connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
 	"github.com/pj-hoakari/internal-jwt-handling/jwtgen"
@@ -75,6 +76,24 @@ func TestSaveGraph(t *testing.T) {
 
 		if res.Msg.GetDraftRevisionId() == "" {
 			t.Error("DraftRevisionId is empty, want the new draft revision")
+		}
+	})
+
+	t.Run("returns the same meta when the same document is saved again", func(t *testing.T) {
+		t.Parallel()
+
+		first, err := save("fedcba9876543210")
+		if err != nil {
+			t.Fatalf("first SaveGraph() error = %v", err)
+		}
+
+		second, err := save("fedcba9876543210")
+		if err != nil {
+			t.Fatalf("second SaveGraph() error = %v", err)
+		}
+
+		if !proto.Equal(first.Msg, second.Msg) {
+			t.Errorf("second GraphMeta = %v, want %v", second.Msg, first.Msg)
 		}
 	})
 

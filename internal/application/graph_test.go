@@ -5,6 +5,7 @@ package application_test
 import (
 	"context"
 	"errors"
+	"math"
 	"regexp"
 	"testing"
 
@@ -33,6 +34,92 @@ func eventContext(tenantPublicID, eventPublicID string) context.Context {
 
 func document(nodeID string) *domain.GraphDocument {
 	return &domain.GraphDocument{Nodes: []domain.Node{{ID: nodeID, Type: domain.NodeTypeGoal}}}
+}
+
+func venueGraph(t *testing.T, tenantPublicID string, draft *domain.GraphDocument) domain.VenueGraph {
+	t.Helper()
+
+	graph, err := domain.NewVenueGraph(tenantPublicID, eventID, *draft)
+	if err != nil {
+		t.Fatalf("NewVenueGraph() error = %v", err)
+	}
+
+	return graph
+}
+
+func saveNewGraph(t *testing.T, draft *domain.GraphDocument) domain.VenueGraph {
+	t.Helper()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), eventID).Return(domain.VenueGraph{}, repository.ErrGraphNotFound)
+	graphs.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil)
+
+	graph, err := application.NewGraphService(graphs).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+		EventPublicID: eventID,
+		Document:      draft,
+	})
+	if err != nil {
+		t.Fatalf("SaveGraph() error = %v", err)
+	}
+
+	return graph
+}
+
+func TestSaveGraphDerivesDraftRevisionIDFromDocument(t *testing.T) {
+	t.Parallel()
+
+	first := saveNewGraph(t, document("n1")).DraftRevisionID()
+	if !revisionIDPattern.MatchString(first) {
+		t.Errorf("DraftRevisionID() = %q, want 16 lowercase hex characters", first)
+	}
+
+	if again := saveNewGraph(t, document("n1")).DraftRevisionID(); again != first {
+		t.Errorf("DraftRevisionID() for the same document = %q, want %q", again, first)
+	}
+
+	if other := saveNewGraph(t, document("n2")).DraftRevisionID(); other == first {
+		t.Errorf("DraftRevisionID() for a different document = %q, want it to differ from %q", other, first)
+	}
+}
+
+func TestSaveGraphKeepsDraftRevisionIDWhenResavingSameDocument(t *testing.T) {
+	t.Parallel()
+
+	existing := venueGraph(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), eventID).Return(existing, nil)
+	graphs.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil)
+
+	graph, err := application.NewGraphService(graphs).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+		EventPublicID: eventID,
+		Document:      document("n1"),
+	})
+	if err != nil {
+		t.Fatalf("SaveGraph() error = %v", err)
+	}
+
+	if graph.DraftRevisionID() != existing.DraftRevisionID() {
+		t.Errorf("DraftRevisionID() = %q, want the existing %q", graph.DraftRevisionID(), existing.DraftRevisionID())
+	}
+}
+
+func TestSaveGraphRejectsUnencodableLayoutWithoutSaving(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), eventID).Return(domain.VenueGraph{}, repository.ErrGraphNotFound)
+
+	draft := document("n1")
+	draft.Nodes[0].Layout.X = math.NaN()
+
+	_, err := application.NewGraphService(graphs).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+		EventPublicID: eventID,
+		Document:      draft,
+	})
+	if !errors.Is(err, domain.ErrInvalidGraphDocument) {
+		t.Errorf("SaveGraph() error = %v, want %v", err, domain.ErrInvalidGraphDocument)
+	}
 }
 
 func TestSaveGraphCreatesGraphOnFirstSave(t *testing.T) {
@@ -78,7 +165,7 @@ func TestSaveGraphCreatesGraphOnFirstSave(t *testing.T) {
 func TestSaveGraphReplacesDraftOfExistingGraph(t *testing.T) {
 	t.Parallel()
 
-	existing := domain.NewVenueGraph(tenantID, eventID, *document("old"), "0000000000000000")
+	existing := venueGraph(t, tenantID, document("old"))
 
 	ctrl := gomock.NewController(t)
 	graphs := NewMockGraphRepository(ctrl)
@@ -109,7 +196,7 @@ func TestSaveGraphReplacesDraftOfExistingGraph(t *testing.T) {
 	}
 
 	if id := saved.DraftRevisionID(); id == existing.DraftRevisionID() || !revisionIDPattern.MatchString(id) {
-		t.Errorf("DraftRevisionID() = %q, want a fresh 16 hex character ID", id)
+		t.Errorf("DraftRevisionID() = %q, want a 16 hex character ID that differs from the old draft's", id)
 	}
 }
 
@@ -172,7 +259,7 @@ func TestSaveGraphRejectsGraphOfAnotherTenant(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	graphs := NewMockGraphRepository(ctrl)
 	graphs.EXPECT().FindByEventPublicID(gomock.Any(), eventID).
-		Return(domain.NewVenueGraph("ffffffffffffffff", eventID, *document("old"), "0000000000000000"), nil)
+		Return(venueGraph(t, "ffffffffffffffff", document("old")), nil)
 
 	_, err := application.NewGraphService(graphs).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,

@@ -2,10 +2,7 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
 
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
@@ -56,16 +53,11 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 		return domain.VenueGraph{}, err
 	}
 
-	draftRevisionID, err := newRevisionID()
-	if err != nil {
-		return domain.VenueGraph{}, err
-	}
-
 	graph, err := s.graphs.FindByEventPublicID(ctx, input.EventPublicID)
 
 	switch {
 	case errors.Is(err, repository.ErrGraphNotFound):
-		graph = domain.NewVenueGraph(tenantPublicID, input.EventPublicID, *input.Document, draftRevisionID)
+		graph, err = domain.NewVenueGraph(tenantPublicID, input.EventPublicID, *input.Document)
 	case err != nil:
 		return domain.VenueGraph{}, err
 	default:
@@ -73,7 +65,11 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 			return domain.VenueGraph{}, err
 		}
 
-		graph = graph.WithDraft(*input.Document, draftRevisionID)
+		graph, err = graph.WithDraft(*input.Document)
+	}
+
+	if err != nil {
+		return domain.VenueGraph{}, err
 	}
 
 	if err := s.graphs.Save(ctx, graph); err != nil {
@@ -81,13 +77,4 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 	}
 
 	return graph, nil
-}
-
-func newRevisionID() (string, error) {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate revision ID: %w", err)
-	}
-
-	return hex.EncodeToString(b), nil
 }
