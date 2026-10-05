@@ -15,6 +15,7 @@ import (
 	connectinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/connect"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/infra/httpapi"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/infra/memory"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/logging"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/telemetry"
 )
@@ -79,14 +80,16 @@ func run() error {
 
 	greetService := application.NewGreetService(dbinfra.NewPostgresGreetingRepository(db))
 
-	greetRoutes, err := connectinfra.RoutesWithJWTSettings(greetService, jwtSettings)
+	graphService := application.NewGraphService(memory.NewGraphRepository())
+
+	routes, err := connectinfra.RoutesWithJWTSettings(greetService, graphService, jwtSettings)
 	if err != nil {
 		return fmt.Errorf("build handler: %w", err)
 	}
 
 	handler := httpapi.NewHandler(
 		httpapi.HealthRoutes(httpapi.ReadinessCheck{Name: "database", Check: db.PingContext}),
-		greetRoutes,
+		routes,
 	)
 
 	httpServer := &http.Server{

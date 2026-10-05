@@ -69,7 +69,7 @@ func newTestVerifier(t *testing.T, keys internaljwt.JWKS) *verifier.Verifier {
 func newTestHandler(t *testing.T, keys internaljwt.JWKS, greetService application.GreetUseCases) http.Handler {
 	t.Helper()
 
-	routes, err := RoutesWithVerifier(greetService, newTestVerifier(t, keys))
+	routes, err := RoutesWithVerifier(greetService, newTestGraphService(), newTestVerifier(t, keys))
 	if err != nil {
 		t.Fatalf("RoutesWithVerifier() error = %v", err)
 	}
@@ -98,7 +98,7 @@ func newTestHandlerForJWKSURL(t *testing.T, jwksURL string, greetService applica
 		t.Fatalf("create internal JWT verifier: %v", err)
 	}
 
-	routes, err := RoutesWithVerifier(greetService, tokenVerifier)
+	routes, err := RoutesWithVerifier(greetService, newTestGraphService(), tokenVerifier)
 	if err != nil {
 		t.Fatalf("RoutesWithVerifier() error = %v", err)
 	}
@@ -150,7 +150,7 @@ func TestRoutesWithJWTSettings(t *testing.T) {
 		settings := DefaultJWTSettings()
 		settings.JWKSURL = newTestJWKSURL(t, keys)
 
-		routes, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), settings)
+		routes, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), newTestGraphService(), settings)
 		if err != nil {
 			t.Fatalf("RoutesWithJWTSettings() error = %v", err)
 		}
@@ -181,7 +181,7 @@ func TestRoutesWithJWTSettings(t *testing.T) {
 		settings := DefaultJWTSettings()
 		settings.JWKSURL = ""
 
-		_, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), settings)
+		_, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), newTestGraphService(), settings)
 		if !errors.Is(err, jwks.ErrMissingURL) {
 			t.Fatalf("RoutesWithJWTSettings() error = %v, want %v", err, jwks.ErrMissingURL)
 		}
