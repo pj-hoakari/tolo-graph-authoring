@@ -4,6 +4,13 @@ modules:
 lint:
   use:
     - STANDARD
+  ignore_only:
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - proto/tolo/graph
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/tolo/graph
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/tolo/graph
 breaking:
   use:
     - FILE
