@@ -284,6 +284,9 @@ message GetGatePointsResponse {
 - ルートの表示名（`GraphEdge.label`）は任意。未設定のルートはゲスト側が端点ポイント名から合成する（`route_endpoints` を併せて供給）
 - グラフ版はグラフ文書全体のスナップショット
   PublishRevision で全体を1版として公開し、下流は常に整合した現在版を消費する。公開済み版の文書と導出結果は変更しない。差分供給は将来の最適化
-  版の同一性判定（スナップショットの保存形と比較方式）は実装フェーズで確定する
+  版の同一性は文書の内容で判定する。`draft_revision_id` は保存した文書の内容から導出し（同じ文書は同じ ID）、`SaveGraph` は同じ文書の再保存に対して同じ `GraphMeta` を返す（冪等）
+  `PublishRevision` は公開時点の `draft_revision_id` をそのまま `revision_id` とする。`draft_revision_id` と `revision_id` が異なるとき、公開版に対して未公開の編集がある（編集中）とみなす。編集後に公開版と同じ内容へ戻した文書は編集中とみなさない
+  導出は文書の直列化に依存し、構造的に同一でも要素の順序が異なる文書は別の ID になる。構造の正規化は構造検証の導入時に行う。スナップショットの保存形は DB スキーマとあわせて確定する
+  同時編集の検出（後勝ちの防止）は本判定の対象外とする
 - イベントアーカイブ時は会場グラフ・紐づけを保持し読み取り専用化する
   編集系 RPC は `failed_precondition`、供給系 RPC（GetCurrentRevision 等）は継続。復元（EventUnarchived）で編集を再開できる
