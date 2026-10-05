@@ -102,3 +102,35 @@ func VerifyOwnership(ctx context.Context, tenantPublicID string) error {
 
 	return nil
 }
+
+var (
+	ErrEventMissing  = errors.New("event ID is missing from context")
+	ErrEventMismatch = errors.New("event ID does not match context")
+)
+
+func EventPublicIDFromContext(ctx context.Context) (string, bool) {
+	claims, ok := internaljwt.ClaimsFromContext(ctx)
+	if !ok {
+		return "", false
+	}
+
+	eventPublicID := strings.TrimSpace(claims.EventPublicID)
+	if eventPublicID == "" {
+		return "", false
+	}
+
+	return eventPublicID, true
+}
+
+func EnsureEvent(ctx context.Context, eventPublicID string) error {
+	contextEventPublicID, ok := EventPublicIDFromContext(ctx)
+	if !ok {
+		return ErrEventMissing
+	}
+
+	if contextEventPublicID != eventPublicID {
+		return ErrEventMismatch
+	}
+
+	return nil
+}
