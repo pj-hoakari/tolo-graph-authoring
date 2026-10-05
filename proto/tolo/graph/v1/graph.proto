@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+package tolo.graph.v1;
+
+import "authz/v1/options.proto";
+import "tolo/kernel/v1/kernel.proto";
+
+service GraphAuthoringService {
+  rpc SaveGraph(SaveGraphRequest) returns (GraphMeta) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+  rpc MapObservationPoint(MapObservationPointRequest) returns (ObservationPointMapping) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+  rpc AddQrLocation(AddQrLocationRequest) returns (QrLocation) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+  rpc UpdateQrLocation(UpdateQrLocationRequest) returns (QrLocation) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+  rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveResponse) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+  rpc GetGraph(GetGraphRequest) returns (GetGraphResponse) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.read"
+      token_uses: "event_access"
+    };
+  }
+  rpc PublishRevision(PublishRevisionRequest) returns (GraphMeta) {
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "events.manage"
+      token_uses: "event_access"
+    };
+  }
+}
+
+service GraphSupplyService {
+  option (authz.v1.service_auth_policy) = { level: AUTH_LEVEL_INTERNAL };
+  rpc GetCurrentRevision(GetCurrentRevisionRequest) returns (tolo.kernel.v1.Graph);
+  rpc GetObservationPointMappings(GetMappingsRequest) returns (GetMappingsResponse);
+  rpc GetDisplayNames(GetDisplayNamesRequest) returns (GetDisplayNamesResponse);
+  rpc GetGatePoints(GetGatePointsRequest) returns (GetGatePointsResponse);
+  rpc GetQrLocations(GetQrLocationsRequest) returns (GetQrLocationsResponse);
+}
+
+message GraphMeta {
+  string event_id = 1;
+  string revision_id = 2;
+  string draft_revision_id = 3;
+}
+
+message GraphDocument {
+  repeated GraphNode nodes = 1;
+  repeated NodeGroup groups = 2;
+  repeated GraphEdge edges = 3;
+}
+
+message GraphNode {
+  string node_id = 1;
+  NodeType node_type = 2;
+  map<string, string> labels = 3;
+  string group_id = 4;
+  Layout layout = 5;
+}
+
+enum NodeType {
+  NODE_TYPE_UNSPECIFIED = 0;
+  NODE_TYPE_GOAL = 1;
+  NODE_TYPE_GOAL_TRANSIT_MIXED = 2;
+  NODE_TYPE_TRANSIT_ONLY = 3;
+  NODE_TYPE_BOUNDARY = 4;
+}
+
+message NodeGroup {
+  string group_id = 1;
+  map<string, string> labels = 2;
+  Layout layout = 3;
+}
+
+message Layout {
+  double x = 1;
+  double y = 2;
+  optional double width = 3;
+  optional double height = 4;
+}
+
+message GraphEdge {
+  string edge_id = 1;
+  string source_node_id = 2;
+  string target_node_id = 3;
+  EdgeDirection direction = 4;
+  optional string label = 5;
+}
+
+enum EdgeDirection {
+  EDGE_DIRECTION_UNSPECIFIED = 0;
+  EDGE_DIRECTION_ONE_WAY = 1;
+  EDGE_DIRECTION_BOTH_WAYS = 2;
+}
+
+message SaveGraphRequest {
+  string event_id = 1;
+  GraphDocument document = 2;
+}
+
+message RemoveResponse {}
+
+message ObservationPointMapping {
+  string observation_point_id = 1;
+  tolo.kernel.v1.GraphAnchor anchor = 2;
+}
+
+message MapObservationPointRequest {
+  string event_id = 1;
+  ObservationPointMapping mapping = 2;
+}
+
+message QrLocation {
+  string qr_location_id = 1;
+  string name = 2;
+  string kind = 3;
+  tolo.kernel.v1.GraphAnchor anchor = 4;
+}
+
+message AddQrLocationRequest {
+  string event_id = 1;
+  QrLocation qr_location = 2;
+}
+
+message UpdateQrLocationRequest {
+  string event_id = 1;
+  QrLocation qr_location = 2;
+}
+
+message RemoveQrLocationRequest {
+  string event_id = 1;
+  string qr_location_id = 2;
+}
+
+message GetQrLocationsRequest {
+  string event_id = 1;
+}
+
+message GetQrLocationsResponse {
+  repeated QrLocation qr_locations = 1;
+}
+
+message GetGraphRequest {
+  string event_id = 1;
+}
+
+message GetGraphResponse {
+  GraphMeta meta = 1;
+  GraphDocument document = 2;
+  repeated ObservationPointMapping observation_point_mappings = 3;
+  repeated QrLocation qr_locations = 4;
+}
+
+message PublishRevisionRequest {
+  string event_id = 1;
+}
+
+message GetCurrentRevisionRequest {
+  string event_id = 1;
+}
+
+message GetMappingsRequest {
+  string event_id = 1;
+}
+
+message GetMappingsResponse {
+  string revision_id = 1;
+  repeated ObservationPointMapping mappings = 2;
+}
+
+message GetDisplayNamesRequest {
+  string event_id = 1;
+}
+
+message GetDisplayNamesResponse {
+  string revision_id = 1;
+  map<string, LocalizedText> display_names = 2;
+  map<string, string> route_display_names = 3;
+  map<string, RouteEndpoints> route_endpoints = 4;
+}
+
+message LocalizedText {
+  map<string, string> texts = 1;
+}
+
+message RouteEndpoints {
+  string from_point_id = 1;
+  string to_point_id = 2;
+}
+
+message GetGatePointsRequest {
+  string event_id = 1;
+}
+
+message GetGatePointsResponse {
+  string revision_id = 1;
+  repeated string gate_point_ids = 2;
+}
