@@ -23,8 +23,17 @@ type SaveGraphUseCase interface {
 	SaveGraph(context.Context, SaveGraphInput) (domain.VenueGraph, error)
 }
 
+type PublishRevisionInput struct {
+	EventPublicID string
+}
+
+type PublishRevisionUseCase interface {
+	PublishRevision(context.Context, PublishRevisionInput) (domain.VenueGraph, error)
+}
+
 type GraphUseCases interface {
 	SaveGraphUseCase
+	PublishRevisionUseCase
 }
 
 type GraphService struct {
@@ -89,4 +98,46 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 	}
 
 	return saved, nil
+}
+
+func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisionInput) (domain.VenueGraph, error) {
+	if input.EventPublicID == "" {
+		return domain.VenueGraph{}, ErrEventIDRequired
+	}
+
+	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
+	if !ok {
+		return domain.VenueGraph{}, tenantctx.ErrMissing
+	}
+
+	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
+		return domain.VenueGraph{}, err
+	}
+
+	var published domain.VenueGraph
+
+	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
+		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
+		if err != nil {
+			return err
+		}
+
+		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+			return err
+		}
+
+		graph = graph.Published()
+		if err := s.graphs.Publish(ctx, graph); err != nil {
+			return err
+		}
+
+		published = graph
+
+		return nil
+	})
+	if err != nil {
+		return domain.VenueGraph{}, err
+	}
+
+	return published, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 )
 
@@ -47,11 +48,24 @@ func (s *GraphService) SaveGraph(ctx context.Context, req *connectrpc.Request[gr
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(&graphv1.GraphMeta{
+	return connectrpc.NewResponse(graphMeta(graph)), nil
+}
+
+func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Request[graphv1.PublishRevisionRequest]) (*connectrpc.Response[graphv1.GraphMeta], error) {
+	graph, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.Msg.GetEventId()})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(graphMeta(graph)), nil
+}
+
+func graphMeta(graph domain.VenueGraph) *graphv1.GraphMeta {
+	return &graphv1.GraphMeta{
 		EventId:         graph.EventPublicID(),
 		RevisionId:      graph.RevisionID(),
 		DraftRevisionId: graph.DraftRevisionID(),
-	}), nil
+	}
 }
 
 func graphError(ctx context.Context, err error) *connectrpc.Error {
@@ -63,6 +77,8 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, err)
+	case errors.Is(err, repository.ErrGraphNotFound):
+		return connectrpc.NewError(connectrpc.CodeNotFound, err)
 	case errors.Is(err, dbinfra.ErrTransactionAborted):
 		return connectrpc.NewError(connectrpc.CodeAborted, err)
 	default:
