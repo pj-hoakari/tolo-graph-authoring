@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -353,5 +354,173 @@ func TestSaveGraphFailsWhenTransactionDoesNotCommit(t *testing.T) {
 
 	if graph.DraftRevisionID() != "" {
 		t.Errorf("SaveGraph() returned DraftRevisionID() = %q for an uncommitted save, want empty", graph.DraftRevisionID())
+	}
+}
+
+func publish(ctx context.Context, graphs repository.GraphRepository) (domain.VenueGraph, error) {
+	return application.NewGraphService(graphs, fakeTransactor{}).PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: eventID})
+}
+
+func TestPublishRevisionPublishesDraftUnderLockInOneTransaction(t *testing.T) {
+	t.Parallel()
+
+	draft := venueGraph(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	gomock.InOrder(
+		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(draft, nil),
+		graphs.EXPECT().Publish(inTransaction, draft.Published()).Return(nil),
+	)
+
+	graph, err := publish(eventContext(tenantID, eventID), graphs)
+	if err != nil {
+		t.Fatalf("PublishRevision() error = %v", err)
+	}
+
+	if graph.RevisionID() != draft.DraftRevisionID() || graph.DraftRevisionID() != draft.DraftRevisionID() {
+		t.Errorf("PublishRevision() revision = %q, draft revision = %q, want both %q",
+			graph.RevisionID(), graph.DraftRevisionID(), draft.DraftRevisionID())
+	}
+}
+
+func TestPublishRevisionWithoutDraftPublishesNothing(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(domain.VenueGraph{}, repository.ErrGraphNotFound)
+
+	if _, err := publish(eventContext(tenantID, eventID), graphs); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("PublishRevision() error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+}
+
+func TestPublishRevisionRejectsGraphOfAnotherTenant(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(venueGraph(t, "ffffffffffffffff", document("n1")), nil)
+
+	if _, err := publish(eventContext(tenantID, eventID), graphs); !errors.Is(err, tenantctx.ErrMismatch) {
+		t.Errorf("PublishRevision() error = %v, want %v", err, tenantctx.ErrMismatch)
+	}
+}
+
+func TestPublishRevisionRejectsUnauthorizedContext(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		ctx   context.Context
+		input application.PublishRevisionInput
+		want  error
+	}{
+		{"missing event ID", eventContext(tenantID, eventID), application.PublishRevisionInput{EventPublicID: ""}, application.ErrEventIDRequired},
+		{"other event", eventContext(tenantID, "0123456789abcdef"), application.PublishRevisionInput{EventPublicID: eventID}, tenantctx.ErrEventMismatch},
+		{"no tenant claim", eventContext("", eventID), application.PublishRevisionInput{EventPublicID: eventID}, tenantctx.ErrMissing},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+
+			if _, err := service.PublishRevision(tt.ctx, tt.input); !errors.Is(err, tt.want) {
+				t.Errorf("PublishRevision() error = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func serviceContext(tenantPublicID, eventPublicID string) context.Context {
+	return internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
+		TokenUse:       internaljwt.TokenUseService,
+		TenantPublicID: tenantPublicID,
+		EventPublicID:  eventPublicID,
+	})
+}
+
+func publishedRevision(tenantPublicID string) domain.PublishedRevision {
+	return domain.PublishedRevision{
+		TenantPublicID: tenantPublicID,
+		EventPublicID:  eventID,
+		RevisionID:     "0123456789abcdef",
+		Document:       *document("n1"),
+	}
+}
+
+func TestGetCurrentRevisionServesKernelGraphOfCurrentRevision(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+	}{
+		{"machine-origin service token", serviceContext("", "")},
+		{"user-origin service token of the event", serviceContext(tenantID, eventID)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
+
+			got, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(tc.ctx, application.GetCurrentRevisionInput{EventPublicID: eventID})
+			if err != nil {
+				t.Fatalf("GetCurrentRevision() error = %v", err)
+			}
+
+			if want := publishedRevision(tenantID).KernelGraph(); !reflect.DeepEqual(got, want) {
+				t.Errorf("GetCurrentRevision() = %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestGetCurrentRevisionRejectsUnauthorizedRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		ctx     context.Context
+		eventID string
+		want    error
+	}{
+		{"missing event ID", serviceContext("", ""), "", application.ErrEventIDRequired},
+		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), eventID, tenantctx.ErrEventMismatch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+
+			if _, err := service.GetCurrentRevision(tc.ctx, application.GetCurrentRevisionInput{EventPublicID: tc.eventID}); !errors.Is(err, tc.want) {
+				t.Errorf("GetCurrentRevision() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetCurrentRevisionRejectsRevisionOfAnotherTenant(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision("ffffffffffffffff"), nil)
+
+	_, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(serviceContext(tenantID, eventID), application.GetCurrentRevisionInput{EventPublicID: eventID})
+	if !errors.Is(err, tenantctx.ErrMismatch) {
+		t.Errorf("GetCurrentRevision() error = %v, want %v", err, tenantctx.ErrMismatch)
+	}
+}
+
+func TestGetCurrentRevisionPropagatesUnpublishedEvent(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(domain.PublishedRevision{}, repository.ErrGraphNotFound)
+
+	_, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(serviceContext("", ""), application.GetCurrentRevisionInput{EventPublicID: eventID})
+	if !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("GetCurrentRevision() error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 }

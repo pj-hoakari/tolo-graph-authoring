@@ -136,6 +136,24 @@ func decodeDraft(columns draftColumns) (domain.GraphDocument, error) {
 		return domain.GraphDocument{}, fmt.Errorf("decode graph draft: %w", err)
 	}
 
+	return documentOf(kernel, labels, layout), nil
+}
+
+func decodeKernel(column []byte) (domain.GraphDocument, error) {
+	var (
+		kernel graphKernel
+		labels graphLabels
+		layout graphLayout
+	)
+
+	if err := json.Unmarshal(column, &kernel); err != nil {
+		return domain.GraphDocument{}, fmt.Errorf("decode graph kernel: %w", err)
+	}
+
+	return documentOf(kernel, labels, layout), nil
+}
+
+func documentOf(kernel graphKernel, labels graphLabels, layout graphLayout) domain.GraphDocument {
 	document := domain.GraphDocument{
 		Nodes:  emptyLike[domain.Node](kernel.Nodes),
 		Groups: emptyLike[domain.Group](kernel.Groups),
@@ -170,7 +188,7 @@ func decodeDraft(columns draftColumns) (domain.GraphDocument, error) {
 		})
 	}
 
-	return document, nil
+	return document
 }
 
 func emptyLike[U, T any](source []T) []U {

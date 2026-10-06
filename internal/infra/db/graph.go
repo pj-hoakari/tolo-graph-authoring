@@ -35,10 +35,17 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 		draftColumns
 
 		TenantPublicID string `db:"tenant_public_id"`
+		RevisionID     string `db:"revision_id"`
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.tenant_public_id, d.kernel, d.labels, d.layout
+		SELECT d.tenant_public_id, d.kernel, d.labels, d.layout,
+			COALESCE((
+				SELECT r.revision_id FROM graph_revisions r
+				WHERE r.event_public_id = d.event_public_id
+				ORDER BY r.last_published_at DESC
+				LIMIT 1
+			), '') AS revision_id
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
@@ -57,7 +64,7 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 		return domain.VenueGraph{}, err
 	}
 
-	return domain.NewVenueGraph(row.TenantPublicID, eventPublicID, document)
+	return domain.RestoreVenueGraph(row.TenantPublicID, eventPublicID, document, row.RevisionID)
 }
 
 func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGraph) error {
@@ -92,6 +99,65 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGr
 
 		return requireRowWritten(draft, err, "save graph draft")
 	})
+}
+
+func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.VenueGraph) error {
+	result, err := r.executor(ctx).ExecContext(ctx, `
+		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, layout)
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, layout
+		FROM graph_drafts
+		WHERE event_public_id = $1 AND tenant_public_id = $2
+		ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at`,
+		graph.EventPublicID(), graph.TenantPublicID())
+	if err != nil {
+		return fmt.Errorf("publish graph revision: %w", err)
+	}
+
+	published, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("publish graph revision: %w", err)
+	}
+
+	if published == 0 {
+		return repository.ErrGraphNotFound
+	}
+
+	return nil
+}
+
+func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+	var row struct {
+		TenantPublicID string `db:"tenant_public_id"`
+		RevisionID     string `db:"revision_id"`
+		Kernel         []byte `db:"kernel"`
+	}
+
+	err := sqlx.GetContext(ctx, Executor(ctx, r.db), &row, `
+		SELECT tenant_public_id, revision_id, kernel
+		FROM graph_revisions
+		WHERE event_public_id = $1
+		ORDER BY last_published_at DESC
+		LIMIT 1`,
+		eventPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.PublishedRevision{}, repository.ErrGraphNotFound
+	}
+
+	if err != nil {
+		return domain.PublishedRevision{}, fmt.Errorf("find current graph revision: %w", err)
+	}
+
+	document, err := decodeKernel(row.Kernel)
+	if err != nil {
+		return domain.PublishedRevision{}, err
+	}
+
+	return domain.PublishedRevision{
+		TenantPublicID: row.TenantPublicID,
+		EventPublicID:  eventPublicID,
+		RevisionID:     row.RevisionID,
+		Document:       document,
+	}, nil
 }
 
 func requireRowWritten(result sql.Result, err error, operation string) error {

@@ -29,6 +29,12 @@ func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, 
 
 func (nopGraphRepository) Save(context.Context, domain.VenueGraph) error { return nil }
 
+func (nopGraphRepository) Publish(context.Context, domain.VenueGraph) error { return nil }
+
+func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
+	return domain.PublishedRevision{}, repository.ErrGraphNotFound
+}
+
 type inlineTransactor struct{}
 
 func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
@@ -122,6 +128,23 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
 	})
+}
+
+func TestPublishRevisionAnswersMissingDraftWithNotFound(t *testing.T) {
+	t.Parallel()
+
+	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
+	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+
+	req := connectrpc.NewRequest(&graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"})
+	req.Header().Set("Authorization", authorization)
+
+	_, err := client.PublishRevision(context.Background(), req)
+	if got, want := connectrpc.CodeOf(err), connectrpc.CodeNotFound; got != want {
+		t.Fatalf("PublishRevision() error code = %v, want %v", got, want)
+	}
 }
 
 func TestGraphErrorAnswersAbortedTransactionWithAborted(t *testing.T) {

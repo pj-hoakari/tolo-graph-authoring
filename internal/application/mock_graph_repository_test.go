@@ -56,6 +56,35 @@ func (mr *MockGraphRepositoryMockRecorder) FindByEventPublicIDForUpdate(ctx, ten
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByEventPublicIDForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindByEventPublicIDForUpdate), ctx, tenantPublicID, eventPublicID)
 }
 
+// FindCurrentRevision mocks base method.
+func (m *MockGraphRepository) FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindCurrentRevision", ctx, eventPublicID)
+	ret0, _ := ret[0].(domain.PublishedRevision)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindCurrentRevision indicates an expected call of FindCurrentRevision.
+func (mr *MockGraphRepositoryMockRecorder) FindCurrentRevision(ctx, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCurrentRevision", reflect.TypeOf((*MockGraphRepository)(nil).FindCurrentRevision), ctx, eventPublicID)
+}
+
+// Publish mocks base method.
+func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.VenueGraph) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Publish", ctx, graph)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Publish indicates an expected call of Publish.
+func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockGraphRepository)(nil).Publish), ctx, graph)
+}
+
 // Save mocks base method.
 func (m *MockGraphRepository) Save(ctx context.Context, graph domain.VenueGraph) error {
 	m.ctrl.T.Helper()

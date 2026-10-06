@@ -12,4 +12,6 @@ var ErrGraphNotFound = errors.New("graph not found")
 type GraphRepository interface {
 	FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.VenueGraph, error)
 	Save(ctx context.Context, graph domain.VenueGraph) error
+	Publish(ctx context.Context, graph domain.VenueGraph) error
+	FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error)
 }

@@ -134,3 +134,16 @@ func EnsureEvent(ctx context.Context, eventPublicID string) error {
 
 	return nil
 }
+
+func VerifyEvent(ctx context.Context, eventPublicID string) error {
+	contextEventPublicID, ok := EventPublicIDFromContext(ctx)
+	if !ok {
+		return nil
+	}
+
+	if contextEventPublicID != eventPublicID {
+		return ErrEventMismatch
+	}
+
+	return nil
+}
