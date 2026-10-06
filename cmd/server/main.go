@@ -77,12 +77,10 @@ func run() error {
 		}
 	}()
 
-	greetService := application.NewGreetService(dbinfra.NewPostgresGreetingRepository(db))
-
 	graphRepository := dbinfra.NewPostgresGraphRepository(db)
 	graphService := application.NewGraphService(graphRepository, graphRepository)
 
-	routes, err := connectinfra.RoutesWithJWTSettings(greetService, graphService, jwtSettings)
+	routes, err := connectinfra.RoutesWithJWTSettings(graphService, jwtSettings)
 	if err != nil {
 		return fmt.Errorf("build handler: %w", err)
 	}

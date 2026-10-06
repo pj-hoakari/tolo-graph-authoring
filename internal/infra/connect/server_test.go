@@ -16,11 +16,10 @@ import (
 	"github.com/pj-hoakari/internal-jwt-handling/jwtgen"
 	"github.com/pj-hoakari/internal-jwt-handling/verifier"
 
-	greetv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/greet/v1"
-	"github.com/pj-hoakari/tolo-graph-authoring/gen/greet/v1/greetv1connect"
+	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
+	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 )
 
 // newTestJWKSURL serves keys from an httptest endpoint, mirroring the Service
@@ -65,11 +64,11 @@ func newTestVerifier(t *testing.T, keys internaljwt.JWKS) *verifier.Verifier {
 }
 
 // newTestHandler builds a handler serving the production service routes wired
-// to a verifier trusting keys, serving greetService.
-func newTestHandler(t *testing.T, keys internaljwt.JWKS, greetService application.GreetUseCases) http.Handler {
+// to a verifier trusting keys, serving graphService.
+func newTestHandler(t *testing.T, keys internaljwt.JWKS, graphService application.GraphUseCases) http.Handler {
 	t.Helper()
 
-	routes, err := RoutesWithVerifier(greetService, newTestGraphService(), newTestVerifier(t, keys))
+	routes, err := RoutesWithVerifier(graphService, newTestVerifier(t, keys))
 	if err != nil {
 		t.Fatalf("RoutesWithVerifier() error = %v", err)
 	}
@@ -80,7 +79,7 @@ func newTestHandler(t *testing.T, keys internaljwt.JWKS, greetService applicatio
 	return mux
 }
 
-func newTestHandlerForJWKSURL(t *testing.T, jwksURL string, greetService application.GreetUseCases) http.Handler {
+func newTestHandlerForJWKSURL(t *testing.T, jwksURL string) http.Handler {
 	t.Helper()
 
 	cache, err := jwks.New(jwks.Config{
@@ -98,7 +97,7 @@ func newTestHandlerForJWKSURL(t *testing.T, jwksURL string, greetService applica
 		t.Fatalf("create internal JWT verifier: %v", err)
 	}
 
-	routes, err := RoutesWithVerifier(greetService, newTestGraphService(), tokenVerifier)
+	routes, err := RoutesWithVerifier(newTestGraphService(), tokenVerifier)
 	if err != nil {
 		t.Fatalf("RoutesWithVerifier() error = %v", err)
 	}
@@ -114,29 +113,60 @@ func newTestHandlerForJWKSURL(t *testing.T, jwksURL string, greetService applica
 func mintInternalJWT(t *testing.T, tokenUse, scope, tenantPublicID string) (string, internaljwt.JWKS) {
 	t.Helper()
 
-	return mintInternalJWTFor(t, DefaultInternalJWTIssuer, DefaultInternalJWTAudience, tokenUse, scope, tenantPublicID)
+	return mintJWT(t, jwtgen.Config{TokenUse: tokenUse, TenantPublicID: tenantPublicID, Scope: scope})
 }
 
-// mintInternalJWTFor issues an internal JWT signed by a fresh key, returning
-// the Authorization header value and the JWKS document publishing the key. An
-// empty tenantPublicID omits the tenant_id claim.
-func mintInternalJWTFor(t *testing.T, issuer, audience, tokenUse, scope, tenantPublicID string) (string, internaljwt.JWKS) {
+func mintEventAccessJWT(t *testing.T, tenantPublicID, eventPublicID string) (string, internaljwt.JWKS) {
 	t.Helper()
 
-	output, err := jwtgen.Generate(jwtgen.Config{
-		Issuer:         issuer,
-		Audience:       audience,
-		TokenUse:       tokenUse,
+	return mintJWT(t, jwtgen.Config{
+		TokenUse:       internaljwt.TokenUseEventAccess,
 		TenantPublicID: tenantPublicID,
-		Scope:          scope,
-		KeyID:          "test-key",
-		TTL:            time.Hour,
+		EventPublicID:  eventPublicID,
+		Scope:          "events.manage",
 	})
+}
+
+func mintJWT(t *testing.T, config jwtgen.Config) (string, internaljwt.JWKS) {
+	t.Helper()
+
+	if config.Issuer == "" {
+		config.Issuer = DefaultInternalJWTIssuer
+	}
+
+	if config.Audience == "" {
+		config.Audience = DefaultInternalJWTAudience
+	}
+
+	config.KeyID = "test-key"
+	config.TTL = time.Hour
+
+	output, err := jwtgen.Generate(config)
 	if err != nil {
 		t.Fatalf("generate internal JWT: %v", err)
 	}
 
 	return "Bearer " + output.Token, output.JWKS
+}
+
+func saveGraphThrough(t *testing.T, handler http.Handler, authorization string) (*connectrpc.Response[graphv1.GraphMeta], error) {
+	t.Helper()
+
+	httpServer := httptest.NewServer(handler)
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+
+	req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+		EventId: "fedcba9876543210",
+		Document: &graphv1.GraphDocument{
+			Nodes: []*graphv1.GraphNode{{NodeId: "n1", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}},
+		},
+	})
+	if authorization != "" {
+		req.Header().Set("Authorization", authorization)
+	}
+
+	return client.SaveGraph(context.Background(), req)
 }
 
 func TestRoutesWithJWTSettings(t *testing.T) {
@@ -145,12 +175,12 @@ func TestRoutesWithJWTSettings(t *testing.T) {
 	t.Run("verifies a token against the JWKS the settings locate", func(t *testing.T) {
 		t.Parallel()
 
-		authorization, keys := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
+		authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 
 		settings := DefaultJWTSettings()
 		settings.JWKSURL = newTestJWKSURL(t, keys)
 
-		routes, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), newTestGraphService(), settings)
+		routes, err := RoutesWithJWTSettings(newTestGraphService(), settings)
 		if err != nil {
 			t.Fatalf("RoutesWithJWTSettings() error = %v", err)
 		}
@@ -158,20 +188,8 @@ func TestRoutesWithJWTSettings(t *testing.T) {
 		mux := http.NewServeMux()
 		routes(mux)
 
-		httpServer := httptest.NewServer(mux)
-		t.Cleanup(httpServer.Close)
-		client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
-
-		req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-		req.Header().Set("Authorization", authorization)
-
-		res, err := client.Greet(context.Background(), req)
-		if err != nil {
-			t.Fatalf("Greet() error = %v", err)
-		}
-
-		if got, want := res.Msg.GetGreeting(), "Hello, Ada!"; got != want {
-			t.Errorf("Greeting = %q, want %q", got, want)
+		if _, err := saveGraphThrough(t, mux, authorization); err != nil {
+			t.Fatalf("SaveGraph() error = %v", err)
 		}
 	})
 
@@ -181,85 +199,68 @@ func TestRoutesWithJWTSettings(t *testing.T) {
 		settings := DefaultJWTSettings()
 		settings.JWKSURL = ""
 
-		_, err := RoutesWithJWTSettings(application.NewGreetService(nopGreetingRepository{}), newTestGraphService(), settings)
+		_, err := RoutesWithJWTSettings(newTestGraphService(), settings)
 		if !errors.Is(err, jwks.ErrMissingURL) {
 			t.Fatalf("RoutesWithJWTSettings() error = %v, want %v", err, jwks.ErrMissingURL)
 		}
 	})
 }
 
-func TestGreetServiceAuthz(t *testing.T) {
+func TestGraphAuthoringServiceAuthz(t *testing.T) {
 	t.Parallel()
 
-	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
+	handler := newTestHandler(t, keys, newTestGraphService())
 
 	t.Run("rejects missing bearer token", func(t *testing.T) {
-		_, err := client.Greet(context.Background(), connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"}))
-		if connectrpc.CodeOf(err) != connectrpc.CodeUnauthenticated {
-			t.Fatalf("Greet() error code = %v, want %v", connectrpc.CodeOf(err), connectrpc.CodeUnauthenticated)
+		_, err := saveGraphThrough(t, handler, "")
+		if got, want := connectrpc.CodeOf(err), connectrpc.CodeUnauthenticated; got != want {
+			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
 	})
 
 	t.Run("accepts internal JWT with required scope", func(t *testing.T) {
-		req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-		req.Header().Set("Authorization", authorization)
-
-		res, err := client.Greet(context.Background(), req)
-		if err != nil {
-			t.Fatalf("Greet() error = %v", err)
-		}
-
-		if got, want := res.Msg.GetGreeting(), "Hello, Ada!"; got != want {
-			t.Errorf("Greeting = %q, want %q", got, want)
+		if _, err := saveGraphThrough(t, handler, authorization); err != nil {
+			t.Fatalf("SaveGraph() error = %v", err)
 		}
 	})
 }
 
-func TestGreetServiceAuthzRejectsMissingScope(t *testing.T) {
+func TestGraphAuthoringServiceAuthzRejectsMissingScope(t *testing.T) {
 	t.Parallel()
 
-	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.write", "a1b2c3d4e5f60718")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	authorization, keys := mintJWT(t, jwtgen.Config{
+		TokenUse:       internaljwt.TokenUseEventAccess,
+		TenantPublicID: "a1b2c3d4e5f60718",
+		EventPublicID:  "fedcba9876543210",
+		Scope:          "events.read",
+	})
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", authorization)
-
-	_, err := client.Greet(context.Background(), req)
+	_, err := saveGraphThrough(t, newTestHandler(t, keys, newTestGraphService()), authorization)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodePermissionDenied; got != want {
-		t.Fatalf("Greet() error code = %v, want %v", got, want)
+		t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 	}
 }
 
-func TestGreetServiceAuthzRejectsUnknownSigningKey(t *testing.T) {
+func TestGraphAuthoringServiceAuthzRejectsUnknownSigningKey(t *testing.T) {
 	t.Parallel()
 
 	// The handler trusts a JWKS publishing neither the key nor the kid that
 	// signed the token below.
-	_, trustedKeys := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
+	_, trustedKeys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 	for i := range trustedKeys.Keys {
 		trustedKeys.Keys[i].KeyID = "other-key"
 	}
 
-	foreignAuthorization, _ := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
-	httpServer := httptest.NewServer(newTestHandler(t, trustedKeys, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	foreignAuthorization, _ := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", foreignAuthorization)
-
-	_, err := client.Greet(context.Background(), req)
+	_, err := saveGraphThrough(t, newTestHandler(t, trustedKeys, newTestGraphService()), foreignAuthorization)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeUnauthenticated; got != want {
-		t.Fatalf("Greet() error code = %v, want %v", got, want)
+		t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 	}
 }
 
-func TestGreetServiceAuthzUnavailableWhenJWKSUnreachable(t *testing.T) {
+func TestGraphAuthoringServiceAuthzUnavailableWhenJWKSUnreachable(t *testing.T) {
 	t.Parallel()
 
 	jwksServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -267,93 +268,69 @@ func TestGreetServiceAuthzUnavailableWhenJWKSUnreachable(t *testing.T) {
 	}))
 	t.Cleanup(jwksServer.Close)
 
-	authorization, _ := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
-	httpServer := httptest.NewServer(newTestHandlerForJWKSURL(t, jwksServer.URL, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	authorization, _ := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", authorization)
-
-	_, err := client.Greet(context.Background(), req)
+	_, err := saveGraphThrough(t, newTestHandlerForJWKSURL(t, jwksServer.URL), authorization)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeUnavailable; got != want {
-		t.Fatalf("Greet() error code = %v, want %v", got, want)
+		t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 	}
 }
 
-func TestGreetServiceAuthzRejectsServiceToken(t *testing.T) {
+func TestGraphAuthoringServiceAuthzRejectsServiceToken(t *testing.T) {
 	t.Parallel()
 
-	// AUTH_LEVEL_AUTHENTICATED admits the default token_use only, so a service
-	// token is not a credential for this RPC.
 	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", authorization)
-
-	_, err := client.Greet(context.Background(), req)
+	_, err := saveGraphThrough(t, newTestHandler(t, keys, newTestGraphService()), authorization)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeUnauthenticated; got != want {
-		t.Fatalf("Greet() error code = %v, want %v", got, want)
+		t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 	}
 }
 
-func TestGreetServiceAuthzRejectsAudienceMismatch(t *testing.T) {
+func TestGraphAuthoringServiceAuthzRejectsAudienceMismatch(t *testing.T) {
 	t.Parallel()
 
 	// The token names another service as its audience, so it is not a
 	// credential this service may accept even though the key verifies.
-	authorization, keys := mintInternalJWTFor(
-		t,
-		DefaultInternalJWTIssuer,
-		"other-service",
-		internaljwt.TokenUseTenantAccess,
-		"greeting.read",
-		"a1b2c3d4e5f60718",
-	)
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	authorization, keys := mintJWT(t, jwtgen.Config{
+		Audience:       "other-service",
+		TokenUse:       internaljwt.TokenUseEventAccess,
+		TenantPublicID: "a1b2c3d4e5f60718",
+		EventPublicID:  "fedcba9876543210",
+		Scope:          "events.manage",
+	})
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", authorization)
-
-	_, err := client.Greet(context.Background(), req)
+	_, err := saveGraphThrough(t, newTestHandler(t, keys, newTestGraphService()), authorization)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeUnauthenticated; got != want {
-		t.Fatalf("Greet() error code = %v, want %v", got, want)
+		t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 	}
 }
 
-// tenantEchoService greets the tenant public ID found in the request context,
-// letting the test observe the verified tenant_id claim reaching the handler
-// without changing the real greet service.
-type tenantEchoService struct{}
+type savedGraphRepository struct {
+	nopGraphRepository
 
-func (tenantEchoService) Greet(ctx context.Context, _ application.GreetInput) (domain.Greeting, error) {
-	tenantPublicID, _ := tenantctx.TenantPublicIDFromContext(ctx)
-
-	return domain.NewGreeting(tenantPublicID)
+	saved *domain.VenueGraph
 }
 
-func TestGreetServiceInjectsTenantPublicID(t *testing.T) {
+func (r savedGraphRepository) Save(_ context.Context, graph domain.VenueGraph) error {
+	*r.saved = graph
+
+	return nil
+}
+
+func TestGraphAuthoringServiceInjectsTenantPublicID(t *testing.T) {
 	t.Parallel()
 
-	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseTenantAccess, "greeting.read", "a1b2c3d4e5f60718")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, tenantEchoService{}))
-	t.Cleanup(httpServer.Close)
-	client := greetv1connect.NewGreetServiceClient(httpServer.Client(), httpServer.URL)
+	var saved domain.VenueGraph
 
-	req := connectrpc.NewRequest(&greetv1.GreetRequest{Name: "Ada"})
-	req.Header().Set("Authorization", authorization)
+	graphs := application.NewGraphService(savedGraphRepository{nopGraphRepository: nopGraphRepository{}, saved: &saved}, inlineTransactor{})
+	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 
-	res, err := client.Greet(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Greet() error = %v", err)
+	if _, err := saveGraphThrough(t, newTestHandler(t, keys, graphs), authorization); err != nil {
+		t.Fatalf("SaveGraph() error = %v", err)
 	}
 
-	if got, want := res.Msg.GetGreeting(), "Hello, a1b2c3d4e5f60718!"; got != want {
-		t.Errorf("tenant ID echoed by handler = %q, want %q", got, want)
+	if got, want := saved.TenantPublicID(), "a1b2c3d4e5f60718"; got != want {
+		t.Errorf("saved TenantPublicID() = %q, want %q", got, want)
 	}
 }

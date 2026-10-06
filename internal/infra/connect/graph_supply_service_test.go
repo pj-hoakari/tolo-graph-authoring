@@ -31,7 +31,7 @@ func (r currentRevisionRepository) FindCurrentRevision(context.Context, string) 
 func newSupplyClient(t *testing.T, keys internaljwt.JWKS, graphs application.GraphUseCases) graphv1connect.GraphSupplyServiceClient {
 	t.Helper()
 
-	routes, err := RoutesWithVerifier(application.NewGreetService(nopGreetingRepository{}), graphs, newTestVerifier(t, keys))
+	routes, err := RoutesWithVerifier(graphs, newTestVerifier(t, keys))
 	if err != nil {
 		t.Fatalf("RoutesWithVerifier() error = %v", err)
 	}
