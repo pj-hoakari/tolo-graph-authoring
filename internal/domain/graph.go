@@ -79,6 +79,23 @@ func NewVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (V
 	}.WithDraft(draft)
 }
 
+func RestoreVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument, revisionID string) (VenueGraph, error) {
+	graph, err := NewVenueGraph(tenantPublicID, eventPublicID, draft)
+	if err != nil {
+		return VenueGraph{}, err
+	}
+
+	graph.revisionID = revisionID
+
+	return graph, nil
+}
+
+func (g VenueGraph) Published() VenueGraph {
+	g.revisionID = g.draftRevisionID
+
+	return g
+}
+
 func (g VenueGraph) WithDraft(draft GraphDocument) (VenueGraph, error) {
 	encoded, err := json.Marshal(draft)
 	if err != nil {

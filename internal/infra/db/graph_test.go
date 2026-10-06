@@ -23,7 +23,7 @@ const (
 func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	t.Helper()
 
-	if _, err := testDB.Exec(`TRUNCATE graph_drafts, graphs`); err != nil {
+	if _, err := testDB.Exec(`TRUNCATE graph_revisions, graph_drafts, graphs`); err != nil {
 		t.Fatalf("truncate graph tables: %v", err)
 	}
 
@@ -65,8 +65,8 @@ func assertDraft(t *testing.T, repo *PostgresGraphRepository, want domain.VenueG
 		t.Errorf("loaded DraftRevisionID() = %q, want %q", got.DraftRevisionID(), want.DraftRevisionID())
 	}
 
-	if got.RevisionID() != "" {
-		t.Errorf("loaded RevisionID() = %q, want empty", got.RevisionID())
+	if got.RevisionID() != want.RevisionID() {
+		t.Errorf("loaded RevisionID() = %q, want %q", got.RevisionID(), want.RevisionID())
 	}
 }
 
@@ -222,4 +222,111 @@ func TestSaveGraphOfAnotherTenantLeavesOwnerDraft(t *testing.T) {
 	if graphs != 0 {
 		t.Errorf("graphs owned by the other tenant = %d, want 0", graphs)
 	}
+}
+
+func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.GraphDocument) domain.VenueGraph {
+	t.Helper()
+
+	graph := newGraph(t, ownerTenant, document)
+	if err := repo.Save(context.Background(), graph); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	return graph
+}
+
+func publishGraph(t *testing.T, repo *PostgresGraphRepository, graph domain.VenueGraph) domain.VenueGraph {
+	t.Helper()
+
+	if err := repo.Publish(context.Background(), graph); err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+
+	return graph.Published()
+}
+
+func countRevisions(t *testing.T) int {
+	t.Helper()
+
+	var revisions int
+	if err := testDB.Get(&revisions, `SELECT COUNT(*) FROM graph_revisions`); err != nil {
+		t.Fatalf("count revisions: %v", err)
+	}
+
+	return revisions
+}
+
+func TestPostgresGraphRepositoryPublishCopiesDraft(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	published := publishGraph(t, repo, saveGraph(t, repo, richDocument()))
+
+	var copies int
+	if err := testDB.Get(&copies, `
+		SELECT COUNT(*) FROM graph_revisions r
+		JOIN graph_drafts d USING (event_public_id, tenant_public_id, revision_id)
+		WHERE r.kernel = d.kernel AND r.labels = d.labels AND r.layout = d.layout`); err != nil {
+		t.Fatalf("count revisions equal to the draft: %v", err)
+	}
+
+	if copies != 1 || countRevisions(t) != 1 {
+		t.Errorf("revisions equal to the draft = %d of %d, want 1 of 1", copies, countRevisions(t))
+	}
+
+	assertDraft(t, repo, published)
+}
+
+func TestPostgresGraphRepositoryRepublishMakesOlderRevisionCurrent(t *testing.T) {
+	repo := newTestGraphRepository(t)
+
+	first := publishGraph(t, repo, saveGraph(t, repo, singleNode("a")))
+	publishGraph(t, repo, saveGraph(t, repo, singleNode("b")))
+	saveGraph(t, repo, singleNode("a"))
+	publishGraph(t, repo, first)
+
+	assertDraft(t, repo, first)
+
+	if got := countRevisions(t); got != 2 {
+		t.Errorf("revision rows = %d, want 2", got)
+	}
+}
+
+func TestPostgresGraphRepositoryPublishWithoutOwnedDraftWritesNothing(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+
+	if err := repo.Publish(ctx, newGraph(t, ownerTenant, singleNode("n1"))); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("Publish() without a draft error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+
+	saveGraph(t, repo, singleNode("n1"))
+
+	if err := repo.Publish(ctx, newGraph(t, otherTenant, singleNode("n1"))); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("Publish() by another tenant error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+
+	if got := countRevisions(t); got != 0 {
+		t.Errorf("revision rows = %d, want 0", got)
+	}
+}
+
+func TestPostgresGraphRepositoryFindReportsEditingAgainstCurrentRevision(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+
+	published := publishGraph(t, repo, saveGraph(t, repo, singleNode("a")))
+	saveGraph(t, repo, singleNode("b"))
+
+	editing, err := repo.FindByEventPublicIDForUpdate(ctx, ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindByEventPublicIDForUpdate() error = %v", err)
+	}
+
+	if editing.RevisionID() != published.RevisionID() || editing.DraftRevisionID() == editing.RevisionID() {
+		t.Errorf("after editing RevisionID() = %q, DraftRevisionID() = %q, want revision %q and a different draft",
+			editing.RevisionID(), editing.DraftRevisionID(), published.RevisionID())
+	}
+
+	saveGraph(t, repo, singleNode("a"))
+
+	assertDraft(t, repo, published)
 }

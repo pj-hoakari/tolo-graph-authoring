@@ -29,6 +29,8 @@ func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, 
 
 func (nopGraphRepository) Save(context.Context, domain.VenueGraph) error { return nil }
 
+func (nopGraphRepository) Publish(context.Context, domain.VenueGraph) error { return nil }
+
 type inlineTransactor struct{}
 
 func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
