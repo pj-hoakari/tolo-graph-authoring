@@ -1,3 +1,6 @@
+// Package application contains the use cases of the graph authoring context:
+// saving the draft of a venue graph, publishing it as a revision, and
+// supplying the current revision to other contexts.
 package application
 
 import (
