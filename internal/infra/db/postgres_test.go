@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	container, err := postgres.Run(ctx, "postgres:17-alpine",
+	container, err := postgres.Run(ctx, "postgres:18-alpine",
 		postgres.WithDatabase("tolo_graph_authoring"),
 		postgres.WithUsername("tolo_graph_authoring"),
 		postgres.WithPassword("tolo_graph_authoring"),
