@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -15,11 +16,27 @@ import (
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/infra/memory"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
+	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 )
 
+type nopGraphRepository struct{}
+
+func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, string) (domain.VenueGraph, error) {
+	return domain.VenueGraph{}, repository.ErrGraphNotFound
+}
+
+func (nopGraphRepository) Save(context.Context, domain.VenueGraph) error { return nil }
+
+type inlineTransactor struct{}
+
+func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func newTestGraphService() *application.GraphService {
-	return application.NewGraphService(memory.NewGraphRepository())
+	return application.NewGraphService(nopGraphRepository{}, inlineTransactor{})
 }
 
 func mintEventAccessJWT(t *testing.T, tenantPublicID, eventPublicID string) (string, internaljwt.JWKS) {
@@ -105,4 +122,13 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
 	})
+}
+
+func TestGraphErrorAnswersAbortedTransactionWithAborted(t *testing.T) {
+	t.Parallel()
+
+	err := errors.Join(errors.New("deadlock detected"), dbinfra.ErrTransactionAborted)
+	if got, want := graphError(context.Background(), err).Code(), connectrpc.CodeAborted; got != want {
+		t.Errorf("graphError() code = %v, want %v", got, want)
+	}
 }

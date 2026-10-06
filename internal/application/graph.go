@@ -28,11 +28,12 @@ type GraphUseCases interface {
 }
 
 type GraphService struct {
-	graphs repository.GraphRepository
+	graphs       repository.GraphRepository
+	transactions repository.Transactor
 }
 
-func NewGraphService(graphs repository.GraphRepository) *GraphService {
-	return &GraphService{graphs: graphs}
+func NewGraphService(graphs repository.GraphRepository, transactions repository.Transactor) *GraphService {
+	return &GraphService{graphs: graphs, transactions: transactions}
 }
 
 func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (domain.VenueGraph, error) {
@@ -53,28 +54,39 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 		return domain.VenueGraph{}, err
 	}
 
-	graph, err := s.graphs.FindByEventPublicID(ctx, input.EventPublicID)
+	var saved domain.VenueGraph
 
-	switch {
-	case errors.Is(err, repository.ErrGraphNotFound):
-		graph, err = domain.NewVenueGraph(tenantPublicID, input.EventPublicID, *input.Document)
-	case err != nil:
-		return domain.VenueGraph{}, err
-	default:
-		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
-			return domain.VenueGraph{}, err
+	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
+		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
+
+		switch {
+		case errors.Is(err, repository.ErrGraphNotFound):
+			graph, err = domain.NewVenueGraph(tenantPublicID, input.EventPublicID, *input.Document)
+		case err != nil:
+			return err
+		default:
+			if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+				return err
+			}
+
+			graph, err = graph.WithDraft(*input.Document)
 		}
 
-		graph, err = graph.WithDraft(*input.Document)
-	}
+		if err != nil {
+			return err
+		}
 
+		if err := s.graphs.Save(ctx, graph); err != nil {
+			return err
+		}
+
+		saved = graph
+
+		return nil
+	})
 	if err != nil {
 		return domain.VenueGraph{}, err
 	}
 
-	if err := s.graphs.Save(ctx, graph); err != nil {
-		return domain.VenueGraph{}, err
-	}
-
-	return graph, nil
+	return saved, nil
 }

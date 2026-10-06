@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS graph_drafts;
+DROP TABLE IF EXISTS graphs;

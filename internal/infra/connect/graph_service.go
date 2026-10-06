@@ -10,6 +10,7 @@ import (
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
+	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 )
 
@@ -62,6 +63,8 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, err)
+	case errors.Is(err, dbinfra.ErrTransactionAborted):
+		return connectrpc.NewError(connectrpc.CodeAborted, err)
 	default:
 		return InternalError(ctx, err)
 	}
