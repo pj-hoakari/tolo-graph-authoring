@@ -41,19 +41,19 @@ func (m *MockGraphRepository) EXPECT() *MockGraphRepositoryMockRecorder {
 	return m.recorder
 }
 
-// FindByEventPublicID mocks base method.
-func (m *MockGraphRepository) FindByEventPublicID(ctx context.Context, eventPublicID string) (domain.VenueGraph, error) {
+// FindByEventPublicIDForUpdate mocks base method.
+func (m *MockGraphRepository) FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.VenueGraph, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindByEventPublicID", ctx, eventPublicID)
+	ret := m.ctrl.Call(m, "FindByEventPublicIDForUpdate", ctx, tenantPublicID, eventPublicID)
 	ret0, _ := ret[0].(domain.VenueGraph)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindByEventPublicID indicates an expected call of FindByEventPublicID.
-func (mr *MockGraphRepositoryMockRecorder) FindByEventPublicID(ctx, eventPublicID any) *gomock.Call {
+// FindByEventPublicIDForUpdate indicates an expected call of FindByEventPublicIDForUpdate.
+func (mr *MockGraphRepositoryMockRecorder) FindByEventPublicIDForUpdate(ctx, tenantPublicID, eventPublicID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByEventPublicID", reflect.TypeOf((*MockGraphRepository)(nil).FindByEventPublicID), ctx, eventPublicID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByEventPublicIDForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindByEventPublicIDForUpdate), ctx, tenantPublicID, eventPublicID)
 }
 
 // Save mocks base method.

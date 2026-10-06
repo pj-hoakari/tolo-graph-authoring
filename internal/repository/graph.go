@@ -10,6 +10,6 @@ import (
 var ErrGraphNotFound = errors.New("graph not found")
 
 type GraphRepository interface {
-	FindByEventPublicID(ctx context.Context, eventPublicID string) (domain.VenueGraph, error)
+	FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.VenueGraph, error)
 	Save(ctx context.Context, graph domain.VenueGraph) error
 }

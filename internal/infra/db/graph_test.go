@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
@@ -184,5 +186,40 @@ func TestPostgresGraphRepositoryFindForUpdateSerializesWriters(t *testing.T) {
 
 	if err := repo.WithinTransaction(ctx, lock); err != nil {
 		t.Errorf("FindByEventPublicIDForUpdate() after the holder committed error = %v", err)
+	}
+}
+
+func TestSaveGraphOfAnotherTenantLeavesOwnerDraft(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	service := application.NewGraphService(repo, repo)
+
+	save := func(tenantPublicID string, document domain.GraphDocument) (domain.VenueGraph, error) {
+		ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
+			TokenUse:       internaljwt.TokenUseEventAccess,
+			TenantPublicID: tenantPublicID,
+			EventPublicID:  graphEvent,
+		})
+
+		return service.SaveGraph(ctx, application.SaveGraphInput{EventPublicID: graphEvent, Document: &document})
+	}
+
+	owned, err := save(ownerTenant, singleNode("owner"))
+	if err != nil {
+		t.Fatalf("owner SaveGraph() error = %v", err)
+	}
+
+	if _, err := save(otherTenant, singleNode("intruder")); !errors.Is(err, tenantctx.ErrMismatch) {
+		t.Fatalf("other tenant SaveGraph() error = %v, want %v", err, tenantctx.ErrMismatch)
+	}
+
+	assertDraft(t, repo, owned)
+
+	var graphs int
+	if err := testDB.Get(&graphs, `SELECT COUNT(*) FROM graphs WHERE tenant_public_id = $1`, otherTenant); err != nil {
+		t.Fatalf("count graphs of the other tenant: %v", err)
+	}
+
+	if graphs != 0 {
+		t.Errorf("graphs owned by the other tenant = %d, want 0", graphs)
 	}
 }
