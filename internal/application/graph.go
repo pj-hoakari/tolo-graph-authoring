@@ -31,9 +31,18 @@ type PublishRevisionUseCase interface {
 	PublishRevision(context.Context, PublishRevisionInput) (domain.VenueGraph, error)
 }
 
+type GetCurrentRevisionInput struct {
+	EventPublicID string
+}
+
+type GetCurrentRevisionUseCase interface {
+	GetCurrentRevision(context.Context, GetCurrentRevisionInput) (domain.KernelGraph, error)
+}
+
 type GraphUseCases interface {
 	SaveGraphUseCase
 	PublishRevisionUseCase
+	GetCurrentRevisionUseCase
 }
 
 type GraphService struct {
@@ -140,4 +149,25 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 	}
 
 	return published, nil
+}
+
+func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentRevisionInput) (domain.KernelGraph, error) {
+	if input.EventPublicID == "" {
+		return domain.KernelGraph{}, ErrEventIDRequired
+	}
+
+	if err := tenantctx.VerifyEvent(ctx, input.EventPublicID); err != nil {
+		return domain.KernelGraph{}, err
+	}
+
+	revision, err := s.graphs.FindCurrentRevision(ctx, input.EventPublicID)
+	if err != nil {
+		return domain.KernelGraph{}, err
+	}
+
+	if err := tenantctx.VerifyOwnership(ctx, revision.TenantPublicID); err != nil {
+		return domain.KernelGraph{}, err
+	}
+
+	return revision.KernelGraph(), nil
 }

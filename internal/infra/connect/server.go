@@ -120,9 +120,24 @@ func RoutesWithVerifier(
 		connectrpc.WithInterceptors(tracing, graphAuth),
 	)
 
+	supplyAuth, err := interceptor.New(
+		tokenVerifier,
+		graphv1connect.GraphSupplyServicePolicies,
+		interceptor.WithErrorReporter(reportAuthRejection),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create GraphSupplyService authentication interceptor: %w", err)
+	}
+
+	supplyPath, supplyHandler := graphv1connect.NewGraphSupplyServiceHandler(
+		NewGraphSupplyService(graphService),
+		connectrpc.WithInterceptors(tracing, supplyAuth),
+	)
+
 	return func(mux *http.ServeMux) {
 		mux.Handle(path, handler)
 		mux.Handle(graphPath, graphHandler)
+		mux.Handle(supplyPath, supplyHandler)
 	}, nil
 }
 

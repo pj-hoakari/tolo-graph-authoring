@@ -125,6 +125,41 @@ func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.Venu
 	return nil
 }
 
+func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+	var row struct {
+		TenantPublicID string `db:"tenant_public_id"`
+		RevisionID     string `db:"revision_id"`
+		Kernel         []byte `db:"kernel"`
+	}
+
+	err := sqlx.GetContext(ctx, Executor(ctx, r.db), &row, `
+		SELECT tenant_public_id, revision_id, kernel
+		FROM graph_revisions
+		WHERE event_public_id = $1
+		ORDER BY last_published_at DESC
+		LIMIT 1`,
+		eventPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.PublishedRevision{}, repository.ErrGraphNotFound
+	}
+
+	if err != nil {
+		return domain.PublishedRevision{}, fmt.Errorf("find current graph revision: %w", err)
+	}
+
+	document, err := decodeKernel(row.Kernel)
+	if err != nil {
+		return domain.PublishedRevision{}, err
+	}
+
+	return domain.PublishedRevision{
+		TenantPublicID: row.TenantPublicID,
+		EventPublicID:  eventPublicID,
+		RevisionID:     row.RevisionID,
+		Document:       document,
+	}, nil
+}
+
 func requireRowWritten(result sql.Result, err error, operation string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", operation, err)

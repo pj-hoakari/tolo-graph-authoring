@@ -31,6 +31,10 @@ func (nopGraphRepository) Save(context.Context, domain.VenueGraph) error { retur
 
 func (nopGraphRepository) Publish(context.Context, domain.VenueGraph) error { return nil }
 
+func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
+	return domain.PublishedRevision{}, repository.ErrGraphNotFound
+}
+
 type inlineTransactor struct{}
 
 func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {

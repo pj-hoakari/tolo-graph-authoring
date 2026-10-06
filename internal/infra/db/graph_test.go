@@ -330,3 +330,46 @@ func TestPostgresGraphRepositoryFindReportsEditingAgainstCurrentRevision(t *test
 
 	assertDraft(t, repo, published)
 }
+
+func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+
+	if _, err := repo.FindCurrentRevision(ctx, graphEvent); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("FindCurrentRevision() before publishing error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+
+	publishGraph(t, repo, saveGraph(t, repo, singleNode("old")))
+	current := publishGraph(t, repo, saveGraph(t, repo, richDocument()))
+
+	otherEvent, err := domain.NewVenueGraph(otherTenant, "0123456789abcdef", singleNode("elsewhere"))
+	if err != nil {
+		t.Fatalf("NewVenueGraph() error = %v", err)
+	}
+
+	if err := repo.Save(ctx, otherEvent); err != nil {
+		t.Fatalf("Save() of another event error = %v", err)
+	}
+
+	publishGraph(t, repo, otherEvent)
+
+	got, err := repo.FindCurrentRevision(ctx, graphEvent)
+	if err != nil {
+		t.Fatalf("FindCurrentRevision() error = %v", err)
+	}
+
+	want := domain.PublishedRevision{
+		TenantPublicID: ownerTenant,
+		EventPublicID:  graphEvent,
+		RevisionID:     current.RevisionID(),
+		Document:       richDocument(),
+	}
+
+	if got.TenantPublicID != want.TenantPublicID || got.RevisionID != want.RevisionID {
+		t.Errorf("FindCurrentRevision() owner and revision = %s/%s, want %s/%s", got.TenantPublicID, got.RevisionID, want.TenantPublicID, want.RevisionID)
+	}
+
+	if !reflect.DeepEqual(got.KernelGraph(), want.KernelGraph()) {
+		t.Errorf("FindCurrentRevision() kernel graph = %+v, want %+v", got.KernelGraph(), want.KernelGraph())
+	}
+}
