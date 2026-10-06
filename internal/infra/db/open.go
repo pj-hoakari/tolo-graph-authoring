@@ -1,3 +1,4 @@
+// Package db contains PostgreSQL-backed infrastructure implementations.
 package db
 
 import (

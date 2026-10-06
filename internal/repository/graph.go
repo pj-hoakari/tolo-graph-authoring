@@ -1,3 +1,5 @@
+// Package repository defines the persistence contracts the graph authoring
+// use cases depend on.
 package repository
 
 import (

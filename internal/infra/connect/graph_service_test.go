@@ -5,13 +5,9 @@ import (
 	"errors"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	connectrpc "connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
-
-	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
-	"github.com/pj-hoakari/internal-jwt-handling/jwtgen"
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
@@ -45,31 +41,11 @@ func newTestGraphService() *application.GraphService {
 	return application.NewGraphService(nopGraphRepository{}, inlineTransactor{})
 }
 
-func mintEventAccessJWT(t *testing.T, tenantPublicID, eventPublicID string) (string, internaljwt.JWKS) {
-	t.Helper()
-
-	output, err := jwtgen.Generate(jwtgen.Config{
-		Issuer:         DefaultInternalJWTIssuer,
-		Audience:       DefaultInternalJWTAudience,
-		TokenUse:       internaljwt.TokenUseEventAccess,
-		TenantPublicID: tenantPublicID,
-		EventPublicID:  eventPublicID,
-		Scope:          "events.manage",
-		KeyID:          "test-key",
-		TTL:            time.Hour,
-	})
-	if err != nil {
-		t.Fatalf("generate internal JWT: %v", err)
-	}
-
-	return "Bearer " + output.Token, output.JWKS
-}
-
 func TestSaveGraph(t *testing.T) {
 	t.Parallel()
 
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
+	httpServer := httptest.NewServer(newTestHandler(t, keys, newTestGraphService()))
 	t.Cleanup(httpServer.Close)
 	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
 
@@ -134,7 +110,7 @@ func TestPublishRevisionAnswersMissingDraftWithNotFound(t *testing.T) {
 	t.Parallel()
 
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
-	httpServer := httptest.NewServer(newTestHandler(t, keys, application.NewGreetService(nopGreetingRepository{})))
+	httpServer := httptest.NewServer(newTestHandler(t, keys, newTestGraphService()))
 	t.Cleanup(httpServer.Close)
 	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
 

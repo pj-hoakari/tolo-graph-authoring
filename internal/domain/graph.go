@@ -1,3 +1,6 @@
+// Package domain contains the immutable models of the graph authoring
+// context: the venue graph of an event with its draft and published
+// revisions, and the shared kernel graph derived from a published revision.
 package domain
 
 import (

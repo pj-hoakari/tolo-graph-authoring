@@ -14,7 +14,6 @@ import (
 	"github.com/pj-hoakari/internal-jwt-handling/jwks"
 	"github.com/pj-hoakari/internal-jwt-handling/verifier"
 
-	"github.com/pj-hoakari/tolo-graph-authoring/gen/greet/v1/greetv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 )
@@ -49,7 +48,6 @@ func DefaultJWTSettings() JWTSettings {
 // RoutesWithJWTSettings builds the service routes that verify internal
 // JWTs against the JWKS the settings locate.
 func RoutesWithJWTSettings(
-	greetService application.GreetUseCases,
 	graphService application.GraphUseCases,
 	settings JWTSettings,
 ) (func(mux *http.ServeMux), error) {
@@ -72,14 +70,13 @@ func RoutesWithJWTSettings(
 		return nil, fmt.Errorf("create internal JWT verifier: %w", err)
 	}
 
-	return RoutesWithVerifier(greetService, graphService, tokenVerifier)
+	return RoutesWithVerifier(graphService, tokenVerifier)
 }
 
 // RoutesWithVerifier builds the service routes around a verifier of the
 // internal JWT. The service is guarded by an interceptor built from its
 // generated policy table, so the credential rules stay declared in the proto.
 func RoutesWithVerifier(
-	greetService application.GreetUseCases,
 	graphService application.GraphUseCases,
 	tokenVerifier interceptor.TokenVerifier,
 ) (func(mux *http.ServeMux), error) {
@@ -90,22 +87,6 @@ func RoutesWithVerifier(
 		return nil, fmt.Errorf("create tracing interceptor: %w", err)
 	}
 
-	auth, err := interceptor.New(
-		tokenVerifier,
-		greetv1connect.GreetServicePolicies,
-		interceptor.WithErrorReporter(reportAuthRejection),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create GreetService authentication interceptor: %w", err)
-	}
-
-	// Tracing runs before authentication, so a rejected call is still recorded
-	// on the trace it belongs to.
-	path, handler := greetv1connect.NewGreetServiceHandler(
-		NewService(greetService),
-		connectrpc.WithInterceptors(tracing, auth),
-	)
-
 	graphAuth, err := interceptor.New(
 		tokenVerifier,
 		graphv1connect.GraphAuthoringServicePolicies,
@@ -115,6 +96,8 @@ func RoutesWithVerifier(
 		return nil, fmt.Errorf("create GraphAuthoringService authentication interceptor: %w", err)
 	}
 
+	// Tracing runs before authentication, so a rejected call is still recorded
+	// on the trace it belongs to.
 	graphPath, graphHandler := graphv1connect.NewGraphAuthoringServiceHandler(
 		NewGraphService(graphService),
 		connectrpc.WithInterceptors(tracing, graphAuth),
@@ -135,7 +118,6 @@ func RoutesWithVerifier(
 	)
 
 	return func(mux *http.ServeMux) {
-		mux.Handle(path, handler)
 		mux.Handle(graphPath, graphHandler)
 		mux.Handle(supplyPath, supplyHandler)
 	}, nil

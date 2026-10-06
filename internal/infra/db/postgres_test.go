@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
-	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -69,73 +66,21 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestPostgresGreetingRepositoryRecord(t *testing.T) {
-	repository := newTestRepository(t)
-	ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{TenantPublicID: "a1b2c3d4e5f60718"})
-
-	greeting, err := domain.NewGreeting("Ada")
-	if err != nil {
-		t.Fatalf("NewGreeting() error = %v", err)
-	}
-
-	if err := repository.Record(ctx, greeting); err != nil {
-		t.Fatalf("Record() error = %v", err)
-	}
-
-	var rows []greetingRow
-	if err := testDB.SelectContext(ctx, &rows, `SELECT tenant_public_id, name FROM greetings ORDER BY id`); err != nil {
-		t.Fatalf("select recorded greetings: %v", err)
-	}
-
-	if want := []greetingRow{{TenantPublicID: "a1b2c3d4e5f60718", Name: "Ada"}}; !slices.Equal(rows, want) {
-		t.Errorf("recorded greetings = %#v, want %#v", rows, want)
-	}
-}
-
-func TestPostgresGreetingRepositoryRecordRequiresTenant(t *testing.T) {
-	repository := newTestRepository(t)
-	ctx := context.Background()
-
-	greeting, err := domain.NewGreeting("Ada")
-	if err != nil {
-		t.Fatalf("NewGreeting() error = %v", err)
-	}
-
-	// The context carries no authenticated tenant, so recording must fail
-	// closed instead of persisting an ownerless greeting.
-	if err := repository.Record(ctx, greeting); !errors.Is(err, tenantctx.ErrMissing) {
-		t.Fatalf("Record() error = %v, want %v", err, tenantctx.ErrMissing)
-	}
-
-	var count int
-	if err := testDB.GetContext(ctx, &count, `SELECT COUNT(*) FROM greetings`); err != nil {
-		t.Fatalf("count greetings: %v", err)
-	}
-
-	if count != 0 {
-		t.Errorf("greetings count = %d, want 0", count)
-	}
-}
-
-// TestPostgresGreetingRepositoryRecordJoinsTransaction proves the repository
+// TestPostgresGraphRepositoryPublishJoinsTransaction proves the repository
 // runs its statement through Executor: the write is rolled back with the
 // surrounding transaction and only lands once that transaction commits.
-func TestPostgresGreetingRepositoryRecordJoinsTransaction(t *testing.T) {
-	repository := newTestRepository(t)
-	ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{TenantPublicID: "a1b2c3d4e5f60718"})
-
-	greeting, err := domain.NewGreeting("Ada")
-	if err != nil {
-		t.Fatalf("NewGreeting() error = %v", err)
-	}
+func TestPostgresGraphRepositoryPublishJoinsTransaction(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	graph := saveGraph(t, repo, singleNode("n1"))
+	ctx := context.Background()
 
 	errAbort := errors.New("abort")
 
 	// The callback must return rather than call t.Fatal: a Goexit would skip
-	// the rollback and leave the transaction holding its lock on greetings.
-	err = RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		if err := repository.Record(ctx, greeting); err != nil {
-			return fmt.Errorf("record greeting: %w", err)
+	// the rollback and leave the transaction holding its lock on graph_revisions.
+	err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
+		if err := repo.Publish(ctx, graph); err != nil {
+			return fmt.Errorf("publish graph: %w", err)
 		}
 
 		return errAbort
@@ -144,22 +89,22 @@ func TestPostgresGreetingRepositoryRecordJoinsTransaction(t *testing.T) {
 		t.Fatalf("RunInTransaction() error = %v, want %v", err, errAbort)
 	}
 
-	if count := countGreetings(ctx, t); count != 0 {
-		t.Errorf("greetings count after rollback = %d, want 0", count)
+	if count := countRevisions(t); count != 0 {
+		t.Errorf("revisions count after rollback = %d, want 0", count)
 	}
 
 	if err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		return repository.Record(ctx, greeting)
+		return repo.Publish(ctx, graph)
 	}); err != nil {
 		t.Fatalf("RunInTransaction() error = %v", err)
 	}
 
-	if count := countGreetings(ctx, t); count != 1 {
-		t.Errorf("greetings count after commit = %d, want 1", count)
+	if count := countRevisions(t); count != 1 {
+		t.Errorf("revisions count after commit = %d, want 1", count)
 	}
 }
 
-func TestPostgresGreetingRepositoryRecordNormalizesQueryText(t *testing.T) {
+func TestPostgresGraphRepositoryPublishNormalizesQueryText(t *testing.T) {
 	// otel.SetTracerProvider mutates global state, so this test must not run
 	// in parallel. otelsql keeps the delegating global provider it saw in
 	// Open, which forwards to whatever is installed here.
@@ -169,21 +114,15 @@ func TestPostgresGreetingRepositoryRecordNormalizesQueryText(t *testing.T) {
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
 	t.Cleanup(func() { otel.SetTracerProvider(previousProvider) })
 
-	repository := newTestRepository(t)
-	ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{TenantPublicID: "a1b2c3d4e5f60718"})
-
-	greeting, err := domain.NewGreeting("Ada")
-	if err != nil {
-		t.Fatalf("NewGreeting() error = %v", err)
-	}
-
-	if err := repository.Record(ctx, greeting); err != nil {
-		t.Fatalf("Record() error = %v", err)
-	}
+	repo := newTestGraphRepository(t)
+	publishGraph(t, repo, saveGraph(t, repo, singleNode("n1")))
 
 	// The repository writes the statement as a multi-line raw string literal,
 	// so this exact value also proves the newlines and tabs are gone.
-	const wantQueryText = "INSERT INTO greetings (tenant_public_id, name) VALUES ($1, $2)"
+	const wantQueryText = "INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, layout) " +
+		"SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, layout FROM graph_drafts " +
+		"WHERE event_public_id = $1 AND tenant_public_id = $2 " +
+		"ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at"
 
 	var (
 		insertSpan sdktrace.ReadOnlySpan
@@ -210,32 +149,6 @@ func TestPostgresGreetingRepositoryRecordNormalizesQueryText(t *testing.T) {
 	if system != "postgresql" {
 		t.Fatalf("%s on span %q = %q, want %q", semconv.DBSystemNameKey, insertSpan.Name(), system, "postgresql")
 	}
-}
-
-type greetingRow struct {
-	TenantPublicID string `db:"tenant_public_id"`
-	Name           string `db:"name"`
-}
-
-func newTestRepository(t *testing.T) *PostgresGreetingRepository {
-	t.Helper()
-
-	if _, err := testDB.Exec(`TRUNCATE greetings`); err != nil {
-		t.Fatalf("truncate test database: %v", err)
-	}
-
-	return NewPostgresGreetingRepository(testDB)
-}
-
-func countGreetings(ctx context.Context, t *testing.T) int {
-	t.Helper()
-
-	var count int
-	if err := testDB.GetContext(ctx, &count, `SELECT COUNT(*) FROM greetings`); err != nil {
-		t.Fatalf("count greetings: %v", err)
-	}
-
-	return count
 }
 
 func spanAttribute(span sdktrace.ReadOnlySpan, key attribute.Key) (string, bool) {
