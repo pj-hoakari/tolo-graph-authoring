@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
+	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 )
 
@@ -120,4 +122,13 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
 	})
+}
+
+func TestGraphErrorAnswersAbortedTransactionWithAborted(t *testing.T) {
+	t.Parallel()
+
+	err := errors.Join(errors.New("deadlock detected"), dbinfra.ErrTransactionAborted)
+	if got, want := graphError(context.Background(), err).Code(), connectrpc.CodeAborted; got != want {
+		t.Errorf("graphError() code = %v, want %v", got, want)
+	}
 }
