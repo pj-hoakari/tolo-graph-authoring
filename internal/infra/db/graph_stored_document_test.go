@@ -1,6 +1,8 @@
 package db
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"reflect"
 	"testing"
@@ -32,7 +34,7 @@ func richDocument() domain.GraphDocument {
 	}
 }
 
-func TestDraftColumnsRoundTrip(t *testing.T) {
+func TestStoredDocumentRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -48,18 +50,34 @@ func TestDraftColumnsRoundTrip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			columns, err := encodeDraft(tt.document)
+			stored, err := newStoredDocument(tt.document)
 			if err != nil {
-				t.Fatalf("encodeDraft() error = %v", err)
+				t.Fatalf("newStoredDocument() error = %v", err)
 			}
 
-			got, err := decodeDraft(columns)
-			if err != nil {
-				t.Fatalf("decodeDraft() error = %v", err)
+			var restored storedDocument
+
+			for _, column := range []struct {
+				from driver.Valuer
+				to   sql.Scanner
+			}{
+				{stored.Kernel, &restored.Kernel},
+				{stored.Labels, &restored.Labels},
+				{stored.Layout, &restored.Layout},
+			} {
+				value, err := column.from.Value()
+				if err != nil {
+					t.Fatalf("Value() error = %v", err)
+				}
+
+				if err := column.to.Scan(value); err != nil {
+					t.Fatalf("Scan() error = %v", err)
+				}
 			}
 
+			got := restored.graphDocument()
 			if !reflect.DeepEqual(got, tt.document) {
-				t.Errorf("decodeDraft(encodeDraft(d)) = %#v, want %#v", got, tt.document)
+				t.Errorf("stored document round trip = %#v, want %#v", got, tt.document)
 			}
 
 			before, err := domain.NewVenueGraph("t", "e", tt.document)
@@ -79,7 +97,7 @@ func TestDraftColumnsRoundTrip(t *testing.T) {
 	}
 }
 
-func TestEncodeDraftRejectsDuplicateIDs(t *testing.T) {
+func TestNewStoredDocumentRejectsDuplicateIDs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -95,8 +113,8 @@ func TestEncodeDraftRejectsDuplicateIDs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := encodeDraft(tt.document); !errors.Is(err, domain.ErrInvalidGraphDocument) {
-				t.Errorf("encodeDraft() error = %v, want %v", err, domain.ErrInvalidGraphDocument)
+			if _, err := newStoredDocument(tt.document); !errors.Is(err, domain.ErrInvalidGraphDocument) {
+				t.Errorf("newStoredDocument() error = %v, want %v", err, domain.ErrInvalidGraphDocument)
 			}
 		})
 	}

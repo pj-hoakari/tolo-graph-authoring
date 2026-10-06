@@ -32,20 +32,19 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 	ctx context.Context, tenantPublicID, eventPublicID string,
 ) (domain.VenueGraph, error) {
 	var row struct {
-		draftColumns
+		graphDraft
 
-		TenantPublicID string `db:"tenant_public_id"`
-		RevisionID     string `db:"revision_id"`
+		CurrentRevisionID string `db:"current_revision_id"`
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.tenant_public_id, d.kernel, d.labels, d.layout,
+		SELECT d.event_public_id, d.tenant_public_id, d.revision_id, d.kernel, d.labels, d.layout,
 			COALESCE((
 				SELECT r.revision_id FROM graph_revisions r
 				WHERE r.event_public_id = d.event_public_id
 				ORDER BY r.last_published_at DESC
 				LIMIT 1
-			), '') AS revision_id
+			), '') AS current_revision_id
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
@@ -59,16 +58,11 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 		return domain.VenueGraph{}, fmt.Errorf("find graph draft: %w", err)
 	}
 
-	document, err := decodeDraft(row.draftColumns)
-	if err != nil {
-		return domain.VenueGraph{}, err
-	}
-
-	return domain.RestoreVenueGraph(row.TenantPublicID, eventPublicID, document, row.RevisionID)
+	return row.venueGraph(row.CurrentRevisionID)
 }
 
 func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGraph) error {
-	columns, err := encodeDraft(graph.Draft())
+	draft, err := newGraphDraft(graph)
 	if err != nil {
 		return err
 	}
@@ -79,12 +73,12 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGr
 			VALUES ($1, $2)
 			ON CONFLICT (event_public_id) DO UPDATE SET tenant_public_id = EXCLUDED.tenant_public_id
 			WHERE graphs.tenant_public_id = EXCLUDED.tenant_public_id`,
-			graph.EventPublicID(), graph.TenantPublicID())
+			draft.EventPublicID, draft.TenantPublicID)
 		if err := requireRowWritten(owner, err, "save graph owner"); err != nil {
 			return err
 		}
 
-		draft, err := r.executor(ctx).ExecContext(ctx, `
+		saved, err := r.executor(ctx).ExecContext(ctx, `
 			INSERT INTO graph_drafts (event_public_id, tenant_public_id, revision_id, kernel, labels, layout)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (event_public_id) DO UPDATE SET
@@ -94,10 +88,10 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGr
 				layout = EXCLUDED.layout,
 				updated_at = now()
 			WHERE graph_drafts.tenant_public_id = EXCLUDED.tenant_public_id`,
-			graph.EventPublicID(), graph.TenantPublicID(), graph.DraftRevisionID(),
-			string(columns.Kernel), string(columns.Labels), string(columns.Layout))
+			draft.EventPublicID, draft.TenantPublicID, draft.RevisionID,
+			draft.Kernel, draft.Labels, draft.Layout)
 
-		return requireRowWritten(draft, err, "save graph draft")
+		return requireRowWritten(saved, err, "save graph draft")
 	})
 }
 
@@ -126,14 +120,10 @@ func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.Venu
 }
 
 func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
-	var row struct {
-		TenantPublicID string `db:"tenant_public_id"`
-		RevisionID     string `db:"revision_id"`
-		Kernel         []byte `db:"kernel"`
-	}
+	var revision graphRevision
 
-	err := sqlx.GetContext(ctx, Executor(ctx, r.db), &row, `
-		SELECT tenant_public_id, revision_id, kernel
+	err := sqlx.GetContext(ctx, Executor(ctx, r.db), &revision, `
+		SELECT event_public_id, tenant_public_id, revision_id, kernel
 		FROM graph_revisions
 		WHERE event_public_id = $1
 		ORDER BY last_published_at DESC
@@ -147,17 +137,7 @@ func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, event
 		return domain.PublishedRevision{}, fmt.Errorf("find current graph revision: %w", err)
 	}
 
-	document, err := decodeKernel(row.Kernel)
-	if err != nil {
-		return domain.PublishedRevision{}, err
-	}
-
-	return domain.PublishedRevision{
-		TenantPublicID: row.TenantPublicID,
-		EventPublicID:  eventPublicID,
-		RevisionID:     row.RevisionID,
-		Document:       document,
-	}, nil
+	return revision.publishedRevision(), nil
 }
 
 func requireRowWritten(result sql.Result, err error, operation string) error {

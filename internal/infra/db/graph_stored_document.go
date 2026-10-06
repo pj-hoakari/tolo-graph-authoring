@@ -1,17 +1,17 @@
 package db
 
 import (
+	"database/sql/driver"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 )
 
-type draftColumns struct {
-	Kernel []byte `db:"kernel"`
-	Labels []byte `db:"labels"`
-	Layout []byte `db:"layout"`
+type storedDocument struct {
+	Kernel jsonColumn[graphKernel] `db:"kernel"`
+	Labels jsonColumn[graphLabels] `db:"labels"`
+	Layout jsonColumn[graphLayout] `db:"layout"`
 }
 
 type graphKernel struct {
@@ -44,18 +44,42 @@ type graphLabels struct {
 }
 
 type graphLayout struct {
-	Nodes  map[string]layoutColumn `json:"nodes"`
-	Groups map[string]layoutColumn `json:"groups"`
+	Nodes  map[string]storedLayout `json:"nodes"`
+	Groups map[string]storedLayout `json:"groups"`
 }
 
-type layoutColumn struct {
+type storedLayout struct {
 	X      float64  `json:"x"`
 	Y      float64  `json:"y"`
 	Width  *float64 `json:"width"`
 	Height *float64 `json:"height"`
 }
 
-func encodeDraft(document domain.GraphDocument) (draftColumns, error) {
+type jsonColumn[T any] struct {
+	value T
+}
+
+func (c jsonColumn[T]) Value() (driver.Value, error) {
+	encoded, err := json.Marshal(c.value)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", domain.ErrInvalidGraphDocument, err)
+	}
+
+	return string(encoded), nil
+}
+
+func (c *jsonColumn[T]) Scan(src any) error {
+	switch src := src.(type) {
+	case []byte:
+		return json.Unmarshal(src, &c.value)
+	case string:
+		return json.Unmarshal([]byte(src), &c.value)
+	default:
+		return fmt.Errorf("scan JSON column: unsupported type %T", src)
+	}
+}
+
+func newStoredDocument(document domain.GraphDocument) (storedDocument, error) {
 	kernel := graphKernel{
 		Nodes:  emptyLike[kernelNode](document.Nodes),
 		Groups: emptyLike[kernelGroup](document.Groups),
@@ -67,33 +91,33 @@ func encodeDraft(document domain.GraphDocument) (draftColumns, error) {
 		Edges:  make(map[string]*string, len(document.Edges)),
 	}
 	layout := graphLayout{
-		Nodes:  make(map[string]layoutColumn, len(document.Nodes)),
-		Groups: make(map[string]layoutColumn, len(document.Groups)),
+		Nodes:  make(map[string]storedLayout, len(document.Nodes)),
+		Groups: make(map[string]storedLayout, len(document.Groups)),
 	}
 
 	for _, node := range document.Nodes {
 		if _, ok := labels.Nodes[node.ID]; ok {
-			return draftColumns{}, duplicateID("node", node.ID)
+			return storedDocument{}, duplicateID("node", node.ID)
 		}
 
 		kernel.Nodes = append(kernel.Nodes, kernelNode{ID: node.ID, Type: node.Type, GroupID: node.GroupID})
 		labels.Nodes[node.ID] = node.Labels
-		layout.Nodes[node.ID] = layoutColumn(node.Layout)
+		layout.Nodes[node.ID] = storedLayout(node.Layout)
 	}
 
 	for _, group := range document.Groups {
 		if _, ok := labels.Groups[group.ID]; ok {
-			return draftColumns{}, duplicateID("group", group.ID)
+			return storedDocument{}, duplicateID("group", group.ID)
 		}
 
 		kernel.Groups = append(kernel.Groups, kernelGroup{ID: group.ID})
 		labels.Groups[group.ID] = group.Labels
-		layout.Groups[group.ID] = layoutColumn(group.Layout)
+		layout.Groups[group.ID] = storedLayout(group.Layout)
 	}
 
 	for _, edge := range document.Edges {
 		if _, ok := labels.Edges[edge.ID]; ok {
-			return draftColumns{}, duplicateID("edge", edge.ID)
+			return storedDocument{}, duplicateID("edge", edge.ID)
 		}
 
 		kernel.Edges = append(kernel.Edges, kernelEdge{
@@ -105,55 +129,15 @@ func encodeDraft(document domain.GraphDocument) (draftColumns, error) {
 		labels.Edges[edge.ID] = edge.Label
 	}
 
-	var (
-		columns draftColumns
-		errs    [3]error
-	)
-
-	columns.Kernel, errs[0] = json.Marshal(kernel)
-	columns.Labels, errs[1] = json.Marshal(labels)
-	columns.Layout, errs[2] = json.Marshal(layout)
-
-	if err := errors.Join(errs[:]...); err != nil {
-		return draftColumns{}, fmt.Errorf("%w: %w", domain.ErrInvalidGraphDocument, err)
-	}
-
-	return columns, nil
+	return storedDocument{
+		Kernel: jsonColumn[graphKernel]{value: kernel},
+		Labels: jsonColumn[graphLabels]{value: labels},
+		Layout: jsonColumn[graphLayout]{value: layout},
+	}, nil
 }
 
-func decodeDraft(columns draftColumns) (domain.GraphDocument, error) {
-	var (
-		kernel graphKernel
-		labels graphLabels
-		layout graphLayout
-	)
-
-	if err := errors.Join(
-		json.Unmarshal(columns.Kernel, &kernel),
-		json.Unmarshal(columns.Labels, &labels),
-		json.Unmarshal(columns.Layout, &layout),
-	); err != nil {
-		return domain.GraphDocument{}, fmt.Errorf("decode graph draft: %w", err)
-	}
-
-	return documentOf(kernel, labels, layout), nil
-}
-
-func decodeKernel(column []byte) (domain.GraphDocument, error) {
-	var (
-		kernel graphKernel
-		labels graphLabels
-		layout graphLayout
-	)
-
-	if err := json.Unmarshal(column, &kernel); err != nil {
-		return domain.GraphDocument{}, fmt.Errorf("decode graph kernel: %w", err)
-	}
-
-	return documentOf(kernel, labels, layout), nil
-}
-
-func documentOf(kernel graphKernel, labels graphLabels, layout graphLayout) domain.GraphDocument {
+func (d storedDocument) graphDocument() domain.GraphDocument {
+	kernel, labels, layout := d.Kernel.value, d.Labels.value, d.Layout.value
 	document := domain.GraphDocument{
 		Nodes:  emptyLike[domain.Node](kernel.Nodes),
 		Groups: emptyLike[domain.Group](kernel.Groups),
