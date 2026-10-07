@@ -309,10 +309,10 @@ func TestGraphAuthoringServiceAuthzRejectsAudienceMismatch(t *testing.T) {
 type savedGraphRepository struct {
 	nopGraphRepository
 
-	saved *domain.VenueGraph
+	saved *domain.Graph
 }
 
-func (r savedGraphRepository) Save(_ context.Context, graph domain.VenueGraph) error {
+func (r savedGraphRepository) Save(_ context.Context, graph domain.Graph) error {
 	*r.saved = graph
 
 	return nil
@@ -321,7 +321,7 @@ func (r savedGraphRepository) Save(_ context.Context, graph domain.VenueGraph) e
 func TestGraphAuthoringServiceInjectsTenantPublicID(t *testing.T) {
 	t.Parallel()
 
-	var saved domain.VenueGraph
+	var saved domain.Graph
 
 	graphs := application.NewGraphService(savedGraphRepository{nopGraphRepository: nopGraphRepository{}, saved: &saved}, inlineTransactor{})
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")

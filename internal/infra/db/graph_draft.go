@@ -9,7 +9,7 @@ type graphDraft struct {
 	storedDocument
 }
 
-func newGraphDraft(graph domain.VenueGraph) (graphDraft, error) {
+func newGraphDraft(graph domain.Graph) (graphDraft, error) {
 	document, err := newStoredDocument(graph.Draft())
 	if err != nil {
 		return graphDraft{}, err
@@ -23,6 +23,6 @@ func newGraphDraft(graph domain.VenueGraph) (graphDraft, error) {
 	}, nil
 }
 
-func (d graphDraft) venueGraph(currentRevisionID string) (domain.VenueGraph, error) {
-	return domain.RestoreVenueGraph(d.TenantPublicID, d.EventPublicID, d.graphDocument(), currentRevisionID)
+func (d graphDraft) graph(currentRevisionID string) (domain.Graph, error) {
+	return domain.RestoreGraph(d.TenantPublicID, d.EventPublicID, d.graphDocument(), currentRevisionID)
 }

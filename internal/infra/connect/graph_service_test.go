@@ -19,13 +19,13 @@ import (
 
 type nopGraphRepository struct{}
 
-func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, string) (domain.VenueGraph, error) {
-	return domain.VenueGraph{}, repository.ErrGraphNotFound
+func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, string) (domain.Graph, error) {
+	return domain.Graph{}, repository.ErrGraphNotFound
 }
 
-func (nopGraphRepository) Save(context.Context, domain.VenueGraph) error { return nil }
+func (nopGraphRepository) Save(context.Context, domain.Graph) error { return nil }
 
-func (nopGraphRepository) Publish(context.Context, domain.VenueGraph) error { return nil }
+func (nopGraphRepository) Publish(context.Context, domain.Graph) error { return nil }
 
 func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
 	return domain.PublishedRevision{}, repository.ErrGraphNotFound

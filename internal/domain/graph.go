@@ -1,5 +1,5 @@
 // Package domain contains the immutable models of the graph authoring
-// context: the venue graph of an event with its draft and published
+// context: the graph of an event with its draft and published
 // revisions, and the shared kernel graph derived from a published revision.
 package domain
 
@@ -64,7 +64,7 @@ type GraphDocument struct {
 	Edges  []Edge
 }
 
-type VenueGraph struct {
+type Graph struct {
 	tenantPublicID  string
 	eventPublicID   string
 	draft           GraphDocument
@@ -72,8 +72,8 @@ type VenueGraph struct {
 	revisionID      string
 }
 
-func NewVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (VenueGraph, error) {
-	return VenueGraph{
+func NewGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (Graph, error) {
+	return Graph{
 		tenantPublicID:  tenantPublicID,
 		eventPublicID:   eventPublicID,
 		draft:           GraphDocument{Nodes: nil, Groups: nil, Edges: nil},
@@ -82,10 +82,10 @@ func NewVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (V
 	}.WithDraft(draft)
 }
 
-func RestoreVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument, revisionID string) (VenueGraph, error) {
-	graph, err := NewVenueGraph(tenantPublicID, eventPublicID, draft)
+func RestoreGraph(tenantPublicID, eventPublicID string, draft GraphDocument, revisionID string) (Graph, error) {
+	graph, err := NewGraph(tenantPublicID, eventPublicID, draft)
 	if err != nil {
-		return VenueGraph{}, err
+		return Graph{}, err
 	}
 
 	graph.revisionID = revisionID
@@ -93,16 +93,16 @@ func RestoreVenueGraph(tenantPublicID, eventPublicID string, draft GraphDocument
 	return graph, nil
 }
 
-func (g VenueGraph) Published() VenueGraph {
+func (g Graph) Published() Graph {
 	g.revisionID = g.draftRevisionID
 
 	return g
 }
 
-func (g VenueGraph) WithDraft(draft GraphDocument) (VenueGraph, error) {
+func (g Graph) WithDraft(draft GraphDocument) (Graph, error) {
 	encoded, err := json.Marshal(draft)
 	if err != nil {
-		return VenueGraph{}, fmt.Errorf("%w: %w", ErrInvalidGraphDocument, err)
+		return Graph{}, fmt.Errorf("%w: %w", ErrInvalidGraphDocument, err)
 	}
 
 	sum := sha256.Sum256(encoded)
@@ -112,8 +112,8 @@ func (g VenueGraph) WithDraft(draft GraphDocument) (VenueGraph, error) {
 	return g, nil
 }
 
-func (g VenueGraph) TenantPublicID() string  { return g.tenantPublicID }
-func (g VenueGraph) EventPublicID() string   { return g.eventPublicID }
-func (g VenueGraph) Draft() GraphDocument    { return g.draft }
-func (g VenueGraph) DraftRevisionID() string { return g.draftRevisionID }
-func (g VenueGraph) RevisionID() string      { return g.revisionID }
+func (g Graph) TenantPublicID() string  { return g.tenantPublicID }
+func (g Graph) EventPublicID() string   { return g.eventPublicID }
+func (g Graph) Draft() GraphDocument    { return g.draft }
+func (g Graph) DraftRevisionID() string { return g.draftRevisionID }
+func (g Graph) RevisionID() string      { return g.revisionID }
