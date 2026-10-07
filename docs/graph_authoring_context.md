@@ -18,7 +18,7 @@
 
 | 接点 | RPC |
 |---|---|
-| 会場グラフの供給（観測が消費し Flow／Line へ受け渡し） | GraphSupplyService.GetCurrentRevision → `tolo.kernel.v1.Graph`（shared_kernel_context.md） |
+| グラフの供給（観測が消費し Flow／Line へ受け渡し） | GraphSupplyService.GetCurrentRevision → `tolo.kernel.v1.Graph`（shared_kernel_context.md） |
 | 観測点とグラフ要素の対応の供給 | GraphSupplyService.GetObservationPointMappings |
 | 表示名の供給（ゲスト向け表示の組み立て用） | GraphSupplyService.GetDisplayNames（Guest Service が消費。ゲストコンテキスト） |
 | 設計時ゲート指定の供給 | GraphSupplyService.GetGatePoints（観測が消費し GateState の初期構築に使用。局所行列誘導コンテキスト） |

@@ -30,12 +30,12 @@ func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	return NewPostgresGraphRepository(testDB)
 }
 
-func newGraph(t *testing.T, tenantPublicID string, document domain.GraphDocument) domain.VenueGraph {
+func newGraph(t *testing.T, tenantPublicID string, document domain.GraphDocument) domain.Graph {
 	t.Helper()
 
-	graph, err := domain.NewVenueGraph(tenantPublicID, graphEvent, document)
+	graph, err := domain.NewGraph(tenantPublicID, graphEvent, document)
 	if err != nil {
-		t.Fatalf("NewVenueGraph() error = %v", err)
+		t.Fatalf("NewGraph() error = %v", err)
 	}
 
 	return graph
@@ -45,7 +45,7 @@ func singleNode(id string) domain.GraphDocument {
 	return domain.GraphDocument{Nodes: []domain.Node{{ID: id, Type: domain.NodeTypeGoal}}}
 }
 
-func assertDraft(t *testing.T, repo *PostgresGraphRepository, want domain.VenueGraph) {
+func assertDraft(t *testing.T, repo *PostgresGraphRepository, want domain.Graph) {
 	t.Helper()
 
 	got, err := repo.FindByEventPublicIDForUpdate(context.Background(), want.TenantPublicID(), want.EventPublicID())
@@ -193,7 +193,7 @@ func TestSaveGraphOfAnotherTenantLeavesOwnerDraft(t *testing.T) {
 	repo := newTestGraphRepository(t)
 	service := application.NewGraphService(repo, repo)
 
-	save := func(tenantPublicID string, document domain.GraphDocument) (domain.VenueGraph, error) {
+	save := func(tenantPublicID string, document domain.GraphDocument) (domain.Graph, error) {
 		ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
 			TokenUse:       internaljwt.TokenUseEventAccess,
 			TenantPublicID: tenantPublicID,
@@ -224,7 +224,7 @@ func TestSaveGraphOfAnotherTenantLeavesOwnerDraft(t *testing.T) {
 	}
 }
 
-func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.GraphDocument) domain.VenueGraph {
+func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.GraphDocument) domain.Graph {
 	t.Helper()
 
 	graph := newGraph(t, ownerTenant, document)
@@ -235,7 +235,7 @@ func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.Grap
 	return graph
 }
 
-func publishGraph(t *testing.T, repo *PostgresGraphRepository, graph domain.VenueGraph) domain.VenueGraph {
+func publishGraph(t *testing.T, repo *PostgresGraphRepository, graph domain.Graph) domain.Graph {
 	t.Helper()
 
 	if err := repo.Publish(context.Background(), graph); err != nil {
@@ -342,9 +342,9 @@ func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
 	publishGraph(t, repo, saveGraph(t, repo, singleNode("old")))
 	current := publishGraph(t, repo, saveGraph(t, repo, richDocument()))
 
-	otherEvent, err := domain.NewVenueGraph(otherTenant, "0123456789abcdef", singleNode("elsewhere"))
+	otherEvent, err := domain.NewGraph(otherTenant, "0123456789abcdef", singleNode("elsewhere"))
 	if err != nil {
-		t.Fatalf("NewVenueGraph() error = %v", err)
+		t.Fatalf("NewGraph() error = %v", err)
 	}
 
 	if err := repo.Save(ctx, otherEvent); err != nil {

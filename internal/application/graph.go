@@ -1,5 +1,5 @@
 // Package application contains the use cases of the graph authoring context:
-// saving the draft of a venue graph, publishing it as a revision, and
+// saving the draft of a graph, publishing it as a revision, and
 // supplying the current revision to other contexts.
 package application
 
@@ -23,7 +23,7 @@ type SaveGraphInput struct {
 }
 
 type SaveGraphUseCase interface {
-	SaveGraph(context.Context, SaveGraphInput) (domain.VenueGraph, error)
+	SaveGraph(context.Context, SaveGraphInput) (domain.Graph, error)
 }
 
 type PublishRevisionInput struct {
@@ -31,7 +31,7 @@ type PublishRevisionInput struct {
 }
 
 type PublishRevisionUseCase interface {
-	PublishRevision(context.Context, PublishRevisionInput) (domain.VenueGraph, error)
+	PublishRevision(context.Context, PublishRevisionInput) (domain.Graph, error)
 }
 
 type GetCurrentRevisionInput struct {
@@ -57,32 +57,32 @@ func NewGraphService(graphs repository.GraphRepository, transactions repository.
 	return &GraphService{graphs: graphs, transactions: transactions}
 }
 
-func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (domain.VenueGraph, error) {
+func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (domain.Graph, error) {
 	if input.EventPublicID == "" {
-		return domain.VenueGraph{}, ErrEventIDRequired
+		return domain.Graph{}, ErrEventIDRequired
 	}
 
 	if input.Document == nil {
-		return domain.VenueGraph{}, ErrGraphDocumentRequired
+		return domain.Graph{}, ErrGraphDocumentRequired
 	}
 
 	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
 	if !ok {
-		return domain.VenueGraph{}, tenantctx.ErrMissing
+		return domain.Graph{}, tenantctx.ErrMissing
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
-		return domain.VenueGraph{}, err
+		return domain.Graph{}, err
 	}
 
-	var saved domain.VenueGraph
+	var saved domain.Graph
 
 	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
 		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
 
 		switch {
 		case errors.Is(err, repository.ErrGraphNotFound):
-			graph, err = domain.NewVenueGraph(tenantPublicID, input.EventPublicID, *input.Document)
+			graph, err = domain.NewGraph(tenantPublicID, input.EventPublicID, *input.Document)
 		case err != nil:
 			return err
 		default:
@@ -106,27 +106,27 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 		return nil
 	})
 	if err != nil {
-		return domain.VenueGraph{}, err
+		return domain.Graph{}, err
 	}
 
 	return saved, nil
 }
 
-func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisionInput) (domain.VenueGraph, error) {
+func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisionInput) (domain.Graph, error) {
 	if input.EventPublicID == "" {
-		return domain.VenueGraph{}, ErrEventIDRequired
+		return domain.Graph{}, ErrEventIDRequired
 	}
 
 	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
 	if !ok {
-		return domain.VenueGraph{}, tenantctx.ErrMissing
+		return domain.Graph{}, tenantctx.ErrMissing
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
-		return domain.VenueGraph{}, err
+		return domain.Graph{}, err
 	}
 
-	var published domain.VenueGraph
+	var published domain.Graph
 
 	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
 		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
@@ -148,7 +148,7 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 		return nil
 	})
 	if err != nil {
-		return domain.VenueGraph{}, err
+		return domain.Graph{}, err
 	}
 
 	return published, nil

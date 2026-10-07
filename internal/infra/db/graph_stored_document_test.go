@@ -80,14 +80,14 @@ func TestStoredDocumentRoundTrip(t *testing.T) {
 				t.Errorf("stored document round trip = %#v, want %#v", got, tt.document)
 			}
 
-			before, err := domain.NewVenueGraph("t", "e", tt.document)
+			before, err := domain.NewGraph("t", "e", tt.document)
 			if err != nil {
-				t.Fatalf("NewVenueGraph() error = %v", err)
+				t.Fatalf("NewGraph() error = %v", err)
 			}
 
-			after, err := domain.NewVenueGraph("t", "e", got)
+			after, err := domain.NewGraph("t", "e", got)
 			if err != nil {
-				t.Fatalf("NewVenueGraph() error = %v", err)
+				t.Fatalf("NewGraph() error = %v", err)
 			}
 
 			if after.DraftRevisionID() != before.DraftRevisionID() {

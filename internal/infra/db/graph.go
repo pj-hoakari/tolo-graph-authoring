@@ -30,7 +30,7 @@ func (r *PostgresGraphRepository) executor(ctx context.Context) sqlx.ExtContext 
 
 func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 	ctx context.Context, tenantPublicID, eventPublicID string,
-) (domain.VenueGraph, error) {
+) (domain.Graph, error) {
 	var row struct {
 		graphDraft
 
@@ -51,17 +51,17 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 		FOR UPDATE OF g`,
 		eventPublicID, tenantPublicID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return domain.VenueGraph{}, repository.ErrGraphNotFound
+		return domain.Graph{}, repository.ErrGraphNotFound
 	}
 
 	if err != nil {
-		return domain.VenueGraph{}, fmt.Errorf("find graph draft: %w", err)
+		return domain.Graph{}, fmt.Errorf("find graph draft: %w", err)
 	}
 
-	return row.venueGraph(row.CurrentRevisionID)
+	return row.graph(row.CurrentRevisionID)
 }
 
-func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGraph) error {
+func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) error {
 	draft, err := newGraphDraft(graph)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.VenueGr
 	})
 }
 
-func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.VenueGraph) error {
+func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
 		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, layout)
 		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, layout

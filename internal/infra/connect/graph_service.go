@@ -60,7 +60,7 @@ func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Requ
 	return connectrpc.NewResponse(graphMeta(graph)), nil
 }
 
-func graphMeta(graph domain.VenueGraph) *graphv1.GraphMeta {
+func graphMeta(graph domain.Graph) *graphv1.GraphMeta {
 	return &graphv1.GraphMeta{
 		EventId:         graph.EventPublicID(),
 		RevisionId:      graph.RevisionID(),

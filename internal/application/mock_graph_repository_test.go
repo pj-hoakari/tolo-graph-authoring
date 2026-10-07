@@ -42,10 +42,10 @@ func (m *MockGraphRepository) EXPECT() *MockGraphRepositoryMockRecorder {
 }
 
 // FindByEventPublicIDForUpdate mocks base method.
-func (m *MockGraphRepository) FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.VenueGraph, error) {
+func (m *MockGraphRepository) FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByEventPublicIDForUpdate", ctx, tenantPublicID, eventPublicID)
-	ret0, _ := ret[0].(domain.VenueGraph)
+	ret0, _ := ret[0].(domain.Graph)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -72,7 +72,7 @@ func (mr *MockGraphRepositoryMockRecorder) FindCurrentRevision(ctx, eventPublicI
 }
 
 // Publish mocks base method.
-func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.VenueGraph) error {
+func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Publish", ctx, graph)
 	ret0, _ := ret[0].(error)
@@ -86,7 +86,7 @@ func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph any) *gomock.Call 
 }
 
 // Save mocks base method.
-func (m *MockGraphRepository) Save(ctx context.Context, graph domain.VenueGraph) error {
+func (m *MockGraphRepository) Save(ctx context.Context, graph domain.Graph) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, graph)
 	ret0, _ := ret[0].(error)
