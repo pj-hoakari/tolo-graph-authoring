@@ -5,6 +5,8 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
@@ -124,6 +126,9 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 			}
 
 			graph, err = graph.WithDraft(*input.Document)
+			if err == nil {
+				err = s.verifyPlacementsKept(ctx, graph)
+			}
 		}
 
 		if err != nil {
@@ -230,34 +235,17 @@ func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentR
 }
 
 func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObservationPointInput) (domain.ObservationPointMapping, error) {
-	if input.EventPublicID == "" {
-		return domain.ObservationPointMapping{}, ErrEventIDRequired
-	}
+	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, graph domain.Graph) error {
+		if err := graph.VerifyMapping(input.Mapping); err != nil {
+			return err
+		}
 
-	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
-	if !ok {
-		return domain.ObservationPointMapping{}, tenantctx.ErrMissing
-	}
-
-	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
-		return domain.ObservationPointMapping{}, err
-	}
-
-	if err := s.ensureEditableEvent(ctx, input.EventPublicID); err != nil {
-		return domain.ObservationPointMapping{}, err
-	}
-
-	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
-		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
+		placements, err := s.graphs.FindPlacements(ctx, graph)
 		if err != nil {
 			return err
 		}
 
-		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
-			return err
-		}
-
-		if err := graph.VerifyMapping(input.Mapping); err != nil {
+		if err := placements.VerifyMappable(input.Mapping.Anchor); err != nil {
 			return err
 		}
 
@@ -268,6 +256,114 @@ func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObserva
 	}
 
 	return input.Mapping, nil
+}
+
+type AddQrLocationInput struct {
+	EventPublicID string
+	QrLocation    domain.QrLocation
+}
+
+func (s *GraphService) AddQrLocation(ctx context.Context, input AddQrLocationInput) (domain.QrLocation, error) {
+	location := input.QrLocation
+	location.ID = newQrLocationID()
+
+	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, graph domain.Graph) error {
+		if err := s.verifyQrLocation(ctx, graph, location); err != nil {
+			return err
+		}
+
+		return s.graphs.AddQrLocation(ctx, graph, location)
+	})
+	if err != nil {
+		return domain.QrLocation{}, err
+	}
+
+	return location, nil
+}
+
+type UpdateQrLocationInput struct {
+	EventPublicID string
+	QrLocation    domain.QrLocation
+}
+
+func (s *GraphService) UpdateQrLocation(ctx context.Context, input UpdateQrLocationInput) (domain.QrLocation, error) {
+	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, graph domain.Graph) error {
+		if err := s.verifyQrLocation(ctx, graph, input.QrLocation); err != nil {
+			return err
+		}
+
+		return s.graphs.UpdateQrLocation(ctx, graph, input.QrLocation)
+	})
+	if err != nil {
+		return domain.QrLocation{}, err
+	}
+
+	return input.QrLocation, nil
+}
+
+type RemoveQrLocationInput struct {
+	EventPublicID string
+	QrLocationID  string
+}
+
+func (s *GraphService) RemoveQrLocation(ctx context.Context, input RemoveQrLocationInput) error {
+	return s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, graph domain.Graph) error {
+		return s.graphs.RemoveQrLocation(ctx, graph, input.QrLocationID)
+	})
+}
+
+func (s *GraphService) verifyQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+	if err := graph.VerifyQrLocation(location); err != nil {
+		return err
+	}
+
+	placements, err := s.graphs.FindPlacements(ctx, graph)
+	if err != nil {
+		return err
+	}
+
+	return placements.VerifyQrPlaceable(location.Anchor)
+}
+
+func (s *GraphService) verifyPlacementsKept(ctx context.Context, graph domain.Graph) error {
+	placements, err := s.graphs.FindPlacements(ctx, graph)
+	if err != nil {
+		return err
+	}
+
+	return graph.VerifyPlacements(placements)
+}
+
+func (s *GraphService) editGraph(ctx context.Context, eventPublicID string, edit func(context.Context, domain.Graph) error) error {
+	if eventPublicID == "" {
+		return ErrEventIDRequired
+	}
+
+	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
+	if !ok {
+		return tenantctx.ErrMissing
+	}
+
+	if err := tenantctx.EnsureEvent(ctx, eventPublicID); err != nil {
+		return err
+	}
+
+	if err := s.ensureEditableEvent(ctx, eventPublicID); err != nil {
+		return err
+	}
+
+	return s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
+		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, eventPublicID)
+		if err != nil {
+			return err
+		}
+
+		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+			return err
+		}
+
+		return edit(ctx, graph)
+	})
 }
 
 func (s *GraphService) GetObservationPointMappings(
@@ -296,4 +392,11 @@ func (s *GraphService) GetObservationPointMappings(
 	}
 
 	return ObservationPointMappings{RevisionID: revision.RevisionID, Mappings: mappings}, nil
+}
+
+func newQrLocationID() string {
+	id := make([]byte, 8)
+	_, _ = rand.Read(id) //nolint:errcheck
+
+	return hex.EncodeToString(id)
 }

@@ -93,7 +93,7 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, err)
 	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived),
-		errors.Is(err, domain.ErrAnchorTargetNotFound):
+		errors.Is(err, domain.ErrAnchorTargetNotFound), errors.Is(err, domain.ErrPlacementConflict):
 		return connectrpc.NewError(connectrpc.CodeFailedPrecondition, err)
 	case errors.Is(err, repository.ErrGraphNotFound):
 		return connectrpc.NewError(connectrpc.CodeNotFound, err)

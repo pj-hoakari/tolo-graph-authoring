@@ -41,6 +41,20 @@ func (m *MockGraphRepository) EXPECT() *MockGraphRepositoryMockRecorder {
 	return m.recorder
 }
 
+// AddQrLocation mocks base method.
+func (m *MockGraphRepository) AddQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddQrLocation", ctx, graph, location)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddQrLocation indicates an expected call of AddQrLocation.
+func (mr *MockGraphRepositoryMockRecorder) AddQrLocation(ctx, graph, location any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddQrLocation", reflect.TypeOf((*MockGraphRepository)(nil).AddQrLocation), ctx, graph, location)
+}
+
 // FindByEventPublicIDForUpdate mocks base method.
 func (m *MockGraphRepository) FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
 	m.ctrl.T.Helper()
@@ -86,6 +100,21 @@ func (mr *MockGraphRepositoryMockRecorder) FindObservationPointMappings(ctx, eve
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindObservationPointMappings", reflect.TypeOf((*MockGraphRepository)(nil).FindObservationPointMappings), ctx, eventPublicID)
 }
 
+// FindPlacements mocks base method.
+func (m *MockGraphRepository) FindPlacements(ctx context.Context, graph domain.Graph) (domain.Placements, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindPlacements", ctx, graph)
+	ret0, _ := ret[0].(domain.Placements)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindPlacements indicates an expected call of FindPlacements.
+func (mr *MockGraphRepositoryMockRecorder) FindPlacements(ctx, graph any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindPlacements", reflect.TypeOf((*MockGraphRepository)(nil).FindPlacements), ctx, graph)
+}
+
 // Publish mocks base method.
 func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
 	m.ctrl.T.Helper()
@@ -98,6 +127,20 @@ func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) e
 func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockGraphRepository)(nil).Publish), ctx, graph)
+}
+
+// RemoveQrLocation mocks base method.
+func (m *MockGraphRepository) RemoveQrLocation(ctx context.Context, graph domain.Graph, qrLocationID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveQrLocation", ctx, graph, qrLocationID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveQrLocation indicates an expected call of RemoveQrLocation.
+func (mr *MockGraphRepositoryMockRecorder) RemoveQrLocation(ctx, graph, qrLocationID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveQrLocation", reflect.TypeOf((*MockGraphRepository)(nil).RemoveQrLocation), ctx, graph, qrLocationID)
 }
 
 // Save mocks base method.
@@ -126,4 +169,18 @@ func (m *MockGraphRepository) SaveObservationPointMapping(ctx context.Context, g
 func (mr *MockGraphRepositoryMockRecorder) SaveObservationPointMapping(ctx, graph, mapping any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveObservationPointMapping", reflect.TypeOf((*MockGraphRepository)(nil).SaveObservationPointMapping), ctx, graph, mapping)
+}
+
+// UpdateQrLocation mocks base method.
+func (m *MockGraphRepository) UpdateQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateQrLocation", ctx, graph, location)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateQrLocation indicates an expected call of UpdateQrLocation.
+func (mr *MockGraphRepositoryMockRecorder) UpdateQrLocation(ctx, graph, location any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateQrLocation", reflect.TypeOf((*MockGraphRepository)(nil).UpdateQrLocation), ctx, graph, location)
 }

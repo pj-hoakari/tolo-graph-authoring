@@ -106,6 +106,7 @@ func TestSaveGraphKeepsDraftRevisionIDWhenResavingSameDocument(t *testing.T) {
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(existing, nil)
+	graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(domain.Placements{}, nil)
 	graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil)
 
 	graph, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
@@ -187,6 +188,7 @@ func TestSaveGraphReplacesDraftOfExistingGraph(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	graphs := NewMockGraphRepository(ctrl)
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(existing, nil)
+	graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(domain.Placements{}, nil)
 
 	var saved domain.Graph
 
@@ -547,6 +549,7 @@ func TestMapObservationPointSavesMappingUnderLockInOneTransaction(t *testing.T) 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	gomock.InOrder(
 		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(graph, nil),
+		graphs.EXPECT().FindPlacements(inTransaction, graph).Return(domain.Placements{}, nil),
 		graphs.EXPECT().SaveObservationPointMapping(inTransaction, graph, pointMapping("n1")).Return(nil),
 	)
 
@@ -644,6 +647,128 @@ func TestGetObservationPointMappingsRejectsUnauthorizedRequest(t *testing.T) {
 			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(tc.ctx, application.GetObservationPointMappingsInput{EventPublicID: eventID})
 			if !errors.Is(err, tc.want) {
 				t.Errorf("GetObservationPointMappings() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func qrLocation(nodeID string) domain.QrLocation {
+	return domain.QrLocation{
+		Name:   "Entrance poster",
+		Kind:   "poster",
+		Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: nodeID},
+	}
+}
+
+func TestSaveGraphRejectsRemovingPlacedElementWithoutSaving(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		placements domain.Placements
+	}{
+		{"observation point mapping", domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1")}}},
+		{"QR location", domain.Placements{QrLocations: []domain.QrLocation{qrLocation("n1")}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(newGraph(t, tenantID, document("n1")), nil)
+			graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(tc.placements, nil)
+
+			_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+				EventPublicID: eventID,
+				Document:      document("n2"),
+			})
+			if !errors.Is(err, domain.ErrAnchorTargetNotFound) {
+				t.Errorf("SaveGraph() error = %v, want %v", err, domain.ErrAnchorTargetNotFound)
+			}
+		})
+	}
+}
+
+func TestMapObservationPointRejectsElementWithQrLocation(t *testing.T) {
+	t.Parallel()
+
+	graph := newGraph(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(graph, nil)
+	graphs.EXPECT().FindPlacements(inTransaction, graph).Return(domain.Placements{QrLocations: []domain.QrLocation{qrLocation("n1")}}, nil)
+
+	if _, err := mapObservationPoint(eventContext(tenantID, eventID), graphs, pointMapping("n1")); !errors.Is(err, domain.ErrPlacementConflict) {
+		t.Errorf("MapObservationPoint() error = %v, want %v", err, domain.ErrPlacementConflict)
+	}
+}
+
+func addQrLocation(graphs repository.GraphRepository, location domain.QrLocation) (domain.QrLocation, error) {
+	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).AddQrLocation(eventContext(tenantID, eventID), application.AddQrLocationInput{
+		EventPublicID: eventID,
+		QrLocation:    location,
+	})
+}
+
+func TestAddQrLocationAssignsIDAndSavesUnderLockInOneTransaction(t *testing.T) {
+	t.Parallel()
+
+	graph := newGraph(t, tenantID, document("n1"))
+
+	var saved domain.QrLocation
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	gomock.InOrder(
+		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(graph, nil),
+		graphs.EXPECT().FindPlacements(inTransaction, graph).Return(domain.Placements{QrLocations: []domain.QrLocation{qrLocation("n1")}}, nil),
+		graphs.EXPECT().AddQrLocation(inTransaction, graph, gomock.Any()).DoAndReturn(func(_ context.Context, _ domain.Graph, location domain.QrLocation) error {
+			saved = location
+
+			return nil
+		}),
+	)
+
+	got, err := addQrLocation(graphs, qrLocation("n1"))
+	if err != nil {
+		t.Fatalf("AddQrLocation() error = %v", err)
+	}
+
+	if !revisionIDPattern.MatchString(got.ID) {
+		t.Errorf("AddQrLocation() ID = %q, want 16 lowercase hex characters", got.ID)
+	}
+
+	want := qrLocation("n1")
+	want.ID = got.ID
+
+	if got != want || saved != want {
+		t.Errorf("AddQrLocation() = %+v, saved %+v, want %+v", got, saved, want)
+	}
+}
+
+func TestAddQrLocationRejectsWithoutSaving(t *testing.T) {
+	t.Parallel()
+
+	unnamed := qrLocation("n1")
+	unnamed.Name = ""
+
+	for _, tc := range []struct {
+		name       string
+		location   domain.QrLocation
+		placements domain.Placements
+		want       error
+	}{
+		{"element with a camera mapping", qrLocation("n1"), domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1")}}, domain.ErrPlacementConflict},
+		{"element missing from the draft", qrLocation("n2"), domain.Placements{}, domain.ErrAnchorTargetNotFound},
+		{"missing name", unnamed, domain.Placements{}, domain.ErrInvalidQrLocation},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(newGraph(t, tenantID, document("n1")), nil)
+			graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(tc.placements, nil).MaxTimes(1)
+
+			if _, err := addQrLocation(graphs, tc.location); !errors.Is(err, tc.want) {
+				t.Errorf("AddQrLocation() error = %v, want %v", err, tc.want)
 			}
 		})
 	}

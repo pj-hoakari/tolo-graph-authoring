@@ -18,11 +18,23 @@ var anchorKinds = map[string]domain.AnchorKind{
 	"route": domain.AnchorKindRoute,
 }
 
+type storedAnchor struct {
+	AnchorKind      string   `db:"anchor_kind"`
+	AnchorElementID string   `db:"anchor_element_id"`
+	RoutePosition   *float64 `db:"route_position"`
+}
+
+func (a storedAnchor) graphAnchor() domain.GraphAnchor {
+	return domain.GraphAnchor{Kind: anchorKinds[a.AnchorKind], ElementID: a.AnchorElementID, RoutePosition: a.RoutePosition}
+}
+
 type observationPointMapping struct {
-	ObservationPointID string   `db:"observation_point_id"`
-	AnchorKind         string   `db:"anchor_kind"`
-	AnchorElementID    string   `db:"anchor_element_id"`
-	RoutePosition      *float64 `db:"route_position"`
+	ObservationPointID string `db:"observation_point_id"`
+	storedAnchor
+}
+
+func (m observationPointMapping) mapping() domain.ObservationPointMapping {
+	return domain.ObservationPointMapping{ObservationPointID: m.ObservationPointID, Anchor: m.graphAnchor()}
 }
 
 func (r *PostgresGraphRepository) SaveObservationPointMapping(
@@ -61,14 +73,7 @@ func (r *PostgresGraphRepository) FindObservationPointMappings(
 
 	mappings := make([]domain.ObservationPointMapping, 0, len(rows))
 	for _, row := range rows {
-		mappings = append(mappings, domain.ObservationPointMapping{
-			ObservationPointID: row.ObservationPointID,
-			Anchor: domain.GraphAnchor{
-				Kind:          anchorKinds[row.AnchorKind],
-				ElementID:     row.AnchorElementID,
-				RoutePosition: row.RoutePosition,
-			},
-		})
+		mappings = append(mappings, row.mapping())
 	}
 
 	return mappings, nil
