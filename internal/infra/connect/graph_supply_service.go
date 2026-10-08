@@ -25,10 +25,10 @@ var directionAttributes = map[domain.DirectionAttribute]kernelv1.DirectionAttrib
 
 type GraphSupplyService struct {
 	graphv1connect.UnimplementedGraphSupplyServiceHandler
-	graphService application.GetCurrentRevisionUseCase
+	graphService application.GraphSupplyUseCases
 }
 
-func NewGraphSupplyService(graphService application.GetCurrentRevisionUseCase) *GraphSupplyService {
+func NewGraphSupplyService(graphService application.GraphSupplyUseCases) *GraphSupplyService {
 	return &GraphSupplyService{
 		UnimplementedGraphSupplyServiceHandler: graphv1connect.UnimplementedGraphSupplyServiceHandler{},
 		graphService:                           graphService,
@@ -42,6 +42,22 @@ func (s *GraphSupplyService) GetCurrentRevision(ctx context.Context, req *connec
 	}
 
 	return connectrpc.NewResponse(kernelGraphToProto(graph)), nil
+}
+
+func (s *GraphSupplyService) GetObservationPointMappings(
+	ctx context.Context, req *connectrpc.Request[graphv1.GetMappingsRequest],
+) (*connectrpc.Response[graphv1.GetMappingsResponse], error) {
+	result, err := s.graphService.GetObservationPointMappings(ctx, application.GetObservationPointMappingsInput{EventPublicID: req.Msg.GetEventId()})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	mappings := make([]*graphv1.ObservationPointMapping, 0, len(result.Mappings))
+	for _, mapping := range result.Mappings {
+		mappings = append(mappings, observationPointMappingToProto(mapping))
+	}
+
+	return connectrpc.NewResponse(&graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: mappings}), nil
 }
 
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {

@@ -13,6 +13,7 @@ import (
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
+	kernelv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/kernel/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
@@ -32,6 +33,14 @@ func (nopGraphRepository) Publish(context.Context, domain.Graph) error { return 
 
 func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
 	return domain.PublishedRevision{}, repository.ErrGraphNotFound
+}
+
+func (nopGraphRepository) SaveObservationPointMapping(context.Context, domain.Graph, domain.ObservationPointMapping) error {
+	return nil
+}
+
+func (nopGraphRepository) FindObservationPointMappings(context.Context, string) ([]domain.ObservationPointMapping, error) {
+	return nil, nil
 }
 
 type inlineTransactor struct{}
@@ -180,6 +189,80 @@ func TestSaveGraphVerifiesEventWithTenantManagement(t *testing.T) {
 				}
 			default:
 				t.Error("tenant management was not consulted")
+			}
+		})
+	}
+}
+
+type draftGraphRepository struct {
+	nopGraphRepository
+
+	draft domain.GraphDocument
+}
+
+func (r draftGraphRepository) FindByEventPublicIDForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
+	return domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+}
+
+func TestMapObservationPoint(t *testing.T) {
+	t.Parallel()
+
+	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
+	graphs := application.NewGraphService(draftGraphRepository{
+		nopGraphRepository: nopGraphRepository{},
+		draft: domain.GraphDocument{
+			Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
+			Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
+		},
+	}, inlineTransactor{}, callerTenantEvents{})
+	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+
+	mapPoint := func(mapping *graphv1.ObservationPointMapping) (*connectrpc.Response[graphv1.ObservationPointMapping], error) {
+		req := connectrpc.NewRequest(&graphv1.MapObservationPointRequest{EventId: "fedcba9876543210", Mapping: mapping})
+		req.Header().Set("Authorization", authorization)
+
+		return client.MapObservationPoint(context.Background(), req)
+	}
+
+	t.Run("answers with the mapping onto a route", func(t *testing.T) {
+		t.Parallel()
+
+		mapping := &graphv1.ObservationPointMapping{
+			ObservationPointId: "cam-1",
+			Anchor:             &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_RouteId{RouteId: "e1"}, RoutePosition: proto.Float64(0.5)},
+		}
+
+		res, err := mapPoint(mapping)
+		if err != nil {
+			t.Fatalf("MapObservationPoint() error = %v", err)
+		}
+
+		if !proto.Equal(res.Msg, mapping) {
+			t.Errorf("MapObservationPoint() = %v, want %v", res.Msg, mapping)
+		}
+	})
+
+	for _, tc := range []struct {
+		name    string
+		mapping *graphv1.ObservationPointMapping
+		want    connectrpc.Code
+	}{
+		{"rejects a mapping without anchor", &graphv1.ObservationPointMapping{ObservationPointId: "cam-1"}, connectrpc.CodeInvalidArgument},
+		{"rejects a missing mapping", nil, connectrpc.CodeInvalidArgument},
+		{
+			"rejects a point missing from the draft",
+			&graphv1.ObservationPointMapping{ObservationPointId: "cam-1", Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "nowhere"}}},
+			connectrpc.CodeFailedPrecondition,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := mapPoint(tc.mapping)
+			if got := connectrpc.CodeOf(err); got != tc.want {
+				t.Errorf("MapObservationPoint() error code = %v, want %v", got, tc.want)
 			}
 		})
 	}

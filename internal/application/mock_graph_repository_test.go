@@ -71,6 +71,21 @@ func (mr *MockGraphRepositoryMockRecorder) FindCurrentRevision(ctx, eventPublicI
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCurrentRevision", reflect.TypeOf((*MockGraphRepository)(nil).FindCurrentRevision), ctx, eventPublicID)
 }
 
+// FindObservationPointMappings mocks base method.
+func (m *MockGraphRepository) FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindObservationPointMappings", ctx, eventPublicID)
+	ret0, _ := ret[0].([]domain.ObservationPointMapping)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindObservationPointMappings indicates an expected call of FindObservationPointMappings.
+func (mr *MockGraphRepositoryMockRecorder) FindObservationPointMappings(ctx, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindObservationPointMappings", reflect.TypeOf((*MockGraphRepository)(nil).FindObservationPointMappings), ctx, eventPublicID)
+}
+
 // Publish mocks base method.
 func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
 	m.ctrl.T.Helper()
@@ -97,4 +112,18 @@ func (m *MockGraphRepository) Save(ctx context.Context, graph domain.Graph) erro
 func (mr *MockGraphRepositoryMockRecorder) Save(ctx, graph any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockGraphRepository)(nil).Save), ctx, graph)
+}
+
+// SaveObservationPointMapping mocks base method.
+func (m *MockGraphRepository) SaveObservationPointMapping(ctx context.Context, graph domain.Graph, mapping domain.ObservationPointMapping) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveObservationPointMapping", ctx, graph, mapping)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveObservationPointMapping indicates an expected call of SaveObservationPointMapping.
+func (mr *MockGraphRepositoryMockRecorder) SaveObservationPointMapping(ctx, graph, mapping any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveObservationPointMapping", reflect.TypeOf((*MockGraphRepository)(nil).SaveObservationPointMapping), ctx, graph, mapping)
 }

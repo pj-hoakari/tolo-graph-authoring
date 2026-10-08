@@ -524,3 +524,127 @@ func TestGetCurrentRevisionPropagatesUnpublishedEvent(t *testing.T) {
 		t.Errorf("GetCurrentRevision() error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 }
+
+func pointMapping(nodeID string) domain.ObservationPointMapping {
+	return domain.ObservationPointMapping{
+		ObservationPointID: "cam-1",
+		Anchor:             domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: nodeID},
+	}
+}
+
+func mapObservationPoint(ctx context.Context, graphs repository.GraphRepository, mapping domain.ObservationPointMapping) (domain.ObservationPointMapping, error) {
+	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).MapObservationPoint(ctx, application.MapObservationPointInput{
+		EventPublicID: eventID,
+		Mapping:       mapping,
+	})
+}
+
+func TestMapObservationPointSavesMappingUnderLockInOneTransaction(t *testing.T) {
+	t.Parallel()
+
+	graph := newGraph(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	gomock.InOrder(
+		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(graph, nil),
+		graphs.EXPECT().SaveObservationPointMapping(inTransaction, graph, pointMapping("n1")).Return(nil),
+	)
+
+	got, err := mapObservationPoint(eventContext(tenantID, eventID), graphs, pointMapping("n1"))
+	if err != nil {
+		t.Fatalf("MapObservationPoint() error = %v", err)
+	}
+
+	if !reflect.DeepEqual(got, pointMapping("n1")) {
+		t.Errorf("MapObservationPoint() = %+v, want %+v", got, pointMapping("n1"))
+	}
+}
+
+func TestMapObservationPointRejectsWithoutSaving(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		graph domain.Graph
+		want  error
+	}{
+		{"element missing from the draft", newGraph(t, tenantID, document("n1")), domain.ErrAnchorTargetNotFound},
+		{"graph of another tenant", newGraph(t, "ffffffffffffffff", document("n2")), tenantctx.ErrMismatch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(tc.graph, nil)
+
+			if _, err := mapObservationPoint(eventContext(tenantID, eventID), graphs, pointMapping("n2")); !errors.Is(err, tc.want) {
+				t.Errorf("MapObservationPoint() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestMapObservationPointRejectsUnauthorizedContext(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want error
+	}{
+		{"other event", eventContext(tenantID, "0123456789abcdef"), tenantctx.ErrEventMismatch},
+		{"no tenant claim", eventContext("", eventID), tenantctx.ErrMissing},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := mapObservationPoint(tc.ctx, NewMockGraphRepository(gomock.NewController(t)), pointMapping("n1")); !errors.Is(err, tc.want) {
+				t.Errorf("MapObservationPoint() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetObservationPointMappingsServesMappingsWithCurrentRevision(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
+	graphs.EXPECT().FindObservationPointMappings(gomock.Any(), eventID).Return([]domain.ObservationPointMapping{pointMapping("n1")}, nil)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(serviceContext("", ""), application.GetObservationPointMappingsInput{EventPublicID: eventID})
+	if err != nil {
+		t.Fatalf("GetObservationPointMappings() error = %v", err)
+	}
+
+	want := application.ObservationPointMappings{RevisionID: "0123456789abcdef", Mappings: []domain.ObservationPointMapping{pointMapping("n1")}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("GetObservationPointMappings() = %+v, want %+v", got, want)
+	}
+}
+
+func TestGetObservationPointMappingsRejectsUnauthorizedRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ctx      context.Context
+		revision domain.PublishedRevision
+		want     error
+	}{
+		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), publishedRevision(tenantID), tenantctx.ErrEventMismatch},
+		{"revision of another tenant", serviceContext(tenantID, eventID), publishedRevision("ffffffffffffffff"), tenantctx.ErrMismatch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(tc.revision, nil).MaxTimes(1)
+
+			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(tc.ctx, application.GetObservationPointMappingsInput{EventPublicID: eventID})
+			if !errors.Is(err, tc.want) {
+				t.Errorf("GetObservationPointMappings() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
