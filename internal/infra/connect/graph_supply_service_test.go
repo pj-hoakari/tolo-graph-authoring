@@ -117,3 +117,50 @@ func TestGetCurrentRevisionRejectsEventAccessToken(t *testing.T) {
 		t.Errorf("GetCurrentRevision() error code = %v, want %v", got, want)
 	}
 }
+
+type mappedRevisionRepository struct {
+	currentRevisionRepository
+
+	mappings []domain.ObservationPointMapping
+}
+
+func (r mappedRevisionRepository) FindObservationPointMappings(context.Context, string) ([]domain.ObservationPointMapping, error) {
+	return r.mappings, nil
+}
+
+func TestGetObservationPointMappingsServesMappingsToServiceToken(t *testing.T) {
+	t.Parallel()
+
+	position := 0.25
+	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
+	client := newSupplyClient(t, keys, application.NewGraphService(mappedRevisionRepository{
+		currentRevisionRepository: currentRevisionRepository{
+			nopGraphRepository: nopGraphRepository{},
+			revision:           domain.PublishedRevision{TenantPublicID: "a1b2c3d4e5f60718", EventPublicID: "fedcba9876543210", RevisionID: "0123456789abcdef"},
+		},
+		mappings: []domain.ObservationPointMapping{
+			{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "e1", RoutePosition: &position}},
+			{ObservationPointID: "cam-2", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+		},
+	}, inlineTransactor{}, callerTenantEvents{}))
+
+	req := connectrpc.NewRequest(&graphv1.GetMappingsRequest{EventId: "fedcba9876543210"})
+	req.Header().Set("Authorization", authorization)
+
+	res, err := client.GetObservationPointMappings(context.Background(), req)
+	if err != nil {
+		t.Fatalf("GetObservationPointMappings() error = %v", err)
+	}
+
+	want := &graphv1.GetMappingsResponse{
+		RevisionId: "0123456789abcdef",
+		Mappings: []*graphv1.ObservationPointMapping{
+			{ObservationPointId: "cam-1", Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_RouteId{RouteId: "e1"}, RoutePosition: proto.Float64(0.25)}},
+			{ObservationPointId: "cam-2", Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}}},
+		},
+	}
+
+	if !proto.Equal(res.Msg, want) {
+		t.Errorf("GetObservationPointMappings() = %v, want %v", res.Msg, want)
+	}
+}

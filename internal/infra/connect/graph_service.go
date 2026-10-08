@@ -8,6 +8,7 @@ import (
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
+	kernelv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/kernel/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
@@ -51,6 +52,20 @@ func (s *GraphService) SaveGraph(ctx context.Context, req *connectrpc.Request[gr
 	return connectrpc.NewResponse(graphMeta(graph)), nil
 }
 
+func (s *GraphService) MapObservationPoint(
+	ctx context.Context, req *connectrpc.Request[graphv1.MapObservationPointRequest],
+) (*connectrpc.Response[graphv1.ObservationPointMapping], error) {
+	mapping, err := s.graphService.MapObservationPoint(ctx, application.MapObservationPointInput{
+		EventPublicID: req.Msg.GetEventId(),
+		Mapping:       observationPointMappingFromProto(req.Msg.GetMapping()),
+	})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(observationPointMappingToProto(mapping)), nil
+}
+
 func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Request[graphv1.PublishRevisionRequest]) (*connectrpc.Response[graphv1.GraphMeta], error) {
 	graph, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.Msg.GetEventId()})
 	if err != nil {
@@ -71,13 +86,14 @@ func graphMeta(graph domain.Graph) *graphv1.GraphMeta {
 func graphError(ctx context.Context, err error) *connectrpc.Error {
 	switch {
 	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired),
-		errors.Is(err, domain.ErrInvalidGraphDocument):
+		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping):
 		return connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
 	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, err)
-	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived):
+	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived),
+		errors.Is(err, domain.ErrAnchorTargetNotFound):
 		return connectrpc.NewError(connectrpc.CodeFailedPrecondition, err)
 	case errors.Is(err, repository.ErrGraphNotFound):
 		return connectrpc.NewError(connectrpc.CodeNotFound, err)
@@ -138,4 +154,36 @@ func layoutFromProto(layout *graphv1.Layout) domain.Layout {
 		Width:  layout.Width,
 		Height: layout.Height,
 	}
+}
+
+func observationPointMappingFromProto(mapping *graphv1.ObservationPointMapping) domain.ObservationPointMapping {
+	anchor := mapping.GetAnchor()
+
+	graphAnchor := domain.GraphAnchor{Kind: domain.AnchorKindUnspecified, ElementID: "", RoutePosition: nil}
+	if anchor != nil {
+		graphAnchor.RoutePosition = anchor.RoutePosition
+	}
+
+	switch target := anchor.GetTarget().(type) {
+	case *kernelv1.GraphAnchor_PointId:
+		graphAnchor.Kind, graphAnchor.ElementID = domain.AnchorKindPoint, target.PointId
+	case *kernelv1.GraphAnchor_RouteId:
+		graphAnchor.Kind, graphAnchor.ElementID = domain.AnchorKindRoute, target.RouteId
+	}
+
+	return domain.ObservationPointMapping{ObservationPointID: mapping.GetObservationPointId(), Anchor: graphAnchor}
+}
+
+func observationPointMappingToProto(mapping domain.ObservationPointMapping) *graphv1.ObservationPointMapping {
+	anchor := &kernelv1.GraphAnchor{Target: nil, RoutePosition: mapping.Anchor.RoutePosition}
+
+	switch mapping.Anchor.Kind {
+	case domain.AnchorKindPoint:
+		anchor.Target = &kernelv1.GraphAnchor_PointId{PointId: mapping.Anchor.ElementID}
+	case domain.AnchorKindRoute:
+		anchor.Target = &kernelv1.GraphAnchor_RouteId{RouteId: mapping.Anchor.ElementID}
+	case domain.AnchorKindUnspecified:
+	}
+
+	return &graphv1.ObservationPointMapping{ObservationPointId: mapping.ObservationPointID, Anchor: anchor}
 }

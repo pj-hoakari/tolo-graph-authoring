@@ -42,10 +42,38 @@ type GetCurrentRevisionUseCase interface {
 	GetCurrentRevision(context.Context, GetCurrentRevisionInput) (domain.KernelGraph, error)
 }
 
+type MapObservationPointInput struct {
+	EventPublicID string
+	Mapping       domain.ObservationPointMapping
+}
+
+type MapObservationPointUseCase interface {
+	MapObservationPoint(context.Context, MapObservationPointInput) (domain.ObservationPointMapping, error)
+}
+
+type GetObservationPointMappingsInput struct {
+	EventPublicID string
+}
+
+type ObservationPointMappings struct {
+	RevisionID string
+	Mappings   []domain.ObservationPointMapping
+}
+
+type GetObservationPointMappingsUseCase interface {
+	GetObservationPointMappings(context.Context, GetObservationPointMappingsInput) (ObservationPointMappings, error)
+}
+
+type GraphSupplyUseCases interface {
+	GetCurrentRevisionUseCase
+	GetObservationPointMappingsUseCase
+}
+
 type GraphUseCases interface {
 	SaveGraphUseCase
+	MapObservationPointUseCase
 	PublishRevisionUseCase
-	GetCurrentRevisionUseCase
+	GraphSupplyUseCases
 }
 
 type GraphService struct {
@@ -199,4 +227,73 @@ func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentR
 	}
 
 	return revision.KernelGraph(), nil
+}
+
+func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObservationPointInput) (domain.ObservationPointMapping, error) {
+	if input.EventPublicID == "" {
+		return domain.ObservationPointMapping{}, ErrEventIDRequired
+	}
+
+	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
+	if !ok {
+		return domain.ObservationPointMapping{}, tenantctx.ErrMissing
+	}
+
+	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
+		return domain.ObservationPointMapping{}, err
+	}
+
+	if err := s.ensureEditableEvent(ctx, input.EventPublicID); err != nil {
+		return domain.ObservationPointMapping{}, err
+	}
+
+	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
+		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
+		if err != nil {
+			return err
+		}
+
+		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+			return err
+		}
+
+		if err := graph.VerifyMapping(input.Mapping); err != nil {
+			return err
+		}
+
+		return s.graphs.SaveObservationPointMapping(ctx, graph, input.Mapping)
+	})
+	if err != nil {
+		return domain.ObservationPointMapping{}, err
+	}
+
+	return input.Mapping, nil
+}
+
+func (s *GraphService) GetObservationPointMappings(
+	ctx context.Context, input GetObservationPointMappingsInput,
+) (ObservationPointMappings, error) {
+	if input.EventPublicID == "" {
+		return ObservationPointMappings{}, ErrEventIDRequired
+	}
+
+	if err := tenantctx.VerifyEvent(ctx, input.EventPublicID); err != nil {
+		return ObservationPointMappings{}, err
+	}
+
+	revision, err := s.graphs.FindCurrentRevision(ctx, input.EventPublicID)
+	if err != nil {
+		return ObservationPointMappings{}, err
+	}
+
+	if err := tenantctx.VerifyOwnership(ctx, revision.TenantPublicID); err != nil {
+		return ObservationPointMappings{}, err
+	}
+
+	mappings, err := s.graphs.FindObservationPointMappings(ctx, input.EventPublicID)
+	if err != nil {
+		return ObservationPointMappings{}, err
+	}
+
+	return ObservationPointMappings{RevisionID: revision.RevisionID, Mappings: mappings}, nil
 }

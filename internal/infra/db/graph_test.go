@@ -23,7 +23,7 @@ const (
 func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	t.Helper()
 
-	if _, err := testDB.Exec(`TRUNCATE graph_revisions, graph_drafts, graphs`); err != nil {
+	if _, err := testDB.Exec(`TRUNCATE observation_point_mappings, graph_revisions, graph_drafts, graphs`); err != nil {
 		t.Fatalf("truncate graph tables: %v", err)
 	}
 
