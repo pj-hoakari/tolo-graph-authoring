@@ -9,12 +9,15 @@ import (
 	connectrpc "connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
+	tenantv1 "github.com/pj-hoakari/tolo-tenant-management/gen/tolo/tenant/v1"
+
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 )
 
 type nopGraphRepository struct{}
@@ -37,8 +40,16 @@ func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.C
 	return fn(ctx)
 }
 
+type callerTenantEvents struct{}
+
+func (callerTenantEvents) FindEvent(ctx context.Context, eventPublicID string) (domain.Event, error) {
+	tenantPublicID, _ := tenantctx.TenantPublicIDFromContext(ctx)
+
+	return domain.NewEvent(eventPublicID, tenantPublicID, false), nil
+}
+
 func newTestGraphService() *application.GraphService {
-	return application.NewGraphService(nopGraphRepository{}, inlineTransactor{})
+	return application.NewGraphService(nopGraphRepository{}, inlineTransactor{}, callerTenantEvents{})
 }
 
 func TestSaveGraph(t *testing.T) {
@@ -129,5 +140,47 @@ func TestGraphErrorAnswersAbortedTransactionWithAborted(t *testing.T) {
 	err := errors.Join(errors.New("deadlock detected"), dbinfra.ErrTransactionAborted)
 	if got, want := graphError(context.Background(), err).Code(), connectrpc.CodeAborted; got != want {
 		t.Errorf("graphError() code = %v, want %v", got, want)
+	}
+}
+
+func TestSaveGraphVerifiesEventWithTenantManagement(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		event *tenantv1.Event
+		err   error
+		want  connectrpc.Code
+	}{
+		{"open event", tenantEvent(tenantv1.EventStatus_EVENT_STATUS_OPEN), nil, 0},
+		{"unknown event", nil, nil, connectrpc.CodeFailedPrecondition},
+		{"archived event", tenantEvent(tenantv1.EventStatus_EVENT_STATUS_ARCHIVED), nil, connectrpc.CodeFailedPrecondition},
+		{"tenant management unavailable", nil, connectrpc.NewError(connectrpc.CodeUnavailable, errors.New("down")), connectrpc.CodeInternal},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeTenantService{event: tt.event, err: tt.err, authorizations: make(chan string, 1)}
+			tenantServer := newTenantServer(t, service)
+
+			graphs := application.NewGraphService(nopGraphRepository{}, inlineTransactor{}, NewTenantClient(tenantServer.Client(), tenantServer.URL))
+			authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
+
+			_, err := saveGraphThrough(t, newTestHandler(t, keys, graphs), authorization)
+			if got := connectrpc.CodeOf(err); err != nil && got != tt.want || err == nil && tt.want != 0 {
+				t.Fatalf("SaveGraph() error = %v, want code %v", err, tt.want)
+			}
+
+			select {
+			case got := <-service.authorizations:
+				if got != authorization {
+					t.Errorf("Authorization sent to tenant management = %q, want the caller's %q", got, authorization)
+				}
+			default:
+				t.Error("tenant management was not consulted")
+			}
+		})
 	}
 }

@@ -57,6 +57,11 @@ func run() error {
 		return errors.New("DATABASE_URL is required")
 	}
 
+	tenantManagementURL := os.Getenv("TENANT_MANAGEMENT_URL")
+	if tenantManagementURL == "" {
+		return errors.New("TENANT_MANAGEMENT_URL is required")
+	}
+
 	shutdownTracing, err := telemetry.Setup(ctx)
 	if err != nil {
 		return fmt.Errorf("setup tracing: %w", err)
@@ -78,7 +83,11 @@ func run() error {
 	}()
 
 	graphRepository := dbinfra.NewPostgresGraphRepository(db)
-	graphService := application.NewGraphService(graphRepository, graphRepository)
+	graphService := application.NewGraphService(
+		graphRepository,
+		graphRepository,
+		connectinfra.NewTenantClient(http.DefaultClient, tenantManagementURL),
+	)
 
 	routes, err := connectinfra.RoutesWithJWTSettings(graphService, jwtSettings)
 	if err != nil {

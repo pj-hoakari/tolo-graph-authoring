@@ -323,7 +323,7 @@ func TestGraphAuthoringServiceInjectsTenantPublicID(t *testing.T) {
 
 	var saved domain.Graph
 
-	graphs := application.NewGraphService(savedGraphRepository{nopGraphRepository: nopGraphRepository{}, saved: &saved}, inlineTransactor{})
+	graphs := application.NewGraphService(savedGraphRepository{nopGraphRepository: nopGraphRepository{}, saved: &saved}, inlineTransactor{}, callerTenantEvents{})
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 
 	if _, err := saveGraphThrough(t, newTestHandler(t, keys, graphs), authorization); err != nil {

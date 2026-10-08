@@ -51,10 +51,11 @@ type GraphUseCases interface {
 type GraphService struct {
 	graphs       repository.GraphRepository
 	transactions repository.Transactor
+	events       EventDirectory
 }
 
-func NewGraphService(graphs repository.GraphRepository, transactions repository.Transactor) *GraphService {
-	return &GraphService{graphs: graphs, transactions: transactions}
+func NewGraphService(graphs repository.GraphRepository, transactions repository.Transactor, events EventDirectory) *GraphService {
+	return &GraphService{graphs: graphs, transactions: transactions, events: events}
 }
 
 func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (domain.Graph, error) {
@@ -72,6 +73,10 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
+		return domain.Graph{}, err
+	}
+
+	if err := s.ensureEditableEvent(ctx, input.EventPublicID); err != nil {
 		return domain.Graph{}, err
 	}
 
@@ -126,6 +131,10 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 		return domain.Graph{}, err
 	}
 
+	if err := s.ensureEditableEvent(ctx, input.EventPublicID); err != nil {
+		return domain.Graph{}, err
+	}
+
 	var published domain.Graph
 
 	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
@@ -152,6 +161,23 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 	}
 
 	return published, nil
+}
+
+func (s *GraphService) ensureEditableEvent(ctx context.Context, eventPublicID string) error {
+	event, err := s.events.FindEvent(ctx, eventPublicID)
+	if err != nil {
+		return err
+	}
+
+	if err := tenantctx.VerifyOwnership(ctx, event.TenantPublicID()); err != nil {
+		return err
+	}
+
+	if event.Archived() {
+		return ErrEventArchived
+	}
+
+	return nil
 }
 
 func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentRevisionInput) (domain.KernelGraph, error) {

@@ -100,7 +100,7 @@ func RoutesWithVerifier(
 	// on the trace it belongs to.
 	graphPath, graphHandler := graphv1connect.NewGraphAuthoringServiceHandler(
 		NewGraphService(graphService),
-		connectrpc.WithInterceptors(tracing, graphAuth),
+		connectrpc.WithInterceptors(tracing, graphAuth, forwardAuthorization()),
 	)
 
 	supplyAuth, err := interceptor.New(

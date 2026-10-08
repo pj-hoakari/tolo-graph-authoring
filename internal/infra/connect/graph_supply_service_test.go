@@ -72,7 +72,7 @@ func TestGetCurrentRevisionServesKernelGraphToServiceToken(t *testing.T) {
 				},
 			},
 		},
-	}, inlineTransactor{}))
+	}, inlineTransactor{}, callerTenantEvents{}))
 
 	res, err := getCurrentRevision(client, authorization)
 	if err != nil {

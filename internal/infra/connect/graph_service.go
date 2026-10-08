@@ -77,6 +77,8 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, err)
+	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived):
+		return connectrpc.NewError(connectrpc.CodeFailedPrecondition, err)
 	case errors.Is(err, repository.ErrGraphNotFound):
 		return connectrpc.NewError(connectrpc.CodeNotFound, err)
 	case errors.Is(err, dbinfra.ErrTransactionAborted):
