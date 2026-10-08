@@ -43,6 +43,20 @@ func (nopGraphRepository) FindObservationPointMappings(context.Context, string) 
 	return nil, nil
 }
 
+func (nopGraphRepository) FindPlacements(context.Context, domain.Graph) (domain.Placements, error) {
+	return domain.Placements{}, nil
+}
+
+func (nopGraphRepository) AddQrLocation(context.Context, domain.Graph, domain.QrLocation) error {
+	return nil
+}
+
+func (nopGraphRepository) UpdateQrLocation(context.Context, domain.Graph, domain.QrLocation) error {
+	return nil
+}
+
+func (nopGraphRepository) RemoveQrLocation(context.Context, domain.Graph, string) error { return nil }
+
 type inlineTransactor struct{}
 
 func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
