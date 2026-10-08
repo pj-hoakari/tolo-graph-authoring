@@ -71,7 +71,7 @@ func saveNewGraph(t *testing.T, draft *domain.GraphDocument) domain.Graph {
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(domain.Graph{}, repository.ErrGraphNotFound)
 	graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil)
 
-	graph, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	graph, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      draft,
 	})
@@ -108,7 +108,7 @@ func TestSaveGraphKeepsDraftRevisionIDWhenResavingSameDocument(t *testing.T) {
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(existing, nil)
 	graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil)
 
-	graph, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	graph, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("n1"),
 	})
@@ -130,7 +130,7 @@ func TestSaveGraphRejectsUnencodableLayoutWithoutSaving(t *testing.T) {
 	draft := document("n1")
 	draft.Nodes[0].Layout.X = math.NaN()
 
-	_, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      draft,
 	})
@@ -154,7 +154,7 @@ func TestSaveGraphCreatesGraphOnFirstSave(t *testing.T) {
 		return nil
 	})
 
-	graph, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	graph, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("n1"),
 	})
@@ -196,7 +196,7 @@ func TestSaveGraphReplacesDraftOfExistingGraph(t *testing.T) {
 		return nil
 	})
 
-	_, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("new"),
 	})
@@ -233,7 +233,7 @@ func TestSaveGraphRejectsInvalidInput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{}, activeEvent)
 
 			_, err := service.SaveGraph(eventContext(tenantID, eventID), tt.input)
 			if !errors.Is(err, tt.want) {
@@ -260,7 +260,7 @@ func TestSaveGraphRejectsUnauthorizedContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{}, activeEvent)
 
 			_, err := service.SaveGraph(tt.ctx, application.SaveGraphInput{EventPublicID: eventID, Document: document("n1")})
 			if !errors.Is(err, tt.want) {
@@ -278,7 +278,7 @@ func TestSaveGraphRejectsGraphOfAnotherTenant(t *testing.T) {
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).
 		Return(newGraph(t, "ffffffffffffffff", document("old")), nil)
 
-	_, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("new"),
 	})
@@ -298,7 +298,7 @@ func TestSaveGraphPropagatesRepositoryErrors(t *testing.T) {
 		graphs := NewMockGraphRepository(gomock.NewController(t))
 		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(domain.Graph{}, errStore)
 
-		_, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{EventPublicID: eventID, Document: document("n1")})
+		_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{EventPublicID: eventID, Document: document("n1")})
 		if !errors.Is(err, errStore) {
 			t.Errorf("SaveGraph() error = %v, want %v", err, errStore)
 		}
@@ -311,7 +311,7 @@ func TestSaveGraphPropagatesRepositoryErrors(t *testing.T) {
 		graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(domain.Graph{}, repository.ErrGraphNotFound)
 		graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(errStore)
 
-		_, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{EventPublicID: eventID, Document: document("n1")})
+		_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{EventPublicID: eventID, Document: document("n1")})
 		if !errors.Is(err, errStore) {
 			t.Errorf("SaveGraph() error = %v, want %v", err, errStore)
 		}
@@ -327,7 +327,7 @@ func TestSaveGraphReadsForUpdateThenSavesInOneTransaction(t *testing.T) {
 		graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil),
 	)
 
-	if _, err := application.NewGraphService(graphs, fakeTransactor{}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	if _, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("n1"),
 	}); err != nil {
@@ -344,7 +344,7 @@ func TestSaveGraphFailsWhenTransactionDoesNotCommit(t *testing.T) {
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(domain.Graph{}, repository.ErrGraphNotFound)
 	graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil)
 
-	graph, err := application.NewGraphService(graphs, fakeTransactor{commitErr: errCommit}).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
+	graph, err := application.NewGraphService(graphs, fakeTransactor{commitErr: errCommit}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 		EventPublicID: eventID,
 		Document:      document("n1"),
 	})
@@ -358,7 +358,7 @@ func TestSaveGraphFailsWhenTransactionDoesNotCommit(t *testing.T) {
 }
 
 func publish(ctx context.Context, graphs repository.GraphRepository) (domain.Graph, error) {
-	return application.NewGraphService(graphs, fakeTransactor{}).PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: eventID})
+	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: eventID})
 }
 
 func TestPublishRevisionPublishesDraftUnderLockInOneTransaction(t *testing.T) {
@@ -423,7 +423,7 @@ func TestPublishRevisionRejectsUnauthorizedContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{}, activeEvent)
 
 			if _, err := service.PublishRevision(tt.ctx, tt.input); !errors.Is(err, tt.want) {
 				t.Errorf("PublishRevision() error = %v, want %v", err, tt.want)
@@ -465,7 +465,7 @@ func TestGetCurrentRevisionServesKernelGraphOfCurrentRevision(t *testing.T) {
 			graphs := NewMockGraphRepository(gomock.NewController(t))
 			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
 
-			got, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(tc.ctx, application.GetCurrentRevisionInput{EventPublicID: eventID})
+			got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetCurrentRevision(tc.ctx, application.GetCurrentRevisionInput{EventPublicID: eventID})
 			if err != nil {
 				t.Fatalf("GetCurrentRevision() error = %v", err)
 			}
@@ -492,7 +492,7 @@ func TestGetCurrentRevisionRejectsUnauthorizedRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{})
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{}, unconsultedEvents{t})
 
 			if _, err := service.GetCurrentRevision(tc.ctx, application.GetCurrentRevisionInput{EventPublicID: tc.eventID}); !errors.Is(err, tc.want) {
 				t.Errorf("GetCurrentRevision() error = %v, want %v", err, tc.want)
@@ -507,7 +507,7 @@ func TestGetCurrentRevisionRejectsRevisionOfAnotherTenant(t *testing.T) {
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision("ffffffffffffffff"), nil)
 
-	_, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(serviceContext(tenantID, eventID), application.GetCurrentRevisionInput{EventPublicID: eventID})
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetCurrentRevision(serviceContext(tenantID, eventID), application.GetCurrentRevisionInput{EventPublicID: eventID})
 	if !errors.Is(err, tenantctx.ErrMismatch) {
 		t.Errorf("GetCurrentRevision() error = %v, want %v", err, tenantctx.ErrMismatch)
 	}
@@ -519,7 +519,7 @@ func TestGetCurrentRevisionPropagatesUnpublishedEvent(t *testing.T) {
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(domain.PublishedRevision{}, repository.ErrGraphNotFound)
 
-	_, err := application.NewGraphService(graphs, fakeTransactor{}).GetCurrentRevision(serviceContext("", ""), application.GetCurrentRevisionInput{EventPublicID: eventID})
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetCurrentRevision(serviceContext("", ""), application.GetCurrentRevisionInput{EventPublicID: eventID})
 	if !errors.Is(err, repository.ErrGraphNotFound) {
 		t.Errorf("GetCurrentRevision() error = %v, want %v", err, repository.ErrGraphNotFound)
 	}

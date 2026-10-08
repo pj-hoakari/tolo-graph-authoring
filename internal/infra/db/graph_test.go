@@ -189,9 +189,17 @@ func TestPostgresGraphRepositoryFindForUpdateSerializesWriters(t *testing.T) {
 	}
 }
 
+type callerTenantEvents struct{}
+
+func (callerTenantEvents) FindEvent(ctx context.Context, eventPublicID string) (domain.Event, error) {
+	tenantPublicID, _ := tenantctx.TenantPublicIDFromContext(ctx)
+
+	return domain.NewEvent(eventPublicID, tenantPublicID, false), nil
+}
+
 func TestSaveGraphOfAnotherTenantLeavesOwnerDraft(t *testing.T) {
 	repo := newTestGraphRepository(t)
-	service := application.NewGraphService(repo, repo)
+	service := application.NewGraphService(repo, repo, callerTenantEvents{})
 
 	save := func(tenantPublicID string, document domain.GraphDocument) (domain.Graph, error) {
 		ctx := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
