@@ -28,6 +28,20 @@ var edgeDirections = map[graphv1.EdgeDirection]domain.EdgeDirection{
 	graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS: domain.EdgeDirectionBothWays,
 }
 
+var (
+	protoNodeTypes      = inverted(nodeTypes)
+	protoEdgeDirections = inverted(edgeDirections)
+)
+
+func inverted[K, V comparable](m map[K]V) map[V]K {
+	inverse := make(map[V]K, len(m))
+	for k, v := range m {
+		inverse[v] = k
+	}
+
+	return inverse
+}
+
 type GraphService struct {
 	graphv1connect.UnimplementedGraphAuthoringServiceHandler
 	graphService application.GraphUseCases
@@ -73,6 +87,35 @@ func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Requ
 	}
 
 	return connectrpc.NewResponse(graphMeta(graph)), nil
+}
+
+func (s *GraphService) GetGraph(ctx context.Context, req *connectrpc.Request[graphv1.GetGraphRequest]) (*connectrpc.Response[graphv1.GetGraphResponse], error) {
+	saved, err := s.graphService.GetGraph(ctx, application.GetGraphInput{EventPublicID: req.Msg.GetEventId()})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	mappings := make([]*graphv1.ObservationPointMapping, 0, len(saved.Placements.Mappings))
+	for _, mapping := range saved.Placements.Mappings {
+		mappings = append(mappings, observationPointMappingToProto(mapping))
+	}
+
+	locations := make([]*graphv1.QrLocation, 0, len(saved.Placements.QrLocations))
+	for _, location := range saved.Placements.QrLocations {
+		locations = append(locations, &graphv1.QrLocation{
+			QrLocationId: location.ID,
+			Name:         location.Name,
+			Kind:         location.Kind,
+			Anchor:       graphAnchorToProto(location.Anchor),
+		})
+	}
+
+	return connectrpc.NewResponse(&graphv1.GetGraphResponse{
+		Meta:                     graphMeta(saved.Graph),
+		Document:                 graphDocumentToProto(saved.Graph.Draft()),
+		ObservationPointMappings: mappings,
+		QrLocations:              locations,
+	}), nil
 }
 
 func graphMeta(graph domain.Graph) *graphv1.GraphMeta {
@@ -146,6 +189,48 @@ func graphDocumentFromProto(document *graphv1.GraphDocument) *domain.GraphDocume
 	return &domain.GraphDocument{Nodes: nodes, Groups: groups, Edges: edges}
 }
 
+func graphDocumentToProto(document domain.GraphDocument) *graphv1.GraphDocument {
+	nodes := make([]*graphv1.GraphNode, 0, len(document.Nodes))
+	for _, node := range document.Nodes {
+		nodes = append(nodes, &graphv1.GraphNode{
+			NodeId:   node.ID,
+			NodeType: protoNodeTypes[node.Type],
+			Labels:   node.Labels,
+			GroupId:  node.GroupID,
+			Layout:   layoutToProto(node.Layout),
+		})
+	}
+
+	groups := make([]*graphv1.NodeGroup, 0, len(document.Groups))
+	for _, group := range document.Groups {
+		groups = append(groups, &graphv1.NodeGroup{
+			GroupId:       group.ID,
+			Labels:        group.Labels,
+			Layout:        layoutToProto(group.Layout),
+			ParentGroupId: group.ParentGroupID,
+			MinWidth:      group.MinWidth,
+			MinHeight:     group.MinHeight,
+		})
+	}
+
+	edges := make([]*graphv1.GraphEdge, 0, len(document.Edges))
+	for _, edge := range document.Edges {
+		edges = append(edges, &graphv1.GraphEdge{
+			EdgeId:       edge.ID,
+			SourceNodeId: edge.SourceNodeID,
+			TargetNodeId: edge.TargetNodeID,
+			Direction:    protoEdgeDirections[edge.Direction],
+			Label:        edge.Label,
+		})
+	}
+
+	return &graphv1.GraphDocument{Nodes: nodes, Groups: groups, Edges: edges}
+}
+
+func layoutToProto(layout domain.Layout) *graphv1.Layout {
+	return &graphv1.Layout{X: layout.X, Y: layout.Y, Width: layout.Width, Height: layout.Height}
+}
+
 func layoutFromProto(layout *graphv1.Layout) domain.Layout {
 	if layout == nil {
 		return domain.Layout{X: 0, Y: 0, Width: nil, Height: nil}
@@ -178,15 +263,19 @@ func observationPointMappingFromProto(mapping *graphv1.ObservationPointMapping) 
 }
 
 func observationPointMappingToProto(mapping domain.ObservationPointMapping) *graphv1.ObservationPointMapping {
-	anchor := &kernelv1.GraphAnchor{Target: nil, RoutePosition: mapping.Anchor.RoutePosition}
+	return &graphv1.ObservationPointMapping{ObservationPointId: mapping.ObservationPointID, Anchor: graphAnchorToProto(mapping.Anchor)}
+}
 
-	switch mapping.Anchor.Kind {
+func graphAnchorToProto(graphAnchor domain.GraphAnchor) *kernelv1.GraphAnchor {
+	anchor := &kernelv1.GraphAnchor{Target: nil, RoutePosition: graphAnchor.RoutePosition}
+
+	switch graphAnchor.Kind {
 	case domain.AnchorKindPoint:
-		anchor.Target = &kernelv1.GraphAnchor_PointId{PointId: mapping.Anchor.ElementID}
+		anchor.Target = &kernelv1.GraphAnchor_PointId{PointId: graphAnchor.ElementID}
 	case domain.AnchorKindRoute:
-		anchor.Target = &kernelv1.GraphAnchor_RouteId{RouteId: mapping.Anchor.ElementID}
+		anchor.Target = &kernelv1.GraphAnchor_RouteId{RouteId: graphAnchor.ElementID}
 	case domain.AnchorKindUnspecified:
 	}
 
-	return &graphv1.ObservationPointMapping{ObservationPointId: mapping.ObservationPointID, Anchor: anchor}
+	return anchor
 }
