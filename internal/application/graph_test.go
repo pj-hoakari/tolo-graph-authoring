@@ -434,6 +434,84 @@ func TestPublishRevisionRejectsUnauthorizedContext(t *testing.T) {
 	}
 }
 
+func getGraph(ctx context.Context, graphs repository.GraphRepository) (application.SavedGraph, error) {
+	archivedEvent := fakeEvents{eventID: domain.NewEvent(eventID, tenantID, true)}
+
+	return application.NewGraphService(graphs, fakeTransactor{}, archivedEvent).GetGraph(ctx, application.GetGraphInput{EventPublicID: eventID})
+}
+
+func TestGetGraphServesDraftAndPlacementsOfArchivedEvent(t *testing.T) {
+	t.Parallel()
+
+	draft := newGraph(t, tenantID, document("n1"))
+	placements := domain.Placements{
+		Mappings:    []domain.ObservationPointMapping{{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1"}}},
+		QrLocations: []domain.QrLocation{{ID: "qr-1", Name: "Gate", Kind: "entrance", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1"}}},
+	}
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), tenantID, eventID).Return(draft, nil)
+	graphs.EXPECT().FindPlacements(gomock.Any(), draft).Return(placements, nil)
+
+	got, err := getGraph(eventContext(tenantID, eventID), graphs)
+	if err != nil {
+		t.Fatalf("GetGraph() error = %v", err)
+	}
+
+	if want := (application.SavedGraph{Graph: draft, Placements: placements}); !reflect.DeepEqual(got, want) {
+		t.Errorf("GetGraph() = %#v, want %#v", got, want)
+	}
+}
+
+func TestGetGraphWithoutSavedGraphReportsNotFound(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), tenantID, eventID).Return(domain.Graph{}, repository.ErrGraphNotFound)
+
+	if _, err := getGraph(eventContext(tenantID, eventID), graphs); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("GetGraph() error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+}
+
+func TestGetGraphRejectsGraphOfAnotherTenant(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindByEventPublicID(gomock.Any(), tenantID, eventID).Return(newGraph(t, "ffffffffffffffff", document("n1")), nil)
+
+	if _, err := getGraph(eventContext(tenantID, eventID), graphs); !errors.Is(err, tenantctx.ErrMismatch) {
+		t.Errorf("GetGraph() error = %v, want %v", err, tenantctx.ErrMismatch)
+	}
+}
+
+func TestGetGraphRejectsUnauthorizedContext(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		ctx   context.Context
+		input application.GetGraphInput
+		want  error
+	}{
+		{"missing event ID", eventContext(tenantID, eventID), application.GetGraphInput{EventPublicID: ""}, application.ErrEventIDRequired},
+		{"other event", eventContext(tenantID, "0123456789abcdef"), application.GetGraphInput{EventPublicID: eventID}, tenantctx.ErrEventMismatch},
+		{"no tenant claim", eventContext("", eventID), application.GetGraphInput{EventPublicID: eventID}, tenantctx.ErrMissing},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := application.NewGraphService(NewMockGraphRepository(gomock.NewController(t)), fakeTransactor{}, unconsultedEvents{t})
+
+			if _, err := service.GetGraph(tt.ctx, tt.input); !errors.Is(err, tt.want) {
+				t.Errorf("GetGraph() error = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
 func serviceContext(tenantPublicID, eventPublicID string) context.Context {
 	return internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
 		TokenUse:       internaljwt.TokenUseService,

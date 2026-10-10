@@ -66,6 +66,19 @@ type GetObservationPointMappingsUseCase interface {
 	GetObservationPointMappings(context.Context, GetObservationPointMappingsInput) (ObservationPointMappings, error)
 }
 
+type GetGraphInput struct {
+	EventPublicID string
+}
+
+type SavedGraph struct {
+	Graph      domain.Graph
+	Placements domain.Placements
+}
+
+type GetGraphUseCase interface {
+	GetGraph(context.Context, GetGraphInput) (SavedGraph, error)
+}
+
 type GraphSupplyUseCases interface {
 	GetCurrentRevisionUseCase
 	GetObservationPointMappingsUseCase
@@ -75,6 +88,7 @@ type GraphUseCases interface {
 	SaveGraphUseCase
 	MapObservationPointUseCase
 	PublishRevisionUseCase
+	GetGraphUseCase
 	GraphSupplyUseCases
 }
 
@@ -194,6 +208,37 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 	}
 
 	return published, nil
+}
+
+func (s *GraphService) GetGraph(ctx context.Context, input GetGraphInput) (SavedGraph, error) {
+	if input.EventPublicID == "" {
+		return SavedGraph{}, ErrEventIDRequired
+	}
+
+	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
+	if !ok {
+		return SavedGraph{}, tenantctx.ErrMissing
+	}
+
+	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
+		return SavedGraph{}, err
+	}
+
+	graph, err := s.graphs.FindByEventPublicID(ctx, tenantPublicID, input.EventPublicID)
+	if err != nil {
+		return SavedGraph{}, err
+	}
+
+	if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+		return SavedGraph{}, err
+	}
+
+	placements, err := s.graphs.FindPlacements(ctx, graph)
+	if err != nil {
+		return SavedGraph{}, err
+	}
+
+	return SavedGraph{Graph: graph, Placements: placements}, nil
 }
 
 func (s *GraphService) ensureEditableEvent(ctx context.Context, eventPublicID string) error {
