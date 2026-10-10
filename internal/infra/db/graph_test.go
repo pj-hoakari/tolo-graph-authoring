@@ -426,9 +426,9 @@ func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
 		RevisionID:     current.RevisionID(),
 		Kernel: domain.GraphKernel{
 			Points: []domain.Point{
-				{ID: "n1", Type: domain.PointTypeTransitOnly, BoundaryDirection: domain.BoundaryDirectionEntryAndExit, BoundaryActive: true},
-				{ID: "n2", Type: domain.PointTypeGoal, BoundaryDirection: domain.BoundaryDirectionUnspecified, BoundaryActive: true},
-				{ID: "n3", Type: domain.PointTypeGoalTransitMixed, BoundaryDirection: domain.BoundaryDirectionUnspecified, BoundaryActive: true},
+				{ID: "n1", Type: domain.PointTypeTransitOnly, Boundary: &domain.PointBoundary{Direction: domain.BoundaryDirectionEntryAndExit, Active: true}},
+				{ID: "n2", Type: domain.PointTypeGoal, Boundary: nil},
+				{ID: "n3", Type: domain.PointTypeGoalTransitMixed, Boundary: nil},
 			},
 			Routes: []domain.Route{
 				{ID: "e1", FromPointID: "n1", ToPointID: "n3", Direction: domain.DirectionAttributeBothWays},

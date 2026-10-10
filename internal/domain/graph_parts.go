@@ -112,12 +112,12 @@ func (d GraphDocument) Parts() GraphParts {
 			continue
 		}
 
-		parts.Kernel.Points = append(parts.Kernel.Points, Point{
-			ID:                node.ID,
-			Type:              pointTypes[node.Type],
-			BoundaryDirection: boundary[node.ID],
-			BoundaryActive:    true,
-		})
+		point := Point{ID: node.ID, Type: pointTypes[node.Type], Boundary: nil}
+		if direction, ok := boundary[node.ID]; ok {
+			point.Boundary = &PointBoundary{Direction: direction, Active: true}
+		}
+
+		parts.Kernel.Points = append(parts.Kernel.Points, point)
 		parts.Labels.Points[node.ID] = node.Labels
 		parts.Layout.Points[node.ID] = PointLayout{GroupID: node.GroupID, Layout: node.Layout}
 	}

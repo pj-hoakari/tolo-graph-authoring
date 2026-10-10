@@ -79,9 +79,9 @@ func TestKernelExcludesExternalNodesAndMarksTheirNeighboursAsBoundary(t *testing
 	got := venue().Parts().Kernel
 	want := domain.GraphKernel{
 		Points: []domain.Point{
-			{ID: "gate", Type: domain.PointTypeTransitOnly, BoundaryDirection: domain.BoundaryDirectionEntry, BoundaryActive: true},
-			{ID: "lobby", Type: domain.PointTypeGoalTransitMixed, BoundaryDirection: domain.BoundaryDirectionExit, BoundaryActive: true},
-			{ID: "stage", Type: domain.PointTypeGoal, BoundaryDirection: domain.BoundaryDirectionUnspecified, BoundaryActive: true},
+			{ID: "gate", Type: domain.PointTypeTransitOnly, Boundary: &domain.PointBoundary{Direction: domain.BoundaryDirectionEntry, Active: true}},
+			{ID: "lobby", Type: domain.PointTypeGoalTransitMixed, Boundary: &domain.PointBoundary{Direction: domain.BoundaryDirectionExit, Active: true}},
+			{ID: "stage", Type: domain.PointTypeGoal, Boundary: nil},
 		},
 		Routes: []domain.Route{
 			{ID: "aisle", FromPointID: "lobby", ToPointID: "stage", Direction: domain.DirectionAttributeOneWay},
@@ -102,20 +102,24 @@ func TestBoundaryDirectionFollowsEdgesToExternals(t *testing.T) {
 		return domain.Edge{ID: id, SourceNodeID: source, TargetNodeID: target, Direction: direction}
 	}
 
+	boundary := func(direction domain.BoundaryDirection) *domain.PointBoundary {
+		return &domain.PointBoundary{Direction: direction, Active: true}
+	}
+
 	for _, tc := range []struct {
 		name      string
 		nodeType  domain.NodeType
 		edges     []domain.Edge
 		pointType domain.PointType
-		want      domain.BoundaryDirection
+		want      *domain.PointBoundary
 	}{
-		{"not connected", domain.NodeTypeGoal, nil, domain.PointTypeGoal, domain.BoundaryDirectionUnspecified},
-		{"one way from an external", domain.NodeTypeGoal, []domain.Edge{edge("e", "x", "p", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntry},
-		{"one way to an external", domain.NodeTypeGoalTransitMixed, []domain.Edge{edge("e", "p", "y", oneWay)}, domain.PointTypeGoalTransitMixed, domain.BoundaryDirectionExit},
-		{"both ways from an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "x", "p", bothWays)}, domain.PointTypeTransitOnly, domain.BoundaryDirectionEntryAndExit},
-		{"both ways to an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "p", "y", bothWays)}, domain.PointTypeTransitOnly, domain.BoundaryDirectionEntryAndExit},
-		{"entry and exit through two externals", domain.NodeTypeGoal, []domain.Edge{edge("in", "x", "p", oneWay), edge("out", "p", "y", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntryAndExit},
-		{"two entries", domain.NodeTypeGoal, []domain.Edge{edge("a", "x", "p", oneWay), edge("b", "y", "p", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntry},
+		{"not connected", domain.NodeTypeGoal, nil, domain.PointTypeGoal, nil},
+		{"one way from an external", domain.NodeTypeGoal, []domain.Edge{edge("e", "x", "p", oneWay)}, domain.PointTypeGoal, boundary(domain.BoundaryDirectionEntry)},
+		{"one way to an external", domain.NodeTypeGoalTransitMixed, []domain.Edge{edge("e", "p", "y", oneWay)}, domain.PointTypeGoalTransitMixed, boundary(domain.BoundaryDirectionExit)},
+		{"both ways from an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "x", "p", bothWays)}, domain.PointTypeTransitOnly, boundary(domain.BoundaryDirectionEntryAndExit)},
+		{"both ways to an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "p", "y", bothWays)}, domain.PointTypeTransitOnly, boundary(domain.BoundaryDirectionEntryAndExit)},
+		{"entry and exit through two externals", domain.NodeTypeGoal, []domain.Edge{edge("in", "x", "p", oneWay), edge("out", "p", "y", oneWay)}, domain.PointTypeGoal, boundary(domain.BoundaryDirectionEntryAndExit)},
+		{"two entries", domain.NodeTypeGoal, []domain.Edge{edge("a", "x", "p", oneWay), edge("b", "y", "p", oneWay)}, domain.PointTypeGoal, boundary(domain.BoundaryDirectionEntry)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -124,14 +128,10 @@ func TestBoundaryDirectionFollowsEdgesToExternals(t *testing.T) {
 				Nodes: []domain.Node{{ID: "p", Type: tc.nodeType}, {ID: "x", Type: domain.NodeTypeExternal}, {ID: "y", Type: domain.NodeTypeExternal}},
 				Edges: tc.edges,
 			}.Parts().Kernel.Points
-			want := []domain.Point{{ID: "p", Type: tc.pointType, BoundaryDirection: tc.want, BoundaryActive: true}}
+			want := []domain.Point{{ID: "p", Type: tc.pointType, Boundary: tc.want}}
 
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("Parts().Kernel.Points = %+v, want %+v", got, want)
-			}
-
-			if got[0].IsBoundary() != (tc.want != domain.BoundaryDirectionUnspecified) {
-				t.Errorf("IsBoundary() = %v for boundary direction %v", got[0].IsBoundary(), tc.want)
 			}
 		})
 	}

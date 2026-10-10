@@ -69,12 +69,18 @@ func (s *GraphSupplyService) GetObservationPointMappings(
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {
 	points := make([]*kernelv1.Point, 0, len(graph.Points))
 	for _, point := range graph.Points {
+		var boundary *kernelv1.Boundary
+		if point.Boundary != nil {
+			boundary = &kernelv1.Boundary{
+				Direction: boundaryDirections[point.Boundary.Direction],
+				Active:    point.Boundary.Active,
+			}
+		}
+
 		points = append(points, &kernelv1.Point{
-			PointId:           point.ID,
-			Type:              pointTypes[point.Type],
-			IsBoundary:        point.IsBoundary(),
-			BoundaryActive:    point.BoundaryActive,
-			BoundaryDirection: boundaryDirections[point.BoundaryDirection],
+			PointId:  point.ID,
+			Type:     pointTypes[point.Type],
+			Boundary: boundary,
 		})
 	}
 
