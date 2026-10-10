@@ -17,11 +17,24 @@ const (
 	DirectionAttributeBothWays
 )
 
+type BoundaryDirection int
+
+const (
+	BoundaryDirectionUnspecified BoundaryDirection = 0
+	BoundaryDirectionEntry       BoundaryDirection = 1
+	BoundaryDirectionExit        BoundaryDirection = 2
+	BoundaryDirectionEntryAndExit                  = BoundaryDirectionEntry | BoundaryDirectionExit
+)
+
 type Point struct {
-	ID             string    `json:"id"`
-	Type           PointType `json:"type"`
-	IsBoundary     bool      `json:"is_boundary"`
-	BoundaryActive bool      `json:"boundary_active"`
+	ID                string            `json:"id"`
+	Type              PointType         `json:"type"`
+	BoundaryDirection BoundaryDirection `json:"boundary_direction"`
+	BoundaryActive    bool              `json:"boundary_active"`
+}
+
+func (p Point) IsBoundary() bool {
+	return p.BoundaryDirection != BoundaryDirectionUnspecified
 }
 
 type Route struct {

@@ -29,7 +29,7 @@ func venue() domain.GraphDocument {
 		Edges: []domain.Edge{
 			{ID: "walk", SourceNodeID: "gate", TargetNodeID: "stage", Direction: domain.EdgeDirectionBothWays, Label: ptr("通路")},
 			{ID: "entry", SourceNodeID: "south", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay, Label: ptr("入場")},
-			{ID: "exit", SourceNodeID: "gate", TargetNodeID: "north", Direction: domain.EdgeDirectionOneWay},
+			{ID: "exit", SourceNodeID: "lobby", TargetNodeID: "north", Direction: domain.EdgeDirectionOneWay},
 			{ID: "aisle", SourceNodeID: "lobby", TargetNodeID: "stage", Direction: domain.EdgeDirectionOneWay, Label: ptr("")},
 		},
 	}
@@ -79,9 +79,9 @@ func TestKernelExcludesExternalNodesAndMarksTheirNeighboursAsBoundary(t *testing
 	got := venue().Parts().Kernel
 	want := domain.GraphKernel{
 		Points: []domain.Point{
-			{ID: "gate", Type: domain.PointTypeTransitOnly, IsBoundary: true, BoundaryActive: true},
-			{ID: "lobby", Type: domain.PointTypeGoalTransitMixed, IsBoundary: false, BoundaryActive: true},
-			{ID: "stage", Type: domain.PointTypeGoal, IsBoundary: false, BoundaryActive: true},
+			{ID: "gate", Type: domain.PointTypeTransitOnly, BoundaryDirection: domain.BoundaryDirectionEntry, BoundaryActive: true},
+			{ID: "lobby", Type: domain.PointTypeGoalTransitMixed, BoundaryDirection: domain.BoundaryDirectionExit, BoundaryActive: true},
+			{ID: "stage", Type: domain.PointTypeGoal, BoundaryDirection: domain.BoundaryDirectionUnspecified, BoundaryActive: true},
 		},
 		Routes: []domain.Route{
 			{ID: "aisle", FromPointID: "lobby", ToPointID: "stage", Direction: domain.DirectionAttributeOneWay},
@@ -94,26 +94,46 @@ func TestKernelExcludesExternalNodesAndMarksTheirNeighboursAsBoundary(t *testing
 	}
 }
 
-func TestBoundaryPointKeepsItsOwnType(t *testing.T) {
+func TestBoundaryDirectionFollowsEdgesToExternals(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		nodeType  domain.NodeType
-		pointType domain.PointType
-	}{
-		{domain.NodeTypeGoal, domain.PointTypeGoal},
-		{domain.NodeTypeGoalTransitMixed, domain.PointTypeGoalTransitMixed},
-		{domain.NodeTypeTransitOnly, domain.PointTypeTransitOnly},
-	} {
-		got := domain.GraphDocument{
-			Nodes: []domain.Node{{ID: "p", Type: tc.nodeType}, {ID: "x", Type: domain.NodeTypeExternal}},
-			Edges: []domain.Edge{{ID: "e", SourceNodeID: "p", TargetNodeID: "x", Direction: domain.EdgeDirectionOneWay}},
-		}.Parts().Kernel.Points
-		want := []domain.Point{{ID: "p", Type: tc.pointType, IsBoundary: true, BoundaryActive: true}}
+	oneWay, bothWays := domain.EdgeDirectionOneWay, domain.EdgeDirectionBothWays
+	edge := func(id, source, target string, direction domain.EdgeDirection) domain.Edge {
+		return domain.Edge{ID: id, SourceNodeID: source, TargetNodeID: target, Direction: direction}
+	}
 
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("points of a %v node connected to an external = %+v, want %+v", tc.nodeType, got, want)
-		}
+	for _, tc := range []struct {
+		name      string
+		nodeType  domain.NodeType
+		edges     []domain.Edge
+		pointType domain.PointType
+		want      domain.BoundaryDirection
+	}{
+		{"not connected", domain.NodeTypeGoal, nil, domain.PointTypeGoal, domain.BoundaryDirectionUnspecified},
+		{"one way from an external", domain.NodeTypeGoal, []domain.Edge{edge("e", "x", "p", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntry},
+		{"one way to an external", domain.NodeTypeGoalTransitMixed, []domain.Edge{edge("e", "p", "y", oneWay)}, domain.PointTypeGoalTransitMixed, domain.BoundaryDirectionExit},
+		{"both ways from an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "x", "p", bothWays)}, domain.PointTypeTransitOnly, domain.BoundaryDirectionEntryAndExit},
+		{"both ways to an external", domain.NodeTypeTransitOnly, []domain.Edge{edge("e", "p", "y", bothWays)}, domain.PointTypeTransitOnly, domain.BoundaryDirectionEntryAndExit},
+		{"entry and exit through two externals", domain.NodeTypeGoal, []domain.Edge{edge("in", "x", "p", oneWay), edge("out", "p", "y", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntryAndExit},
+		{"two entries", domain.NodeTypeGoal, []domain.Edge{edge("a", "x", "p", oneWay), edge("b", "y", "p", oneWay)}, domain.PointTypeGoal, domain.BoundaryDirectionEntry},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := domain.GraphDocument{
+				Nodes: []domain.Node{{ID: "p", Type: tc.nodeType}, {ID: "x", Type: domain.NodeTypeExternal}, {ID: "y", Type: domain.NodeTypeExternal}},
+				Edges: tc.edges,
+			}.Parts().Kernel.Points
+			want := []domain.Point{{ID: "p", Type: tc.pointType, BoundaryDirection: tc.want, BoundaryActive: true}}
+
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("Parts().Kernel.Points = %+v, want %+v", got, want)
+			}
+
+			if got[0].IsBoundary() != (tc.want != domain.BoundaryDirectionUnspecified) {
+				t.Errorf("IsBoundary() = %v for boundary direction %v", got[0].IsBoundary(), tc.want)
+			}
+		})
 	}
 }
 
@@ -184,7 +204,7 @@ func TestDraftRevisionIDIgnoresLayout(t *testing.T) {
 			d.Nodes[1].Labels = map[string]string{"ja": "東口"}
 		}},
 		{"external edge moved to another external", func(d *domain.GraphDocument) { d.Edges[1].SourceNodeID = "north" }},
-		{"external edge flipped", func(d *domain.GraphDocument) { d.Edges[2].Direction = domain.EdgeDirectionBothWays; d.Edges[2].Label = ptr("出口") }},
+		{"external edge renamed", func(d *domain.GraphDocument) { d.Edges[2].Label = ptr("出口") }},
 		{"elements reordered", func(d *domain.GraphDocument) {
 			slices.Reverse(d.Nodes)
 			slices.Reverse(d.Groups)
@@ -217,6 +237,10 @@ func TestDraftRevisionIDFollowsKernelAndLabels(t *testing.T) {
 			d.Edges = append(d.Edges, domain.Edge{ID: "side", SourceNodeID: "north", TargetNodeID: "lobby", Direction: domain.EdgeDirectionOneWay})
 		}},
 		{"external connection removed", func(d *domain.GraphDocument) { d.Edges = slices.Delete(d.Edges, 1, 3) }},
+		{"external edge made both ways", func(d *domain.GraphDocument) { d.Edges[1].Direction = domain.EdgeDirectionBothWays }},
+		{"external edge reversed", func(d *domain.GraphDocument) {
+			d.Edges[2].SourceNodeID, d.Edges[2].TargetNodeID = d.Edges[2].TargetNodeID, d.Edges[2].SourceNodeID
+		}},
 		{"point type changed", func(d *domain.GraphDocument) { d.Nodes[0].Type = domain.NodeTypeGoalTransitMixed }},
 		{"point renamed", func(d *domain.GraphDocument) { d.Nodes[0].Labels = map[string]string{"ja": "大舞台"} }},
 		{"group renamed", func(d *domain.GraphDocument) { d.Groups[0].Labels = map[string]string{"ja": "大ホール"} }},

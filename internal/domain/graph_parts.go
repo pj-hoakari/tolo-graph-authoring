@@ -73,10 +73,21 @@ func (d GraphDocument) Parts() GraphParts {
 		external[node.ID] = node.Type == NodeTypeExternal
 	}
 
-	boundary := make(map[string]bool)
+	boundary := make(map[string]BoundaryDirection)
+
 	for _, edge := range d.Edges {
-		boundary[edge.SourceNodeID] = boundary[edge.SourceNodeID] || external[edge.TargetNodeID]
-		boundary[edge.TargetNodeID] = boundary[edge.TargetNodeID] || external[edge.SourceNodeID]
+		inward, outward := BoundaryDirectionEntry, BoundaryDirectionExit
+		if edge.Direction == EdgeDirectionBothWays {
+			inward, outward = BoundaryDirectionEntryAndExit, BoundaryDirectionEntryAndExit
+		}
+
+		if external[edge.SourceNodeID] {
+			boundary[edge.TargetNodeID] |= inward
+		}
+
+		if external[edge.TargetNodeID] {
+			boundary[edge.SourceNodeID] |= outward
+		}
 	}
 
 	parts := GraphParts{
@@ -102,10 +113,10 @@ func (d GraphDocument) Parts() GraphParts {
 		}
 
 		parts.Kernel.Points = append(parts.Kernel.Points, Point{
-			ID:             node.ID,
-			Type:           pointTypes[node.Type],
-			IsBoundary:     boundary[node.ID],
-			BoundaryActive: true,
+			ID:                node.ID,
+			Type:              pointTypes[node.Type],
+			BoundaryDirection: boundary[node.ID],
+			BoundaryActive:    true,
 		})
 		parts.Labels.Points[node.ID] = node.Labels
 		parts.Layout.Points[node.ID] = PointLayout{GroupID: node.GroupID, Layout: node.Layout}

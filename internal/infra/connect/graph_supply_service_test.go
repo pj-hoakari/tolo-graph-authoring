@@ -85,7 +85,10 @@ func TestGetCurrentRevisionServesKernelGraphToServiceToken(t *testing.T) {
 		EventId:    "fedcba9876543210",
 		RevisionId: "0123456789abcdef",
 		Points: []*kernelv1.Point{
-			{PointId: "gate", Type: kernelv1.PointType_POINT_TYPE_TRANSIT_ONLY, IsBoundary: true, BoundaryActive: true},
+			{
+				PointId: "gate", Type: kernelv1.PointType_POINT_TYPE_TRANSIT_ONLY, IsBoundary: true, BoundaryActive: true,
+				BoundaryDirection: kernelv1.BoundaryDirection_BOUNDARY_DIRECTION_ENTRY,
+			},
 			{PointId: "hall", Type: kernelv1.PointType_POINT_TYPE_GOAL_TRANSIT_MIXED, IsBoundary: false, BoundaryActive: true},
 		},
 		Routes: []*kernelv1.Route{
