@@ -12,8 +12,15 @@ func TestVerifyMappingAcceptsOnlyElementsOfTheDraft(t *testing.T) {
 	t.Parallel()
 
 	graph, err := domain.NewGraph("a1b2c3d4e5f60718", "fedcba9876543210", domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
-		Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
+		Nodes: []domain.Node{
+			{ID: "gate", Type: domain.NodeTypeTransitOnly},
+			{ID: "hall", Type: domain.NodeTypeGoal},
+			{ID: "outside", Type: domain.NodeTypeExternal},
+		},
+		Edges: []domain.Edge{
+			{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay},
+			{ID: "entry", SourceNodeID: "outside", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay},
+		},
 	})
 	if err != nil {
 		t.Fatalf("NewGraph() error = %v", err)
@@ -38,6 +45,8 @@ func TestVerifyMappingAcceptsOnlyElementsOfTheDraft(t *testing.T) {
 		{"unknown point", "cam-1", domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "nowhere"}, domain.ErrAnchorTargetNotFound},
 		{"route ID as point", "cam-1", domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "e1"}, domain.ErrAnchorTargetNotFound},
 		{"point ID as route", "cam-1", domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "gate"}, domain.ErrAnchorTargetNotFound},
+		{"external node", "cam-1", domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "outside"}, domain.ErrAnchorTargetNotFound},
+		{"edge to an external node", "cam-1", domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "entry"}, domain.ErrAnchorTargetNotFound},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

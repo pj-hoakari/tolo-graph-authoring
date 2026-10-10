@@ -20,7 +20,7 @@ var nodeTypes = map[graphv1.NodeType]domain.NodeType{
 	graphv1.NodeType_NODE_TYPE_GOAL:               domain.NodeTypeGoal,
 	graphv1.NodeType_NODE_TYPE_GOAL_TRANSIT_MIXED: domain.NodeTypeGoalTransitMixed,
 	graphv1.NodeType_NODE_TYPE_TRANSIT_ONLY:       domain.NodeTypeTransitOnly,
-	graphv1.NodeType_NODE_TYPE_BOUNDARY:           domain.NodeTypeBoundary,
+	graphv1.NodeType_NODE_TYPE_EXTERNAL:           domain.NodeTypeExternal,
 }
 
 var edgeDirections = map[graphv1.EdgeDirection]domain.EdgeDirection{
@@ -123,9 +123,12 @@ func graphDocumentFromProto(document *graphv1.GraphDocument) *domain.GraphDocume
 	groups := make([]domain.Group, 0, len(document.GetGroups()))
 	for _, group := range document.GetGroups() {
 		groups = append(groups, domain.Group{
-			ID:     group.GetGroupId(),
-			Labels: group.GetLabels(),
-			Layout: layoutFromProto(group.GetLayout()),
+			ID:            group.GetGroupId(),
+			Labels:        group.GetLabels(),
+			ParentGroupID: group.GetParentGroupId(),
+			MinWidth:      group.MinWidth,
+			MinHeight:     group.MinHeight,
+			Layout:        layoutFromProto(group.GetLayout()),
 		})
 	}
 

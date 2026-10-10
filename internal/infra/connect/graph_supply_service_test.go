@@ -62,15 +62,17 @@ func TestGetCurrentRevisionServesKernelGraphToServiceToken(t *testing.T) {
 			TenantPublicID: "a1b2c3d4e5f60718",
 			EventPublicID:  "fedcba9876543210",
 			RevisionID:     "0123456789abcdef",
-			Document: domain.GraphDocument{
+			Kernel: domain.GraphDocument{
 				Nodes: []domain.Node{
-					{ID: "gate", Type: domain.NodeTypeBoundary},
+					{ID: "gate", Type: domain.NodeTypeTransitOnly},
 					{ID: "hall", Type: domain.NodeTypeGoalTransitMixed},
+					{ID: "outside", Type: domain.NodeTypeExternal},
 				},
 				Edges: []domain.Edge{
 					{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays},
+					{ID: "entry", SourceNodeID: "outside", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay},
 				},
-			},
+			}.Parts().Kernel,
 		},
 	}, inlineTransactor{}, callerTenantEvents{}))
 

@@ -92,9 +92,9 @@ func (g Graph) verifyAnchor(anchor GraphAnchor, invalid error) error {
 func (g Graph) contains(anchor GraphAnchor) bool {
 	switch anchor.Kind {
 	case AnchorKindPoint:
-		return slices.ContainsFunc(g.draft.Nodes, func(node Node) bool { return node.ID == anchor.ElementID })
+		return slices.ContainsFunc(g.draft.Kernel.Points, func(point Point) bool { return point.ID == anchor.ElementID })
 	case AnchorKindRoute:
-		return slices.ContainsFunc(g.draft.Edges, func(edge Edge) bool { return edge.ID == anchor.ElementID })
+		return slices.ContainsFunc(g.draft.Kernel.Routes, func(route Route) bool { return route.ID == anchor.ElementID })
 	case AnchorKindUnspecified:
 	}
 

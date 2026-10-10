@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	connectrpc "connectrpc.com/connect"
@@ -138,6 +139,57 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
 	})
+
+	t.Run("rejects a structurally invalid document", func(t *testing.T) {
+		t.Parallel()
+
+		req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+			EventId: "fedcba9876543210",
+			Document: &graphv1.GraphDocument{
+				Nodes:  []*graphv1.GraphNode{{NodeId: "outside", NodeType: graphv1.NodeType_NODE_TYPE_EXTERNAL, GroupId: "floor"}},
+				Groups: []*graphv1.NodeGroup{{GroupId: "floor"}},
+			},
+		})
+		req.Header().Set("Authorization", authorization)
+
+		_, err := client.SaveGraph(context.Background(), req)
+		if got, want := connectrpc.CodeOf(err), connectrpc.CodeInvalidArgument; got != want {
+			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestGraphDocumentFromProtoKeepsExternalNodesAndNestedGroups(t *testing.T) {
+	t.Parallel()
+
+	size := func(v float64) *float64 { return &v }
+
+	got := graphDocumentFromProto(&graphv1.GraphDocument{
+		Nodes: []*graphv1.GraphNode{
+			{NodeId: "outside", NodeType: graphv1.NodeType_NODE_TYPE_EXTERNAL, Layout: &graphv1.Layout{X: -10, Y: 0}},
+			{NodeId: "gate", NodeType: graphv1.NodeType_NODE_TYPE_TRANSIT_ONLY, GroupId: "hall"},
+		},
+		Groups: []*graphv1.NodeGroup{
+			{GroupId: "floor", MinWidth: size(300), MinHeight: size(200)},
+			{GroupId: "hall", ParentGroupId: "floor"},
+		},
+	})
+
+	want := &domain.GraphDocument{
+		Nodes: []domain.Node{
+			{ID: "outside", Type: domain.NodeTypeExternal, Layout: domain.Layout{X: -10, Y: 0}},
+			{ID: "gate", Type: domain.NodeTypeTransitOnly, GroupID: "hall"},
+		},
+		Groups: []domain.Group{
+			{ID: "floor", MinWidth: size(300), MinHeight: size(200)},
+			{ID: "hall", ParentGroupID: "floor"},
+		},
+		Edges: []domain.Edge{},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("graphDocumentFromProto() = %+v, want %+v", got, want)
+	}
 }
 
 func TestPublishRevisionAnswersMissingDraftWithNotFound(t *testing.T) {
@@ -225,7 +277,7 @@ func TestMapObservationPoint(t *testing.T) {
 	graphs := application.NewGraphService(draftGraphRepository{
 		nopGraphRepository: nopGraphRepository{},
 		draft: domain.GraphDocument{
-			Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
+			Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
 			Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
 		},
 	}, inlineTransactor{}, callerTenantEvents{})

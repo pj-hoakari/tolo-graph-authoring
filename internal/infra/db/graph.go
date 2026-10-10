@@ -62,10 +62,7 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 }
 
 func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) error {
-	draft, err := newGraphDraft(graph)
-	if err != nil {
-		return err
-	}
+	draft := newGraphDraft(graph)
 
 	return r.WithinTransaction(ctx, func(ctx context.Context) error {
 		owner, err := r.executor(ctx).ExecContext(ctx, `

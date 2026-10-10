@@ -29,7 +29,7 @@ func TestObservationPointMappedThroughServiceIsSupplied(t *testing.T) {
 	})
 
 	document := domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
+		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
 		Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays}},
 	}
 
