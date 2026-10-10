@@ -28,8 +28,18 @@ func (r *PostgresGraphRepository) executor(ctx context.Context) sqlx.ExtContext 
 	return Executor(ctx, r.db)
 }
 
+func (r *PostgresGraphRepository) FindByEventPublicID(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
+	return r.findByEventPublicID(ctx, tenantPublicID, eventPublicID, "")
+}
+
 func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 	ctx context.Context, tenantPublicID, eventPublicID string,
+) (domain.Graph, error) {
+	return r.findByEventPublicID(ctx, tenantPublicID, eventPublicID, "FOR UPDATE OF g")
+}
+
+func (r *PostgresGraphRepository) findByEventPublicID(
+	ctx context.Context, tenantPublicID, eventPublicID, lock string,
 ) (domain.Graph, error) {
 	var row struct {
 		graphDraft
@@ -49,7 +59,7 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		JOIN graph_layouts l ON l.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
-		FOR UPDATE OF g`,
+		`+lock,
 		eventPublicID, tenantPublicID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Graph{}, repository.ErrGraphNotFound

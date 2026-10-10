@@ -10,6 +10,9 @@ import (
 	connectrpc "connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
+	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
+	"github.com/pj-hoakari/internal-jwt-handling/jwtgen"
+
 	tenantv1 "github.com/pj-hoakari/tolo-tenant-management/gen/tolo/tenant/v1"
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
@@ -23,6 +26,10 @@ import (
 )
 
 type nopGraphRepository struct{}
+
+func (nopGraphRepository) FindByEventPublicID(context.Context, string, string) (domain.Graph, error) {
+	return domain.Graph{}, repository.ErrGraphNotFound
+}
 
 func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, string) (domain.Graph, error) {
 	return domain.Graph{}, repository.ErrGraphNotFound
@@ -331,5 +338,157 @@ func TestMapObservationPoint(t *testing.T) {
 				t.Errorf("MapObservationPoint() error code = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+type storedGraphRepository struct {
+	nopGraphRepository
+
+	saved      *domain.Graph
+	placements domain.Placements
+}
+
+func (r storedGraphRepository) Save(_ context.Context, graph domain.Graph) error {
+	*r.saved = graph
+
+	return nil
+}
+
+func (r storedGraphRepository) FindByEventPublicID(context.Context, string, string) (domain.Graph, error) {
+	if r.saved.EventPublicID() == "" {
+		return domain.Graph{}, repository.ErrGraphNotFound
+	}
+
+	return *r.saved, nil
+}
+
+func (r storedGraphRepository) FindPlacements(context.Context, domain.Graph) (domain.Placements, error) {
+	return r.placements, nil
+}
+
+func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
+	t.Parallel()
+
+	var saved domain.Graph
+
+	graphs := application.NewGraphService(storedGraphRepository{
+		nopGraphRepository: nopGraphRepository{},
+		saved:              &saved,
+		placements: domain.Placements{
+			Mappings: []domain.ObservationPointMapping{
+				{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "to-hall", RoutePosition: proto.Float64(0.25)}},
+			},
+			QrLocations: []domain.QrLocation{
+				{ID: "qr-1", Name: "Main gate", Kind: "entrance", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+			},
+		},
+	}, inlineTransactor{}, callerTenantEvents{})
+	authorization, keys := mintJWT(t, jwtgen.Config{
+		TokenUse:       internaljwt.TokenUseEventAccess,
+		TenantPublicID: "a1b2c3d4e5f60718",
+		EventPublicID:  "fedcba9876543210",
+		Scope:          "events.manage events.read",
+	})
+	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+
+	getGraph := func() (*connectrpc.Response[graphv1.GetGraphResponse], error) {
+		req := connectrpc.NewRequest(&graphv1.GetGraphRequest{EventId: "fedcba9876543210"})
+		req.Header().Set("Authorization", authorization)
+
+		return client.GetGraph(context.Background(), req)
+	}
+
+	if _, err := getGraph(); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
+		t.Fatalf("GetGraph() before any save error = %v, want code %v", err, connectrpc.CodeNotFound)
+	}
+
+	outer := &graphv1.NodeGroup{
+		GroupId: "outer",
+		Labels:  map[string]string{"ja": "会場"},
+		Layout:  &graphv1.Layout{X: 0, Y: 0, Width: proto.Float64(800), Height: proto.Float64(600)},
+	}
+	inner := &graphv1.NodeGroup{
+		GroupId:       "inner",
+		Labels:        map[string]string{"ja": "ホール"},
+		Layout:        &graphv1.Layout{X: 40, Y: 60},
+		ParentGroupId: "outer",
+		MinWidth:      proto.Float64(200),
+		MinHeight:     proto.Float64(120),
+	}
+	outside := &graphv1.GraphNode{
+		NodeId:   "outside",
+		NodeType: graphv1.NodeType_NODE_TYPE_EXTERNAL,
+		Labels:   map[string]string{"ja": "駅"},
+		Layout:   &graphv1.Layout{X: -100, Y: 10},
+	}
+	gate := &graphv1.GraphNode{
+		NodeId:   "gate",
+		NodeType: graphv1.NodeType_NODE_TYPE_TRANSIT_ONLY,
+		Labels:   map[string]string{"ja": "正門"},
+		GroupId:  "outer",
+		Layout:   &graphv1.Layout{X: 10, Y: 20, Width: proto.Float64(30), Height: proto.Float64(40)},
+	}
+	hall := &graphv1.GraphNode{
+		NodeId:   "hall",
+		NodeType: graphv1.NodeType_NODE_TYPE_GOAL_TRANSIT_MIXED,
+		GroupId:  "inner",
+		Layout:   &graphv1.Layout{X: 50, Y: 70},
+	}
+	fromOutside := &graphv1.GraphEdge{
+		EdgeId:       "from-outside",
+		SourceNodeId: "outside",
+		TargetNodeId: "gate",
+		Direction:    graphv1.EdgeDirection_EDGE_DIRECTION_ONE_WAY,
+	}
+	toHall := &graphv1.GraphEdge{
+		EdgeId:       "to-hall",
+		SourceNodeId: "gate",
+		TargetNodeId: "hall",
+		Direction:    graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS,
+		Label:        proto.String("通路"),
+	}
+
+	saveReq := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+		EventId: "fedcba9876543210",
+		Document: &graphv1.GraphDocument{
+			Nodes:  []*graphv1.GraphNode{outside, hall, gate},
+			Groups: []*graphv1.NodeGroup{outer, inner},
+			Edges:  []*graphv1.GraphEdge{toHall, fromOutside},
+		},
+	})
+	saveReq.Header().Set("Authorization", authorization)
+
+	meta, err := client.SaveGraph(context.Background(), saveReq)
+	if err != nil {
+		t.Fatalf("SaveGraph() error = %v", err)
+	}
+
+	res, err := getGraph()
+	if err != nil {
+		t.Fatalf("GetGraph() error = %v", err)
+	}
+
+	want := &graphv1.GetGraphResponse{
+		Meta: meta.Msg,
+		Document: &graphv1.GraphDocument{
+			Nodes:  []*graphv1.GraphNode{gate, hall, outside},
+			Groups: []*graphv1.NodeGroup{inner, outer},
+			Edges:  []*graphv1.GraphEdge{fromOutside, toHall},
+		},
+		ObservationPointMappings: []*graphv1.ObservationPointMapping{{
+			ObservationPointId: "cam-1",
+			Anchor:             &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_RouteId{RouteId: "to-hall"}, RoutePosition: proto.Float64(0.25)},
+		}},
+		QrLocations: []*graphv1.QrLocation{{
+			QrLocationId: "qr-1",
+			Name:         "Main gate",
+			Kind:         "entrance",
+			Anchor:       &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}},
+		}},
+	}
+	if !proto.Equal(res.Msg, want) {
+		t.Errorf("GetGraph() = %v, want %v", res.Msg, want)
 	}
 }

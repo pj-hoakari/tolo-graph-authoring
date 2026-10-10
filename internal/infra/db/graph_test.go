@@ -217,6 +217,47 @@ func TestPostgresGraphRepositoryFindForUpdateSerializesWriters(t *testing.T) {
 	}
 }
 
+func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+	graph := newGraph(t, ownerTenant, richDocument())
+
+	if err := repo.Save(ctx, graph); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	if err := repo.Publish(ctx, graph.Published()); err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+
+	var locked, read domain.Graph
+
+	err := repo.WithinTransaction(ctx, func(txCtx context.Context) error {
+		var err error
+		if locked, err = repo.FindByEventPublicIDForUpdate(txCtx, ownerTenant, graphEvent); err != nil {
+			return err
+		}
+
+		readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		read, err = repo.FindByEventPublicID(readCtx, ownerTenant, graphEvent)
+
+		return err
+	})
+	if err != nil {
+		t.Fatalf("FindByEventPublicID() while the graph is locked error = %v", err)
+	}
+
+	if !reflect.DeepEqual(read, locked) {
+		t.Errorf("FindByEventPublicID() = %#v, want the graph FindByEventPublicIDForUpdate() read: %#v", read, locked)
+	}
+
+	if read.RevisionID() == "" {
+		t.Error("FindByEventPublicID() RevisionID() is empty, want the published revision")
+	}
+}
+
 type callerTenantEvents struct{}
 
 func (callerTenantEvents) FindEvent(ctx context.Context, eventPublicID string) (domain.Event, error) {
