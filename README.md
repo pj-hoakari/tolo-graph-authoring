@@ -168,3 +168,6 @@ oras pull ghcr.io/<owner>/<repo>-proto:latest -o proto
 ```
 
 取得した `.proto` は `buf` や `protoc` の入力としてそのまま利用できる
+
+`tolo/kernel/v1/kernel.proto` はこのアーティファクトに含まれない  
+`kernel.proto` は、go.mod が参照する `github.com/pj-hoakari/tolo-kernel-proto` と同じ版を `ghcr.io/pj-hoakari/tolo-kernel-proto` から取得する
