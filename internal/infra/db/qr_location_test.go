@@ -27,7 +27,7 @@ func placedGraph(t *testing.T) (*PostgresGraphRepository, *application.GraphServ
 	service := application.NewGraphService(repo, repo, callerTenantEvents{})
 
 	document := domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
+		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
 		Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays}},
 	}
 
@@ -99,7 +99,7 @@ func TestPlacementsKeepTheirElementsAndDoNotShareThem(t *testing.T) {
 	}
 
 	withoutRoute := domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeBoundary}, {ID: "hall", Type: domain.NodeTypeGoal}},
+		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
 	}
 	if _, err := service.SaveGraph(ctx, application.SaveGraphInput{EventPublicID: graphEvent, Document: &withoutRoute}); !errors.Is(err, domain.ErrAnchorTargetNotFound) {
 		t.Errorf("SaveGraph() without the mapped route error = %v, want %v", err, domain.ErrAnchorTargetNotFound)

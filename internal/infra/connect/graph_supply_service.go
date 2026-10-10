@@ -23,6 +23,12 @@ var directionAttributes = map[domain.DirectionAttribute]kernelv1.DirectionAttrib
 	domain.DirectionAttributeBothWays: kernelv1.DirectionAttribute_DIRECTION_ATTRIBUTE_BOTH_WAYS,
 }
 
+var boundaryDirections = map[domain.BoundaryDirection]kernelv1.BoundaryDirection{
+	domain.BoundaryDirectionEntry:        kernelv1.BoundaryDirection_BOUNDARY_DIRECTION_ENTRY,
+	domain.BoundaryDirectionExit:         kernelv1.BoundaryDirection_BOUNDARY_DIRECTION_EXIT,
+	domain.BoundaryDirectionEntryAndExit: kernelv1.BoundaryDirection_BOUNDARY_DIRECTION_ENTRY_AND_EXIT,
+}
+
 type GraphSupplyService struct {
 	graphv1connect.UnimplementedGraphSupplyServiceHandler
 	graphService application.GraphSupplyUseCases
@@ -63,11 +69,18 @@ func (s *GraphSupplyService) GetObservationPointMappings(
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {
 	points := make([]*kernelv1.Point, 0, len(graph.Points))
 	for _, point := range graph.Points {
+		var boundary *kernelv1.Boundary
+		if point.Boundary != nil {
+			boundary = &kernelv1.Boundary{
+				Direction: boundaryDirections[point.Boundary.Direction],
+				Active:    point.Boundary.Active,
+			}
+		}
+
 		points = append(points, &kernelv1.Point{
-			PointId:        point.ID,
-			Type:           pointTypes[point.Type],
-			IsBoundary:     point.IsBoundary,
-			BoundaryActive: point.BoundaryActive,
+			PointId:  point.ID,
+			Type:     pointTypes[point.Type],
+			Boundary: boundary,
 		})
 	}
 

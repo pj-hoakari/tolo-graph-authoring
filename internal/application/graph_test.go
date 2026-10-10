@@ -447,7 +447,7 @@ func publishedRevision(tenantPublicID string) domain.PublishedRevision {
 		TenantPublicID: tenantPublicID,
 		EventPublicID:  eventID,
 		RevisionID:     "0123456789abcdef",
-		Document:       *document("n1"),
+		Kernel:         document("n1").Parts().Kernel,
 	}
 }
 

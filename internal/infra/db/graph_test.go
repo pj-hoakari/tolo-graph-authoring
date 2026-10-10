@@ -23,7 +23,7 @@ const (
 func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	t.Helper()
 
-	if _, err := testDB.Exec(`TRUNCATE qr_locations, observation_point_mappings, graph_revisions, graph_drafts, graphs`); err != nil {
+	if _, err := testDB.Exec(`TRUNCATE qr_locations, observation_point_mappings, graph_revisions, graph_layouts, graph_drafts, graphs`); err != nil {
 		t.Fatalf("truncate graph tables: %v", err)
 	}
 
@@ -43,6 +43,34 @@ func newGraph(t *testing.T, tenantPublicID string, document domain.GraphDocument
 
 func singleNode(id string) domain.GraphDocument {
 	return domain.GraphDocument{Nodes: []domain.Node{{ID: id, Type: domain.NodeTypeGoal}}}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func richDocument() domain.GraphDocument {
+	return domain.GraphDocument{
+		Nodes: []domain.Node{
+			{
+				ID: "n2", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": "正門", "en": "Main gate"},
+				GroupID: "g2", Layout: domain.Layout{X: 1.5, Y: -2.25, Width: ptr(10.0), Height: ptr(0.1)},
+			},
+			{ID: "n1", Type: domain.NodeTypeTransitOnly, Labels: nil, GroupID: "", Layout: domain.Layout{X: 0, Y: 3}},
+			{ID: "n3", Type: domain.NodeTypeGoalTransitMixed, Labels: map[string]string{}, Layout: domain.Layout{Width: ptr(2.0)}},
+			{ID: "x1", Type: domain.NodeTypeExternal, Labels: map[string]string{"ja": "南口"}, Layout: domain.Layout{X: -50, Y: 0}},
+			{ID: "x2", Type: domain.NodeTypeExternal, Layout: domain.Layout{X: 50, Y: 0}},
+		},
+		Groups: []domain.Group{
+			{ID: "g1", Labels: map[string]string{"ja": "東棟"}, MinWidth: ptr(30.0), MinHeight: ptr(40.0), Layout: domain.Layout{X: 5, Y: 6, Width: ptr(70.0), Height: ptr(80.0)}},
+			{ID: "g2", Labels: nil, ParentGroupID: "g1", Layout: domain.Layout{X: 1, Y: 2}},
+		},
+		Edges: []domain.Edge{
+			{ID: "e2", SourceNodeID: "n2", TargetNodeID: "n1", Direction: domain.EdgeDirectionOneWay, Label: ptr("階段")},
+			{ID: "e1", SourceNodeID: "n1", TargetNodeID: "n3", Direction: domain.EdgeDirectionBothWays, Label: nil},
+			{ID: "e3", SourceNodeID: "n3", TargetNodeID: "n2", Direction: domain.EdgeDirectionOneWay, Label: ptr("")},
+			{ID: "in", SourceNodeID: "x1", TargetNodeID: "n1", Direction: domain.EdgeDirectionOneWay, Label: ptr("入場")},
+			{ID: "out", SourceNodeID: "n1", TargetNodeID: "x2", Direction: domain.EdgeDirectionBothWays},
+		},
+	}
 }
 
 func assertDraft(t *testing.T, repo *PostgresGraphRepository, want domain.Graph) {
@@ -272,7 +300,7 @@ func TestPostgresGraphRepositoryPublishCopiesDraft(t *testing.T) {
 	if err := testDB.Get(&copies, `
 		SELECT COUNT(*) FROM graph_revisions r
 		JOIN graph_drafts d USING (event_public_id, tenant_public_id, revision_id)
-		WHERE r.kernel = d.kernel AND r.labels = d.labels AND r.layout = d.layout`); err != nil {
+		WHERE r.kernel = d.kernel AND r.labels = d.labels`); err != nil {
 		t.Fatalf("count revisions equal to the draft: %v", err)
 	}
 
@@ -281,6 +309,32 @@ func TestPostgresGraphRepositoryPublishCopiesDraft(t *testing.T) {
 	}
 
 	assertDraft(t, repo, published)
+}
+
+func TestPostgresGraphRepositorySavesLayoutApartFromPublishedRevision(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	published := publishGraph(t, repo, saveGraph(t, repo, richDocument()))
+
+	moved := richDocument()
+	moved.Nodes[0].Layout = domain.Layout{X: 100, Y: 200}
+	moved.Groups[0].MinWidth = ptr(90.0)
+	moved.Edges[3].SourceNodeID = "x2"
+
+	relaidOut := saveGraph(t, repo, moved)
+
+	got, err := repo.FindByEventPublicIDForUpdate(context.Background(), ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindByEventPublicIDForUpdate() error = %v", err)
+	}
+
+	if !reflect.DeepEqual(got.Draft(), relaidOut.Draft()) {
+		t.Errorf("loaded draft = %#v, want the moved layout %#v", got.Draft(), relaidOut.Draft())
+	}
+
+	if got.DraftRevisionID() != published.RevisionID() || got.RevisionID() != published.RevisionID() {
+		t.Errorf("after moving the layout DraftRevisionID() = %q, RevisionID() = %q, want both %q",
+			got.DraftRevisionID(), got.RevisionID(), published.RevisionID())
+	}
 }
 
 func TestPostgresGraphRepositoryRepublishMakesOlderRevisionCurrent(t *testing.T) {
@@ -370,14 +424,21 @@ func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
 		TenantPublicID: ownerTenant,
 		EventPublicID:  graphEvent,
 		RevisionID:     current.RevisionID(),
-		Document:       richDocument(),
+		Kernel: domain.GraphKernel{
+			Points: []domain.Point{
+				{ID: "n1", Type: domain.PointTypeTransitOnly, Boundary: &domain.PointBoundary{Direction: domain.BoundaryDirectionEntryAndExit, Active: true}},
+				{ID: "n2", Type: domain.PointTypeGoal, Boundary: nil},
+				{ID: "n3", Type: domain.PointTypeGoalTransitMixed, Boundary: nil},
+			},
+			Routes: []domain.Route{
+				{ID: "e1", FromPointID: "n1", ToPointID: "n3", Direction: domain.DirectionAttributeBothWays},
+				{ID: "e2", FromPointID: "n2", ToPointID: "n1", Direction: domain.DirectionAttributeOneWay},
+				{ID: "e3", FromPointID: "n3", ToPointID: "n2", Direction: domain.DirectionAttributeOneWay},
+			},
+		},
 	}
 
-	if got.TenantPublicID != want.TenantPublicID || got.RevisionID != want.RevisionID {
-		t.Errorf("FindCurrentRevision() owner and revision = %s/%s, want %s/%s", got.TenantPublicID, got.RevisionID, want.TenantPublicID, want.RevisionID)
-	}
-
-	if !reflect.DeepEqual(got.KernelGraph(), want.KernelGraph()) {
-		t.Errorf("FindCurrentRevision() kernel graph = %+v, want %+v", got.KernelGraph(), want.KernelGraph())
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("FindCurrentRevision() = %+v, want %+v", got, want)
 	}
 }

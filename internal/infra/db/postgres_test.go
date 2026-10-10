@@ -119,8 +119,8 @@ func TestPostgresGraphRepositoryPublishNormalizesQueryText(t *testing.T) {
 
 	// The repository writes the statement as a multi-line raw string literal,
 	// so this exact value also proves the newlines and tabs are gone.
-	const wantQueryText = "INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, layout) " +
-		"SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, layout FROM graph_drafts " +
+	const wantQueryText = "INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels) " +
+		"SELECT event_public_id, tenant_public_id, revision_id, kernel, labels FROM graph_drafts " +
 		"WHERE event_public_id = $1 AND tenant_public_id = $2 " +
 		"ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at"
 

@@ -30,7 +30,7 @@ const (
 	NodeType_NODE_TYPE_GOAL               NodeType = 1
 	NodeType_NODE_TYPE_GOAL_TRANSIT_MIXED NodeType = 2
 	NodeType_NODE_TYPE_TRANSIT_ONLY       NodeType = 3
-	NodeType_NODE_TYPE_BOUNDARY           NodeType = 4
+	NodeType_NODE_TYPE_EXTERNAL           NodeType = 4
 )
 
 // Enum value maps for NodeType.
@@ -40,14 +40,14 @@ var (
 		1: "NODE_TYPE_GOAL",
 		2: "NODE_TYPE_GOAL_TRANSIT_MIXED",
 		3: "NODE_TYPE_TRANSIT_ONLY",
-		4: "NODE_TYPE_BOUNDARY",
+		4: "NODE_TYPE_EXTERNAL",
 	}
 	NodeType_value = map[string]int32{
 		"NODE_TYPE_UNSPECIFIED":        0,
 		"NODE_TYPE_GOAL":               1,
 		"NODE_TYPE_GOAL_TRANSIT_MIXED": 2,
 		"NODE_TYPE_TRANSIT_ONLY":       3,
-		"NODE_TYPE_BOUNDARY":           4,
+		"NODE_TYPE_EXTERNAL":           4,
 	}
 )
 
@@ -328,6 +328,9 @@ type NodeGroup struct {
 	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	Labels        map[string]string      `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Layout        *Layout                `protobuf:"bytes,3,opt,name=layout,proto3" json:"layout,omitempty"`
+	ParentGroupId string                 `protobuf:"bytes,4,opt,name=parent_group_id,json=parentGroupId,proto3" json:"parent_group_id,omitempty"`
+	MinWidth      *float64               `protobuf:"fixed64,5,opt,name=min_width,json=minWidth,proto3,oneof" json:"min_width,omitempty"`
+	MinHeight     *float64               `protobuf:"fixed64,6,opt,name=min_height,json=minHeight,proto3,oneof" json:"min_height,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +384,27 @@ func (x *NodeGroup) GetLayout() *Layout {
 		return x.Layout
 	}
 	return nil
+}
+
+func (x *NodeGroup) GetParentGroupId() string {
+	if x != nil {
+		return x.ParentGroupId
+	}
+	return ""
+}
+
+func (x *NodeGroup) GetMinWidth() float64 {
+	if x != nil && x.MinWidth != nil {
+		return *x.MinWidth
+	}
+	return 0
+}
+
+func (x *NodeGroup) GetMinHeight() float64 {
+	if x != nil && x.MinHeight != nil {
+		return *x.MinHeight
+	}
+	return 0
 }
 
 type Layout struct {
@@ -1653,14 +1677,21 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x06layout\x18\x05 \x01(\v2\x15.tolo.graph.v1.LayoutR\x06layout\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xce\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd9\x02\n" +
 	"\tNodeGroup\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12<\n" +
 	"\x06labels\x18\x02 \x03(\v2$.tolo.graph.v1.NodeGroup.LabelsEntryR\x06labels\x12-\n" +
-	"\x06layout\x18\x03 \x01(\v2\x15.tolo.graph.v1.LayoutR\x06layout\x1a9\n" +
+	"\x06layout\x18\x03 \x01(\v2\x15.tolo.graph.v1.LayoutR\x06layout\x12&\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\x12 \n" +
+	"\tmin_width\x18\x05 \x01(\x01H\x00R\bminWidth\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"min_height\x18\x06 \x01(\x01H\x01R\tminHeight\x88\x01\x01\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\f\n" +
+	"\n" +
+	"_min_widthB\r\n" +
+	"\v_min_height\"q\n" +
 	"\x06Layout\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
 	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x19\n" +
@@ -1760,7 +1791,7 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x0eNODE_TYPE_GOAL\x10\x01\x12 \n" +
 	"\x1cNODE_TYPE_GOAL_TRANSIT_MIXED\x10\x02\x12\x1a\n" +
 	"\x16NODE_TYPE_TRANSIT_ONLY\x10\x03\x12\x16\n" +
-	"\x12NODE_TYPE_BOUNDARY\x10\x04*i\n" +
+	"\x12NODE_TYPE_EXTERNAL\x10\x04*i\n" +
 	"\rEdgeDirection\x12\x1e\n" +
 	"\x1aEDGE_DIRECTION_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16EDGE_DIRECTION_ONE_WAY\x10\x01\x12\x1c\n" +
@@ -1900,6 +1931,7 @@ func file_tolo_graph_v1_graph_proto_init() {
 	if File_tolo_graph_v1_graph_proto != nil {
 		return
 	}
+	file_tolo_graph_v1_graph_proto_msgTypes[3].OneofWrappers = []any{}
 	file_tolo_graph_v1_graph_proto_msgTypes[4].OneofWrappers = []any{}
 	file_tolo_graph_v1_graph_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

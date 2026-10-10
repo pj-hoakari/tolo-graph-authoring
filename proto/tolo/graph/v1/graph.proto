@@ -91,13 +91,16 @@ enum NodeType {
   NODE_TYPE_GOAL = 1;
   NODE_TYPE_GOAL_TRANSIT_MIXED = 2;
   NODE_TYPE_TRANSIT_ONLY = 3;
-  NODE_TYPE_BOUNDARY = 4;
+  NODE_TYPE_EXTERNAL = 4;
 }
 
 message NodeGroup {
   string group_id = 1;
   map<string, string> labels = 2;
   Layout layout = 3;
+  string parent_group_id = 4;
+  optional double min_width = 5;
+  optional double min_height = 6;
 }
 
 message Layout {
