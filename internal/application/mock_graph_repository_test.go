@@ -55,6 +55,21 @@ func (mr *MockGraphRepositoryMockRecorder) AddQrLocation(ctx, graph, location an
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddQrLocation", reflect.TypeOf((*MockGraphRepository)(nil).AddQrLocation), ctx, graph, location)
 }
 
+// FindByEventPublicID mocks base method.
+func (m *MockGraphRepository) FindByEventPublicID(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByEventPublicID", ctx, tenantPublicID, eventPublicID)
+	ret0, _ := ret[0].(domain.Graph)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByEventPublicID indicates an expected call of FindByEventPublicID.
+func (mr *MockGraphRepositoryMockRecorder) FindByEventPublicID(ctx, tenantPublicID, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByEventPublicID", reflect.TypeOf((*MockGraphRepository)(nil).FindByEventPublicID), ctx, tenantPublicID, eventPublicID)
+}
+
 // FindByEventPublicIDForUpdate mocks base method.
 func (m *MockGraphRepository) FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
 	m.ctrl.T.Helper()

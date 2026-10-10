@@ -24,6 +24,10 @@ import (
 
 type nopGraphRepository struct{}
 
+func (nopGraphRepository) FindByEventPublicID(context.Context, string, string) (domain.Graph, error) {
+	return domain.Graph{}, repository.ErrGraphNotFound
+}
+
 func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, string) (domain.Graph, error) {
 	return domain.Graph{}, repository.ErrGraphNotFound
 }

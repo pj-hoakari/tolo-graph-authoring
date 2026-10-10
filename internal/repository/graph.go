@@ -15,6 +15,7 @@ var (
 )
 
 type GraphRepository interface {
+	FindByEventPublicID(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
 	FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
 	Save(ctx context.Context, graph domain.Graph) error
 	Publish(ctx context.Context, graph domain.Graph) error
