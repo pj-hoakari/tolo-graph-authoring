@@ -23,7 +23,7 @@ const (
 func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	t.Helper()
 
-	if _, err := testDB.Exec(`TRUNCATE qr_locations, observation_point_mappings, graph_revisions, graph_drafts, graphs`); err != nil {
+	if _, err := testDB.Exec(`TRUNCATE qr_locations, observation_point_mappings, graph_revisions, graph_layouts, graph_drafts, graphs`); err != nil {
 		t.Fatalf("truncate graph tables: %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestPostgresGraphRepositoryPublishCopiesDraft(t *testing.T) {
 	if err := testDB.Get(&copies, `
 		SELECT COUNT(*) FROM graph_revisions r
 		JOIN graph_drafts d USING (event_public_id, tenant_public_id, revision_id)
-		WHERE r.kernel = d.kernel AND r.labels = d.labels AND r.layout = d.layout`); err != nil {
+		WHERE r.kernel = d.kernel AND r.labels = d.labels`); err != nil {
 		t.Fatalf("count revisions equal to the draft: %v", err)
 	}
 
@@ -309,6 +309,32 @@ func TestPostgresGraphRepositoryPublishCopiesDraft(t *testing.T) {
 	}
 
 	assertDraft(t, repo, published)
+}
+
+func TestPostgresGraphRepositorySavesLayoutApartFromPublishedRevision(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	published := publishGraph(t, repo, saveGraph(t, repo, richDocument()))
+
+	moved := richDocument()
+	moved.Nodes[0].Layout = domain.Layout{X: 100, Y: 200}
+	moved.Groups[0].MinWidth = ptr(90.0)
+	moved.Edges[3].SourceNodeID = "x2"
+
+	relaidOut := saveGraph(t, repo, moved)
+
+	got, err := repo.FindByEventPublicIDForUpdate(context.Background(), ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindByEventPublicIDForUpdate() error = %v", err)
+	}
+
+	if !reflect.DeepEqual(got.Draft(), relaidOut.Draft()) {
+		t.Errorf("loaded draft = %#v, want the moved layout %#v", got.Draft(), relaidOut.Draft())
+	}
+
+	if got.DraftRevisionID() != published.RevisionID() || got.RevisionID() != published.RevisionID() {
+		t.Errorf("after moving the layout DraftRevisionID() = %q, RevisionID() = %q, want both %q",
+			got.DraftRevisionID(), got.RevisionID(), published.RevisionID())
+	}
 }
 
 func TestPostgresGraphRepositoryRepublishMakesOlderRevisionCurrent(t *testing.T) {

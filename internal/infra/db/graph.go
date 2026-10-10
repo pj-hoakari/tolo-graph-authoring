@@ -38,7 +38,7 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.event_public_id, d.tenant_public_id, d.revision_id, d.kernel, d.labels, d.layout,
+		SELECT d.event_public_id, d.tenant_public_id, d.revision_id, d.kernel, d.labels, l.layout,
 			COALESCE((
 				SELECT r.revision_id FROM graph_revisions r
 				WHERE r.event_public_id = d.event_public_id
@@ -47,6 +47,7 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 			), '') AS current_revision_id
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
+		JOIN graph_layouts l ON l.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
 		FOR UPDATE OF g`,
 		eventPublicID, tenantPublicID)
@@ -76,26 +77,37 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) 
 		}
 
 		saved, err := r.executor(ctx).ExecContext(ctx, `
-			INSERT INTO graph_drafts (event_public_id, tenant_public_id, revision_id, kernel, labels, layout)
-			VALUES ($1, $2, $3, $4, $5, $6)
+			INSERT INTO graph_drafts (event_public_id, tenant_public_id, revision_id, kernel, labels)
+			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (event_public_id) DO UPDATE SET
 				revision_id = EXCLUDED.revision_id,
 				kernel = EXCLUDED.kernel,
 				labels = EXCLUDED.labels,
-				layout = EXCLUDED.layout,
 				updated_at = now()
 			WHERE graph_drafts.tenant_public_id = EXCLUDED.tenant_public_id`,
 			draft.EventPublicID, draft.TenantPublicID, draft.RevisionID,
-			draft.Kernel, draft.Labels, draft.Layout)
+			draft.Kernel, draft.Labels)
+		if err := requireRowWritten(saved, err, "save graph draft"); err != nil {
+			return err
+		}
 
-		return requireRowWritten(saved, err, "save graph draft")
+		laidOut, err := r.executor(ctx).ExecContext(ctx, `
+			INSERT INTO graph_layouts (event_public_id, tenant_public_id, layout)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (event_public_id) DO UPDATE SET
+				layout = EXCLUDED.layout,
+				updated_at = now()
+			WHERE graph_layouts.tenant_public_id = EXCLUDED.tenant_public_id`,
+			draft.EventPublicID, draft.TenantPublicID, draft.Layout)
+
+		return requireRowWritten(laidOut, err, "save graph layout")
 	})
 }
 
 func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
-		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, layout)
-		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, layout
+		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels)
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels
 		FROM graph_drafts
 		WHERE event_public_id = $1 AND tenant_public_id = $2
 		ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at`,
