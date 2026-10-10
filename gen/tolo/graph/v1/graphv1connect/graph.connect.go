@@ -9,7 +9,7 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
-	v11 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/kernel/v1"
+	v11 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 	http "net/http"
 	strings "strings"
 )
