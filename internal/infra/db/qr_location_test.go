@@ -100,6 +100,7 @@ func TestPlacementsKeepTheirElementsAndDoNotShareThem(t *testing.T) {
 
 	withoutRoute := domain.GraphDocument{
 		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
+		Edges: []domain.Edge{{ID: "e2", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays}},
 	}
 	if _, err := service.SaveGraph(ctx, application.SaveGraphInput{EventPublicID: graphEvent, Document: &withoutRoute}); !errors.Is(err, domain.ErrAnchorTargetNotFound) {
 		t.Errorf("SaveGraph() without the mapped route error = %v, want %v", err, domain.ErrAnchorTargetNotFound)

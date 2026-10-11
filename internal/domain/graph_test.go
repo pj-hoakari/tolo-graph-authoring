@@ -166,6 +166,15 @@ func TestWithDraftRejectsStructurallyInvalidDocuments(t *testing.T) {
 		{"non-finite node layout", domain.GraphDocument{Nodes: []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, Layout: domain.Layout{X: math.Inf(1)}}}}},
 		{"non-finite group minimum size", domain.GraphDocument{Groups: []domain.Group{{ID: "g", MinWidth: ptr(math.NaN())}}}},
 		{"edge between external nodes", domain.GraphDocument{Nodes: []domain.Node{external("x"), external("y")}, Edges: []domain.Edge{edge("e", "x", "y")}}},
+		{"empty node ID", domain.GraphDocument{Nodes: []domain.Node{goal(""), goal("b")}, Edges: []domain.Edge{edge("e", "", "b")}}},
+		{"empty group ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: ""}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
+		{"empty edge ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("", "a", "b")}}},
+		{"self-loop edge", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("loop", "a", "a")}}},
+		{"isolated point", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
+		{"point linked only to an external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("in", "x", "c")}}},
+		{"unconnected external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
+		{"empty group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "g"}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
+		{"group containing only an empty child group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "outer"}, {ID: "inner", ParentGroupID: "outer"}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -177,9 +186,9 @@ func TestWithDraftRejectsStructurallyInvalidDocuments(t *testing.T) {
 	}
 
 	nested := domain.GraphDocument{
-		Nodes:  []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, GroupID: "c"}, external("x"), external("y")},
+		Nodes:  []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, GroupID: "c"}, goal("b"), external("x"), external("y")},
 		Groups: []domain.Group{{ID: "a"}, {ID: "b", ParentGroupID: "a"}, {ID: "c", ParentGroupID: "b"}},
-		Edges:  []domain.Edge{edge("in", "x", "a"), edge("out", "a", "y")},
+		Edges:  []domain.Edge{edge("in", "x", "a"), edge("walk", "a", "b"), edge("out", "a", "y")},
 	}
 	if _, err := domain.NewGraph("a1b2c3d4e5f60718", "fedcba9876543210", nested); err != nil {
 		t.Errorf("NewGraph() of deeply nested groups and several externals error = %v, want nil", err)
@@ -196,14 +205,16 @@ func TestDraftRevisionIDIgnoresLayout(t *testing.T) {
 		edit func(*domain.GraphDocument)
 	}{
 		{"node moved", func(d *domain.GraphDocument) { d.Nodes[0].Layout = domain.Layout{X: 999, Y: 999} }},
-		{"node regrouped", func(d *domain.GraphDocument) { d.Nodes[0].GroupID = "floor" }},
+		{"node regrouped", func(d *domain.GraphDocument) { d.Nodes[4].GroupID = "hall" }},
 		{"group resized", func(d *domain.GraphDocument) { d.Groups[1].Layout.Width = ptr(500.0); d.Groups[1].MinWidth = ptr(400.0) }},
 		{"group unnested", func(d *domain.GraphDocument) { d.Groups[0].ParentGroupID = "" }},
 		{"external moved and renamed", func(d *domain.GraphDocument) {
 			d.Nodes[1].Layout = domain.Layout{X: 1, Y: 1}
 			d.Nodes[1].Labels = map[string]string{"ja": "東口"}
 		}},
-		{"external edge moved to another external", func(d *domain.GraphDocument) { d.Edges[1].SourceNodeID = "north" }},
+		{"external edges swapped between externals", func(d *domain.GraphDocument) {
+			d.Edges[1].SourceNodeID, d.Edges[2].TargetNodeID = "north", "south"
+		}},
 		{"external edge renamed", func(d *domain.GraphDocument) { d.Edges[2].Label = ptr("出口") }},
 		{"elements reordered", func(d *domain.GraphDocument) {
 			slices.Reverse(d.Nodes)
@@ -236,7 +247,10 @@ func TestDraftRevisionIDFollowsKernelAndLabels(t *testing.T) {
 		{"external connection added", func(d *domain.GraphDocument) {
 			d.Edges = append(d.Edges, domain.Edge{ID: "side", SourceNodeID: "north", TargetNodeID: "lobby", Direction: domain.EdgeDirectionOneWay})
 		}},
-		{"external connection removed", func(d *domain.GraphDocument) { d.Edges = slices.Delete(d.Edges, 1, 3) }},
+		{"external connection removed", func(d *domain.GraphDocument) {
+			d.Edges = slices.Delete(d.Edges, 1, 3)
+			d.Nodes = slices.DeleteFunc(d.Nodes, func(n domain.Node) bool { return n.Type == domain.NodeTypeExternal })
+		}},
 		{"external edge made both ways", func(d *domain.GraphDocument) { d.Edges[1].Direction = domain.EdgeDirectionBothWays }},
 		{"external edge reversed", func(d *domain.GraphDocument) {
 			d.Edges[2].SourceNodeID, d.Edges[2].TargetNodeID = d.Edges[2].TargetNodeID, d.Edges[2].SourceNodeID

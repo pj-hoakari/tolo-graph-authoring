@@ -91,6 +91,10 @@ func sortedByID[T any](elements []T, id func(T) string) []T {
 func (d GraphDocument) validate() error {
 	nodes := make(map[string]Node, len(d.Nodes))
 	for _, node := range d.Nodes {
+		if node.ID == "" {
+			return invalidDocument("node has an empty ID")
+		}
+
 		if _, ok := nodes[node.ID]; ok {
 			return invalidDocument("duplicate node ID %q", node.ID)
 		}
@@ -108,6 +112,10 @@ func (d GraphDocument) validate() error {
 
 	groups := make(map[string]Group, len(d.Groups))
 	for _, group := range d.Groups {
+		if group.ID == "" {
+			return invalidDocument("group has an empty ID")
+		}
+
 		if _, ok := groups[group.ID]; ok {
 			return invalidDocument("duplicate group ID %q", group.ID)
 		}
@@ -119,10 +127,14 @@ func (d GraphDocument) validate() error {
 		groups[group.ID] = group
 	}
 
+	populated := make(map[string]bool, len(groups))
+
 	for _, node := range d.Nodes {
 		if node.GroupID == "" {
 			continue
 		}
+
+		populated[node.GroupID] = true
 
 		if node.Type == NodeTypeExternal {
 			return invalidDocument("external node %q belongs to group %q", node.ID, node.GroupID)
@@ -134,6 +146,10 @@ func (d GraphDocument) validate() error {
 	}
 
 	for _, group := range d.Groups {
+		if group.ParentGroupID != "" {
+			populated[group.ParentGroupID] = true
+		}
+
 		for depth, parentID := 0, group.ParentGroupID; parentID != ""; depth, parentID = depth+1, groups[parentID].ParentGroupID {
 			if _, ok := groups[parentID]; !ok {
 				return invalidDocument("group %q refers to missing parent group %q", group.ID, parentID)
@@ -145,8 +161,15 @@ func (d GraphDocument) validate() error {
 		}
 	}
 
+	linked := make(map[string]bool, len(nodes))
+	routed := make(map[string]bool, len(nodes))
+
 	edges := make(map[string]bool, len(d.Edges))
 	for _, edge := range d.Edges {
+		if edge.ID == "" {
+			return invalidDocument("edge has an empty ID")
+		}
+
 		if edges[edge.ID] {
 			return invalidDocument("duplicate edge ID %q", edge.ID)
 		}
@@ -166,6 +189,34 @@ func (d GraphDocument) validate() error {
 
 		if source.Type == NodeTypeExternal && target.Type == NodeTypeExternal {
 			return invalidDocument("edge %q connects two external nodes", edge.ID)
+		}
+
+		if edge.SourceNodeID == edge.TargetNodeID {
+			return invalidDocument("edge %q connects node %q to itself", edge.ID, edge.SourceNodeID)
+		}
+
+		if source.Type == NodeTypeExternal || target.Type == NodeTypeExternal {
+			linked[edge.SourceNodeID], linked[edge.TargetNodeID] = true, true
+
+			continue
+		}
+
+		routed[edge.SourceNodeID], routed[edge.TargetNodeID] = true, true
+	}
+
+	for _, node := range d.Nodes {
+		if node.Type == NodeTypeExternal && !linked[node.ID] {
+			return invalidDocument("external node %q has no edge", node.ID)
+		}
+
+		if node.Type != NodeTypeExternal && !routed[node.ID] {
+			return invalidDocument("point %q has no route", node.ID)
+		}
+	}
+
+	for _, group := range d.Groups {
+		if !populated[group.ID] {
+			return invalidDocument("group %q has no members", group.ID)
 		}
 	}
 

@@ -42,7 +42,10 @@ func newGraph(t *testing.T, tenantPublicID string, document domain.GraphDocument
 }
 
 func singleNode(id string) domain.GraphDocument {
-	return domain.GraphDocument{Nodes: []domain.Node{{ID: id, Type: domain.NodeTypeGoal}}}
+	return domain.GraphDocument{
+		Nodes: []domain.Node{{ID: id, Type: domain.NodeTypeGoal}, {ID: id + "-peer", Type: domain.NodeTypeGoal}},
+		Edges: []domain.Edge{{ID: id + "-route", SourceNodeID: id, TargetNodeID: id + "-peer", Direction: domain.EdgeDirectionBothWays}},
+	}
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -359,7 +362,7 @@ func TestPostgresGraphRepositorySavesLayoutApartFromPublishedRevision(t *testing
 	moved := richDocument()
 	moved.Nodes[0].Layout = domain.Layout{X: 100, Y: 200}
 	moved.Groups[0].MinWidth = ptr(90.0)
-	moved.Edges[3].SourceNodeID = "x2"
+	moved.Edges[3].SourceNodeID, moved.Edges[4].TargetNodeID = "x2", "x1"
 
 	relaidOut := saveGraph(t, repo, moved)
 

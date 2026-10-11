@@ -50,7 +50,10 @@ func eventContext(tenantPublicID, eventPublicID string) context.Context {
 }
 
 func document(nodeID string) *domain.GraphDocument {
-	return &domain.GraphDocument{Nodes: []domain.Node{{ID: nodeID, Type: domain.NodeTypeGoal}}}
+	return &domain.GraphDocument{
+		Nodes: []domain.Node{{ID: nodeID, Type: domain.NodeTypeGoal}, {ID: nodeID + "-peer", Type: domain.NodeTypeGoal}},
+		Edges: []domain.Edge{{ID: nodeID + "-route", SourceNodeID: nodeID, TargetNodeID: nodeID + "-peer", Direction: domain.EdgeDirectionBothWays}},
+	}
 }
 
 func newGraph(t *testing.T, tenantPublicID string, draft *domain.GraphDocument) domain.Graph {
