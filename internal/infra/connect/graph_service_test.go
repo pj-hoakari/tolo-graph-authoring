@@ -95,7 +95,8 @@ func TestSaveGraph(t *testing.T) {
 		req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
 			EventId: eventID,
 			Document: &graphv1.GraphDocument{
-				Nodes: []*graphv1.GraphNode{{NodeId: "n1", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}},
+				Nodes: []*graphv1.GraphNode{{NodeId: "n1", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}, {NodeId: "n2", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}},
+				Edges: []*graphv1.GraphEdge{{EdgeId: "e1", SourceNodeId: "n1", TargetNodeId: "n2", Direction: graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS}},
 			},
 		})
 		req.Header().Set("Authorization", authorization)
