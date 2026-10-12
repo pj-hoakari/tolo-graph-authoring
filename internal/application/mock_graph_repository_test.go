@@ -115,6 +115,21 @@ func (mr *MockGraphRepositoryMockRecorder) FindDraftKernelForUpdate(ctx, tenantP
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDraftKernelForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindDraftKernelForUpdate), ctx, tenantPublicID, eventPublicID)
 }
 
+// FindDraftRevisionForUpdate mocks base method.
+func (m *MockGraphRepository) FindDraftRevisionForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDraftRevisionForUpdate", ctx, tenantPublicID, eventPublicID)
+	ret0, _ := ret[0].(domain.DraftRevision)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDraftRevisionForUpdate indicates an expected call of FindDraftRevisionForUpdate.
+func (mr *MockGraphRepositoryMockRecorder) FindDraftRevisionForUpdate(ctx, tenantPublicID, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDraftRevisionForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindDraftRevisionForUpdate), ctx, tenantPublicID, eventPublicID)
+}
+
 // FindObservationPointMappings mocks base method.
 func (m *MockGraphRepository) FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error) {
 	m.ctrl.T.Helper()
@@ -146,7 +161,7 @@ func (mr *MockGraphRepositoryMockRecorder) FindPlacements(ctx, graph any) *gomoc
 }
 
 // Publish mocks base method.
-func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
+func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.GraphRef) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Publish", ctx, graph)
 	ret0, _ := ret[0].(error)

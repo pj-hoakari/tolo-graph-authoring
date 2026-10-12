@@ -41,7 +41,11 @@ func (nopGraphRepository) FindDraftKernelForUpdate(context.Context, string, stri
 
 func (nopGraphRepository) Save(context.Context, domain.Graph) error { return nil }
 
-func (nopGraphRepository) Publish(context.Context, domain.Graph) error { return nil }
+func (nopGraphRepository) FindDraftRevisionForUpdate(context.Context, string, string) (domain.DraftRevision, error) {
+	return domain.DraftRevision{}, repository.ErrGraphNotFound
+}
+
+func (nopGraphRepository) Publish(context.Context, domain.GraphRef) error { return nil }
 
 func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
 	return domain.PublishedRevision{}, repository.ErrGraphNotFound

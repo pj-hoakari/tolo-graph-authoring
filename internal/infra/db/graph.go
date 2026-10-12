@@ -68,6 +68,36 @@ func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
 	}, nil
 }
 
+func (r *PostgresGraphRepository) FindDraftRevisionForUpdate(
+	ctx context.Context, tenantPublicID, eventPublicID string,
+) (domain.DraftRevision, error) {
+	var row struct {
+		EventPublicID  string `db:"event_public_id"`
+		TenantPublicID string `db:"tenant_public_id"`
+		RevisionID     string `db:"revision_id"`
+	}
+
+	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
+		SELECT d.event_public_id, d.tenant_public_id, d.revision_id
+		FROM graph_drafts d
+		JOIN graphs g ON g.event_public_id = d.event_public_id
+		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
+		FOR UPDATE OF g`,
+		eventPublicID, tenantPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.DraftRevision{}, repository.ErrGraphNotFound
+	}
+
+	if err != nil {
+		return domain.DraftRevision{}, fmt.Errorf("find graph draft revision: %w", err)
+	}
+
+	return domain.DraftRevision{
+		GraphRef:   domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
+		RevisionID: row.RevisionID,
+	}, nil
+}
+
 func (r *PostgresGraphRepository) findByEventPublicID(
 	ctx context.Context, tenantPublicID, eventPublicID, lock string,
 ) (domain.Graph, error) {
@@ -144,14 +174,14 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) 
 	})
 }
 
-func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
+func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.GraphRef) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
 		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels)
 		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels
 		FROM graph_drafts
 		WHERE event_public_id = $1 AND tenant_public_id = $2
 		ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at`,
-		graph.EventPublicID(), graph.TenantPublicID())
+		graph.EventPublicID, graph.TenantPublicID)
 	if err != nil {
 		return fmt.Errorf("publish graph revision: %w", err)
 	}

@@ -33,7 +33,7 @@ type PublishRevisionInput struct {
 }
 
 type PublishRevisionUseCase interface {
-	PublishRevision(context.Context, PublishRevisionInput) (domain.Graph, error)
+	PublishRevision(context.Context, PublishRevisionInput) (domain.DraftRevision, error)
 }
 
 type GetCurrentRevisionInput struct {
@@ -164,47 +164,46 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 	return saved, nil
 }
 
-func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisionInput) (domain.Graph, error) {
+func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisionInput) (domain.DraftRevision, error) {
 	if input.EventPublicID == "" {
-		return domain.Graph{}, ErrEventIDRequired
+		return domain.DraftRevision{}, ErrEventIDRequired
 	}
 
 	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
 	if !ok {
-		return domain.Graph{}, tenantctx.ErrMissing
+		return domain.DraftRevision{}, tenantctx.ErrMissing
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
-		return domain.Graph{}, err
+		return domain.DraftRevision{}, err
 	}
 
 	if err := s.ensureEditableEvent(ctx, input.EventPublicID); err != nil {
-		return domain.Graph{}, err
+		return domain.DraftRevision{}, err
 	}
 
-	var published domain.Graph
+	var published domain.DraftRevision
 
 	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
-		graph, err := s.graphs.FindByEventPublicIDForUpdate(ctx, tenantPublicID, input.EventPublicID)
+		draft, err := s.graphs.FindDraftRevisionForUpdate(ctx, tenantPublicID, input.EventPublicID)
 		if err != nil {
 			return err
 		}
 
-		if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
+		if err := tenantctx.VerifyOwnership(ctx, draft.TenantPublicID); err != nil {
 			return err
 		}
 
-		graph = graph.Published()
-		if err := s.graphs.Publish(ctx, graph); err != nil {
+		if err := s.graphs.Publish(ctx, draft.GraphRef); err != nil {
 			return err
 		}
 
-		published = graph
+		published = draft
 
 		return nil
 	})
 	if err != nil {
-		return domain.Graph{}, err
+		return domain.DraftRevision{}, err
 	}
 
 	return published, nil

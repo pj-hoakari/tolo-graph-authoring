@@ -18,8 +18,9 @@ type GraphRepository interface {
 	FindByEventPublicID(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
 	FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
 	FindDraftKernelForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error)
+	FindDraftRevisionForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error)
 	Save(ctx context.Context, graph domain.Graph) error
-	Publish(ctx context.Context, graph domain.Graph) error
+	Publish(ctx context.Context, graph domain.GraphRef) error
 	FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error)
 	SaveObservationPointMapping(ctx context.Context, graph domain.GraphRef, mapping domain.ObservationPointMapping) error
 	FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error)

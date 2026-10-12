@@ -240,6 +240,12 @@ type GraphRef struct {
 	EventPublicID  string
 }
 
+type DraftRevision struct {
+	GraphRef
+
+	RevisionID string
+}
+
 type Graph struct {
 	tenantPublicID  string
 	eventPublicID   string

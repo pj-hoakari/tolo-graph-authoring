@@ -81,12 +81,16 @@ func (s *GraphService) MapObservationPoint(
 }
 
 func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Request[graphv1.PublishRevisionRequest]) (*connectrpc.Response[graphv1.GraphMeta], error) {
-	graph, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.Msg.GetEventId()})
+	published, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.Msg.GetEventId()})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(graphMeta(graph)), nil
+	return connectrpc.NewResponse(&graphv1.GraphMeta{
+		EventId:         published.EventPublicID,
+		RevisionId:      published.RevisionID,
+		DraftRevisionId: published.RevisionID,
+	}), nil
 }
 
 func (s *GraphService) GetGraph(ctx context.Context, req *connectrpc.Request[graphv1.GetGraphRequest]) (*connectrpc.Response[graphv1.GetGraphResponse], error) {

@@ -59,7 +59,7 @@ func TestObservationPointMappedThroughServiceIsSupplied(t *testing.T) {
 	}
 
 	want := application.ObservationPointMappings{
-		RevisionID: published.RevisionID(),
+		RevisionID: published.RevisionID,
 		Mappings:   []domain.ObservationPointMapping{routeMapping("cam-1", "e1", 0.75), pointMapping},
 	}
 	if !reflect.DeepEqual(got, want) {

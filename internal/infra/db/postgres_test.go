@@ -79,7 +79,7 @@ func TestPostgresGraphRepositoryPublishJoinsTransaction(t *testing.T) {
 	// The callback must return rather than call t.Fatal: a Goexit would skip
 	// the rollback and leave the transaction holding its lock on graph_revisions.
 	err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		if err := repo.Publish(ctx, graph); err != nil {
+		if err := repo.Publish(ctx, graph.Ref()); err != nil {
 			return fmt.Errorf("publish graph: %w", err)
 		}
 
@@ -94,7 +94,7 @@ func TestPostgresGraphRepositoryPublishJoinsTransaction(t *testing.T) {
 	}
 
 	if err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		return repo.Publish(ctx, graph)
+		return repo.Publish(ctx, graph.Ref())
 	}); err != nil {
 		t.Fatalf("RunInTransaction() error = %v", err)
 	}
