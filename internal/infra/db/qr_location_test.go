@@ -39,7 +39,7 @@ func placedGraph(t *testing.T) (*PostgresGraphRepository, *application.GraphServ
 	return repo, service, graph
 }
 
-func findPlacements(t *testing.T, repo *PostgresGraphRepository, graph domain.Graph) domain.Placements {
+func findPlacements(t *testing.T, repo *PostgresGraphRepository, graph domain.GraphRef) domain.Placements {
 	t.Helper()
 
 	placements, err := repo.FindPlacements(context.Background(), graph)
@@ -67,7 +67,7 @@ func TestQrLocationIsAddedUpdatedAndRemovedThroughService(t *testing.T) {
 		t.Fatalf("UpdateQrLocation() error = %v", err)
 	}
 
-	if got, want := findPlacements(t, repo, graph), (domain.Placements{Mappings: []domain.ObservationPointMapping{}, QrLocations: []domain.QrLocation{moved}}); !reflect.DeepEqual(got, want) {
+	if got, want := findPlacements(t, repo, graph.Ref()), (domain.Placements{Mappings: []domain.ObservationPointMapping{}, QrLocations: []domain.QrLocation{moved}}); !reflect.DeepEqual(got, want) {
 		t.Errorf("FindPlacements() = %+v, want %+v", got, want)
 	}
 
@@ -80,7 +80,7 @@ func TestQrLocationIsAddedUpdatedAndRemovedThroughService(t *testing.T) {
 		t.Errorf("RemoveQrLocation() of a removed location error = %v, want %v", err, repository.ErrQrLocationNotFound)
 	}
 
-	if got := findPlacements(t, repo, graph); len(got.QrLocations) != 0 {
+	if got := findPlacements(t, repo, graph.Ref()); len(got.QrLocations) != 0 {
 		t.Errorf("FindPlacements() QR locations = %+v, want none", got.QrLocations)
 	}
 }
@@ -111,14 +111,14 @@ func TestPostgresGraphRepositoryQrLocationsKeepOtherTenantOut(t *testing.T) {
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
 
-	owned := saveGraph(t, repo, singleNode("n1"))
+	owned := saveGraph(t, repo, singleNode("n1")).Ref()
 	location := domain.QrLocation{ID: "0123456789abcdef", Name: "Poster", Kind: "poster", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1"}}
 
 	if err := repo.AddQrLocation(ctx, owned, location); err != nil {
 		t.Fatalf("AddQrLocation() error = %v", err)
 	}
 
-	intruder := newGraph(t, otherTenant, singleNode("n1"))
+	intruder := newGraph(t, otherTenant, singleNode("n1")).Ref()
 	if err := repo.AddQrLocation(ctx, intruder, domain.QrLocation{ID: "fedcba9876543210", Name: "x", Kind: "x", Anchor: location.Anchor}); err == nil {
 		t.Error("AddQrLocation() by another tenant error = nil, want a foreign key violation")
 	}

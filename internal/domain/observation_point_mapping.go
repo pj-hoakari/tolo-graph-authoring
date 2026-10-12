@@ -48,23 +48,29 @@ type Placements struct {
 	QrLocations []QrLocation
 }
 
-func (g Graph) VerifyMapping(mapping ObservationPointMapping) error {
+type DraftKernel struct {
+	GraphRef
+
+	Kernel GraphKernel
+}
+
+func (k DraftKernel) VerifyMapping(mapping ObservationPointMapping) error {
 	if mapping.ObservationPointID == "" {
 		return ErrInvalidObservationPointMapping
 	}
 
-	return g.verifyAnchor(mapping.Anchor, ErrInvalidObservationPointMapping)
+	return k.verifyAnchor(mapping.Anchor, ErrInvalidObservationPointMapping)
 }
 
-func (g Graph) VerifyQrLocation(location QrLocation) error {
+func (k DraftKernel) VerifyQrLocation(location QrLocation) error {
 	if location.Name == "" || location.Kind == "" {
 		return ErrInvalidQrLocation
 	}
 
-	return g.verifyAnchor(location.Anchor, ErrInvalidQrLocation)
+	return k.verifyAnchor(location.Anchor, ErrInvalidQrLocation)
 }
 
-func (g Graph) verifyAnchor(anchor GraphAnchor, invalid error) error {
+func (k DraftKernel) verifyAnchor(anchor GraphAnchor, invalid error) error {
 	if anchor.ElementID == "" {
 		return invalid
 	}
@@ -82,19 +88,19 @@ func (g Graph) verifyAnchor(anchor GraphAnchor, invalid error) error {
 		return invalid
 	}
 
-	if !g.contains(anchor) {
+	if !k.Kernel.contains(anchor) {
 		return ErrAnchorTargetNotFound
 	}
 
 	return nil
 }
 
-func (g Graph) contains(anchor GraphAnchor) bool {
+func (k GraphKernel) contains(anchor GraphAnchor) bool {
 	switch anchor.Kind {
 	case AnchorKindPoint:
-		return slices.ContainsFunc(g.draft.Kernel.Points, func(point Point) bool { return point.ID == anchor.ElementID })
+		return slices.ContainsFunc(k.Points, func(point Point) bool { return point.ID == anchor.ElementID })
 	case AnchorKindRoute:
-		return slices.ContainsFunc(g.draft.Kernel.Routes, func(route Route) bool { return route.ID == anchor.ElementID })
+		return slices.ContainsFunc(k.Routes, func(route Route) bool { return route.ID == anchor.ElementID })
 	case AnchorKindUnspecified:
 	}
 
@@ -103,13 +109,13 @@ func (g Graph) contains(anchor GraphAnchor) bool {
 
 func (g Graph) VerifyPlacements(placements Placements) error {
 	for _, mapping := range placements.Mappings {
-		if !g.contains(mapping.Anchor) {
+		if !g.draft.Kernel.contains(mapping.Anchor) {
 			return fmt.Errorf("%w: observation point %q", ErrAnchorTargetNotFound, mapping.ObservationPointID)
 		}
 	}
 
 	for _, location := range placements.QrLocations {
-		if !g.contains(location.Anchor) {
+		if !g.draft.Kernel.contains(location.Anchor) {
 			return fmt.Errorf("%w: QR location %q", ErrAnchorTargetNotFound, location.ID)
 		}
 	}

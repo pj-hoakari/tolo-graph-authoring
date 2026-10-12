@@ -17,13 +17,15 @@ var (
 type GraphRepository interface {
 	FindByEventPublicID(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
 	FindByEventPublicIDForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error)
+	FindDraftKernelForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error)
+	FindDraftRevisionForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error)
 	Save(ctx context.Context, graph domain.Graph) error
-	Publish(ctx context.Context, graph domain.Graph) error
+	Publish(ctx context.Context, graph domain.GraphRef) error
 	FindCurrentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error)
-	SaveObservationPointMapping(ctx context.Context, graph domain.Graph, mapping domain.ObservationPointMapping) error
+	SaveObservationPointMapping(ctx context.Context, graph domain.GraphRef, mapping domain.ObservationPointMapping) error
 	FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error)
-	FindPlacements(ctx context.Context, graph domain.Graph) (domain.Placements, error)
-	AddQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error
-	UpdateQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error
-	RemoveQrLocation(ctx context.Context, graph domain.Graph, qrLocationID string) error
+	FindPlacements(ctx context.Context, graph domain.GraphRef) (domain.Placements, error)
+	AddQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error
+	UpdateQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error
+	RemoveQrLocation(ctx context.Context, graph domain.GraphRef, qrLocationID string) error
 }

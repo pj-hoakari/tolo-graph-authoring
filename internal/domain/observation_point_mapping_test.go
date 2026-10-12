@@ -26,6 +26,8 @@ func TestVerifyMappingAcceptsOnlyElementsOfTheDraft(t *testing.T) {
 		t.Fatalf("NewGraph() error = %v", err)
 	}
 
+	draft := domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}
+
 	position := func(v float64) *float64 { return &v }
 
 	for _, tc := range []struct {
@@ -52,7 +54,7 @@ func TestVerifyMappingAcceptsOnlyElementsOfTheDraft(t *testing.T) {
 			t.Parallel()
 
 			mapping := domain.ObservationPointMapping{ObservationPointID: tc.observationPointID, Anchor: tc.anchor}
-			if err := graph.VerifyMapping(mapping); !errors.Is(err, tc.want) {
+			if err := draft.VerifyMapping(mapping); !errors.Is(err, tc.want) {
 				t.Errorf("VerifyMapping() error = %v, want %v", err, tc.want)
 			}
 		})

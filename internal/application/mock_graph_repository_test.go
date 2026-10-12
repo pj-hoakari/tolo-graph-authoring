@@ -42,7 +42,7 @@ func (m *MockGraphRepository) EXPECT() *MockGraphRepositoryMockRecorder {
 }
 
 // AddQrLocation mocks base method.
-func (m *MockGraphRepository) AddQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+func (m *MockGraphRepository) AddQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddQrLocation", ctx, graph, location)
 	ret0, _ := ret[0].(error)
@@ -100,6 +100,36 @@ func (mr *MockGraphRepositoryMockRecorder) FindCurrentRevision(ctx, eventPublicI
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCurrentRevision", reflect.TypeOf((*MockGraphRepository)(nil).FindCurrentRevision), ctx, eventPublicID)
 }
 
+// FindDraftKernelForUpdate mocks base method.
+func (m *MockGraphRepository) FindDraftKernelForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDraftKernelForUpdate", ctx, tenantPublicID, eventPublicID)
+	ret0, _ := ret[0].(domain.DraftKernel)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDraftKernelForUpdate indicates an expected call of FindDraftKernelForUpdate.
+func (mr *MockGraphRepositoryMockRecorder) FindDraftKernelForUpdate(ctx, tenantPublicID, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDraftKernelForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindDraftKernelForUpdate), ctx, tenantPublicID, eventPublicID)
+}
+
+// FindDraftRevisionForUpdate mocks base method.
+func (m *MockGraphRepository) FindDraftRevisionForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDraftRevisionForUpdate", ctx, tenantPublicID, eventPublicID)
+	ret0, _ := ret[0].(domain.DraftRevision)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDraftRevisionForUpdate indicates an expected call of FindDraftRevisionForUpdate.
+func (mr *MockGraphRepositoryMockRecorder) FindDraftRevisionForUpdate(ctx, tenantPublicID, eventPublicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDraftRevisionForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindDraftRevisionForUpdate), ctx, tenantPublicID, eventPublicID)
+}
+
 // FindObservationPointMappings mocks base method.
 func (m *MockGraphRepository) FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error) {
 	m.ctrl.T.Helper()
@@ -116,7 +146,7 @@ func (mr *MockGraphRepositoryMockRecorder) FindObservationPointMappings(ctx, eve
 }
 
 // FindPlacements mocks base method.
-func (m *MockGraphRepository) FindPlacements(ctx context.Context, graph domain.Graph) (domain.Placements, error) {
+func (m *MockGraphRepository) FindPlacements(ctx context.Context, graph domain.GraphRef) (domain.Placements, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindPlacements", ctx, graph)
 	ret0, _ := ret[0].(domain.Placements)
@@ -131,7 +161,7 @@ func (mr *MockGraphRepositoryMockRecorder) FindPlacements(ctx, graph any) *gomoc
 }
 
 // Publish mocks base method.
-func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.Graph) error {
+func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.GraphRef) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Publish", ctx, graph)
 	ret0, _ := ret[0].(error)
@@ -145,7 +175,7 @@ func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph any) *gomock.Call 
 }
 
 // RemoveQrLocation mocks base method.
-func (m *MockGraphRepository) RemoveQrLocation(ctx context.Context, graph domain.Graph, qrLocationID string) error {
+func (m *MockGraphRepository) RemoveQrLocation(ctx context.Context, graph domain.GraphRef, qrLocationID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveQrLocation", ctx, graph, qrLocationID)
 	ret0, _ := ret[0].(error)
@@ -173,7 +203,7 @@ func (mr *MockGraphRepositoryMockRecorder) Save(ctx, graph any) *gomock.Call {
 }
 
 // SaveObservationPointMapping mocks base method.
-func (m *MockGraphRepository) SaveObservationPointMapping(ctx context.Context, graph domain.Graph, mapping domain.ObservationPointMapping) error {
+func (m *MockGraphRepository) SaveObservationPointMapping(ctx context.Context, graph domain.GraphRef, mapping domain.ObservationPointMapping) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveObservationPointMapping", ctx, graph, mapping)
 	ret0, _ := ret[0].(error)
@@ -187,7 +217,7 @@ func (mr *MockGraphRepositoryMockRecorder) SaveObservationPointMapping(ctx, grap
 }
 
 // UpdateQrLocation mocks base method.
-func (m *MockGraphRepository) UpdateQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+func (m *MockGraphRepository) UpdateQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateQrLocation", ctx, graph, location)
 	ret0, _ := ret[0].(error)

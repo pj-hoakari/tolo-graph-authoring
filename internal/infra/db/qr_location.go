@@ -17,7 +17,7 @@ type qrLocation struct {
 	storedAnchor
 }
 
-func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph domain.Graph) (domain.Placements, error) {
+func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph domain.GraphRef) (domain.Placements, error) {
 	var mappings []observationPointMapping
 
 	err := sqlx.SelectContext(ctx, r.executor(ctx), &mappings, `
@@ -25,7 +25,7 @@ func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph doma
 		FROM observation_point_mappings
 		WHERE event_public_id = $1 AND tenant_public_id = $2
 		ORDER BY observation_point_id`,
-		graph.EventPublicID(), graph.TenantPublicID())
+		graph.EventPublicID, graph.TenantPublicID)
 	if err != nil {
 		return domain.Placements{}, fmt.Errorf("find observation point mappings: %w", err)
 	}
@@ -37,7 +37,7 @@ func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph doma
 		FROM qr_locations
 		WHERE event_public_id = $1 AND tenant_public_id = $2
 		ORDER BY qr_location_id`,
-		graph.EventPublicID(), graph.TenantPublicID())
+		graph.EventPublicID, graph.TenantPublicID)
 	if err != nil {
 		return domain.Placements{}, fmt.Errorf("find QR locations: %w", err)
 	}
@@ -62,12 +62,12 @@ func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph doma
 	return placements, nil
 }
 
-func (r *PostgresGraphRepository) AddQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+func (r *PostgresGraphRepository) AddQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error {
 	_, err := r.executor(ctx).ExecContext(ctx, `
 		INSERT INTO qr_locations
 			(event_public_id, tenant_public_id, qr_location_id, name, kind, anchor_kind, anchor_element_id, route_position)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		graph.EventPublicID(), graph.TenantPublicID(), location.ID, location.Name, location.Kind,
+		graph.EventPublicID, graph.TenantPublicID, location.ID, location.Name, location.Kind,
 		anchorKindNames[location.Anchor.Kind], location.Anchor.ElementID, location.Anchor.RoutePosition)
 	if err != nil {
 		return fmt.Errorf("add QR location: %w", err)
@@ -76,7 +76,7 @@ func (r *PostgresGraphRepository) AddQrLocation(ctx context.Context, graph domai
 	return nil
 }
 
-func (r *PostgresGraphRepository) UpdateQrLocation(ctx context.Context, graph domain.Graph, location domain.QrLocation) error {
+func (r *PostgresGraphRepository) UpdateQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
 		UPDATE qr_locations SET
 			name = $4,
@@ -86,17 +86,17 @@ func (r *PostgresGraphRepository) UpdateQrLocation(ctx context.Context, graph do
 			route_position = $8,
 			updated_at = now()
 		WHERE event_public_id = $1 AND tenant_public_id = $2 AND qr_location_id = $3`,
-		graph.EventPublicID(), graph.TenantPublicID(), location.ID, location.Name, location.Kind,
+		graph.EventPublicID, graph.TenantPublicID, location.ID, location.Name, location.Kind,
 		anchorKindNames[location.Anchor.Kind], location.Anchor.ElementID, location.Anchor.RoutePosition)
 
 	return requireQrLocationFound(result, err, "update QR location")
 }
 
-func (r *PostgresGraphRepository) RemoveQrLocation(ctx context.Context, graph domain.Graph, qrLocationID string) error {
+func (r *PostgresGraphRepository) RemoveQrLocation(ctx context.Context, graph domain.GraphRef, qrLocationID string) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
 		DELETE FROM qr_locations
 		WHERE event_public_id = $1 AND tenant_public_id = $2 AND qr_location_id = $3`,
-		graph.EventPublicID(), graph.TenantPublicID(), qrLocationID)
+		graph.EventPublicID, graph.TenantPublicID, qrLocationID)
 
 	return requireQrLocationFound(result, err, "remove QR location")
 }

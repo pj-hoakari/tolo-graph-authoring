@@ -35,15 +35,23 @@ func (nopGraphRepository) FindByEventPublicIDForUpdate(context.Context, string, 
 	return domain.Graph{}, repository.ErrGraphNotFound
 }
 
+func (nopGraphRepository) FindDraftKernelForUpdate(context.Context, string, string) (domain.DraftKernel, error) {
+	return domain.DraftKernel{}, repository.ErrGraphNotFound
+}
+
 func (nopGraphRepository) Save(context.Context, domain.Graph) error { return nil }
 
-func (nopGraphRepository) Publish(context.Context, domain.Graph) error { return nil }
+func (nopGraphRepository) FindDraftRevisionForUpdate(context.Context, string, string) (domain.DraftRevision, error) {
+	return domain.DraftRevision{}, repository.ErrGraphNotFound
+}
+
+func (nopGraphRepository) Publish(context.Context, domain.GraphRef) error { return nil }
 
 func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
 	return domain.PublishedRevision{}, repository.ErrGraphNotFound
 }
 
-func (nopGraphRepository) SaveObservationPointMapping(context.Context, domain.Graph, domain.ObservationPointMapping) error {
+func (nopGraphRepository) SaveObservationPointMapping(context.Context, domain.GraphRef, domain.ObservationPointMapping) error {
 	return nil
 }
 
@@ -51,19 +59,19 @@ func (nopGraphRepository) FindObservationPointMappings(context.Context, string) 
 	return nil, nil
 }
 
-func (nopGraphRepository) FindPlacements(context.Context, domain.Graph) (domain.Placements, error) {
+func (nopGraphRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
 	return domain.Placements{}, nil
 }
 
-func (nopGraphRepository) AddQrLocation(context.Context, domain.Graph, domain.QrLocation) error {
+func (nopGraphRepository) AddQrLocation(context.Context, domain.GraphRef, domain.QrLocation) error {
 	return nil
 }
 
-func (nopGraphRepository) UpdateQrLocation(context.Context, domain.Graph, domain.QrLocation) error {
+func (nopGraphRepository) UpdateQrLocation(context.Context, domain.GraphRef, domain.QrLocation) error {
 	return nil
 }
 
-func (nopGraphRepository) RemoveQrLocation(context.Context, domain.Graph, string) error { return nil }
+func (nopGraphRepository) RemoveQrLocation(context.Context, domain.GraphRef, string) error { return nil }
 
 type inlineTransactor struct{}
 
@@ -274,8 +282,10 @@ type draftGraphRepository struct {
 	draft domain.GraphDocument
 }
 
-func (r draftGraphRepository) FindByEventPublicIDForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
-	return domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+func (r draftGraphRepository) FindDraftKernelForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error) {
+	graph, err := domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+
+	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}, err
 }
 
 func TestMapObservationPoint(t *testing.T) {
@@ -363,7 +373,7 @@ func (r storedGraphRepository) FindByEventPublicID(context.Context, string, stri
 	return *r.saved, nil
 }
 
-func (r storedGraphRepository) FindPlacements(context.Context, domain.Graph) (domain.Placements, error) {
+func (r storedGraphRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
 	return r.placements, nil
 }
 

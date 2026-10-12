@@ -235,6 +235,17 @@ func invalidDocument(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalidGraphDocument, fmt.Sprintf(format, args...))
 }
 
+type GraphRef struct {
+	TenantPublicID string
+	EventPublicID  string
+}
+
+type DraftRevision struct {
+	GraphRef
+
+	RevisionID string
+}
+
 type Graph struct {
 	tenantPublicID  string
 	eventPublicID   string
@@ -292,6 +303,10 @@ func (g Graph) Draft() GraphDocument    { return g.draft.Document() }
 func (g Graph) DraftParts() GraphParts  { return g.draft }
 func (g Graph) DraftRevisionID() string { return g.draftRevisionID }
 func (g Graph) RevisionID() string      { return g.revisionID }
+
+func (g Graph) Ref() GraphRef {
+	return GraphRef{TenantPublicID: g.tenantPublicID, EventPublicID: g.eventPublicID}
+}
 
 func (p GraphParts) revisionID() (string, error) {
 	encoded, err := json.Marshal(struct {

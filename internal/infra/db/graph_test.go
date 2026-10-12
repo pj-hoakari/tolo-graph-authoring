@@ -229,7 +229,7 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 		t.Fatalf("Save() error = %v", err)
 	}
 
-	if err := repo.Publish(ctx, graph.Published()); err != nil {
+	if err := repo.Publish(ctx, graph.Ref()); err != nil {
 		t.Fatalf("Publish() error = %v", err)
 	}
 
@@ -258,6 +258,81 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 
 	if read.RevisionID() == "" {
 		t.Error("FindByEventPublicID() RevisionID() is empty, want the published revision")
+	}
+}
+
+func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+	graph := saveGraph(t, repo, richDocument())
+
+	if _, err := testDB.Exec(`DELETE FROM graph_layouts`); err != nil {
+		t.Fatalf("delete graph layouts: %v", err)
+	}
+
+	got, err := repo.FindDraftKernelForUpdate(ctx, ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindDraftKernelForUpdate() without a layout error = %v", err)
+	}
+
+	if want := (domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}); !reflect.DeepEqual(got, want) {
+		t.Errorf("FindDraftKernelForUpdate() = %#v, want %#v", got, want)
+	}
+
+	if _, err := repo.FindDraftKernelForUpdate(ctx, otherTenant, graphEvent); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("FindDraftKernelForUpdate() with other tenant error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+}
+
+func TestPostgresGraphRepositoryFindDraftKernelForUpdateWaitsForSaveGraphLock(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+
+	saveGraph(t, repo, singleNode("n1"))
+
+	var contenderErr error
+
+	err := repo.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if _, err := repo.FindByEventPublicIDForUpdate(txCtx, ownerTenant, graphEvent); err != nil {
+			return err
+		}
+
+		waitCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		defer cancel()
+
+		contenderErr = repo.WithinTransaction(waitCtx, func(ctx context.Context) error {
+			_, err := repo.FindDraftKernelForUpdate(ctx, ownerTenant, graphEvent)
+
+			return err
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("WithinTransaction() error = %v", err)
+	}
+
+	if contenderErr == nil {
+		t.Error("FindDraftKernelForUpdate() while FindByEventPublicIDForUpdate() holds the lock succeeded, want it to wait until the deadline")
+	}
+}
+
+func TestPostgresGraphRepositoryFindDraftRevisionForUpdateReadsTheSavedRevision(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+	graph := saveGraph(t, repo, richDocument())
+
+	got, err := repo.FindDraftRevisionForUpdate(ctx, ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindDraftRevisionForUpdate() error = %v", err)
+	}
+
+	if want := (domain.DraftRevision{GraphRef: graph.Ref(), RevisionID: graph.DraftRevisionID()}); got != want {
+		t.Errorf("FindDraftRevisionForUpdate() = %+v, want %+v", got, want)
+	}
+
+	if _, err := repo.FindDraftRevisionForUpdate(ctx, otherTenant, graphEvent); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("FindDraftRevisionForUpdate() with other tenant error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 }
 
@@ -318,7 +393,7 @@ func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.Grap
 func publishGraph(t *testing.T, repo *PostgresGraphRepository, graph domain.Graph) domain.Graph {
 	t.Helper()
 
-	if err := repo.Publish(context.Background(), graph); err != nil {
+	if err := repo.Publish(context.Background(), graph.Ref()); err != nil {
 		t.Fatalf("Publish() error = %v", err)
 	}
 
@@ -400,13 +475,13 @@ func TestPostgresGraphRepositoryPublishWithoutOwnedDraftWritesNothing(t *testing
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
 
-	if err := repo.Publish(ctx, newGraph(t, ownerTenant, singleNode("n1"))); !errors.Is(err, repository.ErrGraphNotFound) {
+	if err := repo.Publish(ctx, newGraph(t, ownerTenant, singleNode("n1")).Ref()); !errors.Is(err, repository.ErrGraphNotFound) {
 		t.Errorf("Publish() without a draft error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 
 	saveGraph(t, repo, singleNode("n1"))
 
-	if err := repo.Publish(ctx, newGraph(t, otherTenant, singleNode("n1"))); !errors.Is(err, repository.ErrGraphNotFound) {
+	if err := repo.Publish(ctx, newGraph(t, otherTenant, singleNode("n1")).Ref()); !errors.Is(err, repository.ErrGraphNotFound) {
 		t.Errorf("Publish() by another tenant error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 
