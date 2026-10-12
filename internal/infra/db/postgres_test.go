@@ -79,7 +79,7 @@ func TestPostgresGraphRepositoryPublishJoinsTransaction(t *testing.T) {
 	// The callback must return rather than call t.Fatal: a Goexit would skip
 	// the rollback and leave the transaction holding its lock on graph_revisions.
 	err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		if err := repo.Publish(ctx, graph.Ref()); err != nil {
+		if err := repo.Publish(ctx, graph.Ref(), graph.Placements()); err != nil {
 			return fmt.Errorf("publish graph: %w", err)
 		}
 
@@ -94,7 +94,7 @@ func TestPostgresGraphRepositoryPublishJoinsTransaction(t *testing.T) {
 	}
 
 	if err := RunInTransaction(ctx, testDB, func(ctx context.Context) error {
-		return repo.Publish(ctx, graph.Ref())
+		return repo.Publish(ctx, graph.Ref(), graph.Placements())
 	}); err != nil {
 		t.Fatalf("RunInTransaction() error = %v", err)
 	}
@@ -119,8 +119,8 @@ func TestPostgresGraphRepositoryPublishNormalizesQueryText(t *testing.T) {
 
 	// The repository writes the statement as a multi-line raw string literal,
 	// so this exact value also proves the newlines and tabs are gone.
-	const wantQueryText = "INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels) " +
-		"SELECT event_public_id, tenant_public_id, revision_id, kernel, labels FROM graph_drafts " +
+	const wantQueryText = "INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, placements) " +
+		"SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, $3 FROM graph_drafts " +
 		"WHERE event_public_id = $1 AND tenant_public_id = $2 " +
 		"ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at"
 

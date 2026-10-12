@@ -55,6 +55,7 @@ type PublishedRevision struct {
 	EventPublicID  string
 	RevisionID     string
 	Kernel         GraphKernel
+	Placements     Placements
 }
 
 func (r PublishedRevision) KernelGraph() KernelGraph {

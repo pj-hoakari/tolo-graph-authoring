@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
@@ -19,25 +18,11 @@ func routeMapping(observationPointID, routeID string, position float64) domain.O
 	}
 }
 
-func TestObservationPointMappedThroughServiceIsSupplied(t *testing.T) {
-	repo := newTestGraphRepository(t)
-	service := application.NewGraphService(repo, repo, callerTenantEvents{})
-	editing := internaljwt.ContextWithClaims(context.Background(), internaljwt.Claims{
-		TokenUse:       internaljwt.TokenUseEventAccess,
-		TenantPublicID: ownerTenant,
-		EventPublicID:  graphEvent,
-	})
+func TestObservationPointMappedThroughServiceIsSuppliedOnceItsRevisionIsPublished(t *testing.T) {
+	_, service, _ := placedGraph(t)
+	editing := editingContext()
 
-	document := domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
-		Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays}},
-	}
-
-	if _, err := service.SaveGraph(editing, application.SaveGraphInput{EventPublicID: graphEvent, Document: &document}); err != nil {
-		t.Fatalf("SaveGraph() error = %v", err)
-	}
-
-	published, err := service.PublishRevision(editing, application.PublishRevisionInput{EventPublicID: graphEvent})
+	before, err := service.PublishRevision(editing, application.PublishRevisionInput{EventPublicID: graphEvent})
 	if err != nil {
 		t.Fatalf("PublishRevision() error = %v", err)
 	}
@@ -47,22 +32,48 @@ func TestObservationPointMappedThroughServiceIsSupplied(t *testing.T) {
 		Anchor:             domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"},
 	}
 
+	var mapped application.MappedObservationPoint
+
 	for _, mapping := range []domain.ObservationPointMapping{pointMapping, routeMapping("cam-1", "e1", 0.25), routeMapping("cam-1", "e1", 0.75)} {
-		if _, err := service.MapObservationPoint(editing, application.MapObservationPointInput{EventPublicID: graphEvent, Mapping: mapping}); err != nil {
+		mapped, err = service.MapObservationPoint(editing, application.MapObservationPointInput{EventPublicID: graphEvent, Mapping: mapping})
+		if err != nil {
 			t.Fatalf("MapObservationPoint(%+v) error = %v", mapping, err)
 		}
 	}
 
-	got, err := service.GetObservationPointMappings(context.Background(), application.GetObservationPointMappingsInput{EventPublicID: graphEvent})
+	if mapped.Meta.RevisionID != before.RevisionID || mapped.Meta.DraftRevisionID == before.RevisionID {
+		t.Errorf("MapObservationPoint() meta = %+v, want published revision %q and a new draft revision", mapped.Meta, before.RevisionID)
+	}
+
+	getMappings := func(revisionID string) application.ObservationPointMappings {
+		t.Helper()
+
+		got, err := service.GetObservationPointMappings(context.Background(), application.GetObservationPointMappingsInput{EventPublicID: graphEvent, RevisionID: revisionID})
+		if err != nil {
+			t.Fatalf("GetObservationPointMappings(%q) error = %v", revisionID, err)
+		}
+
+		return got
+	}
+
+	if got, want := getMappings(before.RevisionID), (application.ObservationPointMappings{RevisionID: before.RevisionID, Mappings: []domain.ObservationPointMapping{}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("GetObservationPointMappings() before publishing the mappings = %+v, want %+v", got, want)
+	}
+
+	after, err := service.PublishRevision(editing, application.PublishRevisionInput{EventPublicID: graphEvent})
 	if err != nil {
-		t.Fatalf("GetObservationPointMappings() error = %v", err)
+		t.Fatalf("PublishRevision() error = %v", err)
+	}
+
+	if after.RevisionID != mapped.Meta.DraftRevisionID {
+		t.Errorf("PublishRevision() revision = %q, want the draft revision of the last mapping %q", after.RevisionID, mapped.Meta.DraftRevisionID)
 	}
 
 	want := application.ObservationPointMappings{
-		RevisionID: published.RevisionID,
+		RevisionID: after.RevisionID,
 		Mappings:   []domain.ObservationPointMapping{routeMapping("cam-1", "e1", 0.75), pointMapping},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if got := getMappings(after.RevisionID); !reflect.DeepEqual(got, want) {
 		t.Errorf("GetObservationPointMappings() = %+v, want %+v", got, want)
 	}
 }
@@ -81,12 +92,11 @@ func TestPostgresGraphRepositorySaveObservationPointMappingKeepsOtherTenantOut(t
 		t.Errorf("SaveObservationPointMapping() by another tenant error = %v, want %v", err, tenantctx.ErrMismatch)
 	}
 
-	got, err := repo.FindObservationPointMappings(ctx, graphEvent)
-	if err != nil {
-		t.Fatalf("FindObservationPointMappings() error = %v", err)
+	if got, want := findPlacements(t, repo, owned).Mappings, []domain.ObservationPointMapping{routeMapping("cam-1", "e1", 0.5)}; !reflect.DeepEqual(got, want) {
+		t.Errorf("FindPlacements() mappings = %+v, want %+v", got, want)
 	}
 
-	if want := []domain.ObservationPointMapping{routeMapping("cam-1", "e1", 0.5)}; !reflect.DeepEqual(got, want) {
-		t.Errorf("FindObservationPointMappings() = %+v, want %+v", got, want)
+	if got := findPlacements(t, repo, intruder).Mappings; len(got) != 0 {
+		t.Errorf("FindPlacements() mappings for another tenant = %+v, want none", got)
 	}
 }
