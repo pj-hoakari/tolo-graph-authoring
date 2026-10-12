@@ -66,6 +66,17 @@ func (s *GraphSupplyService) GetObservationPointMappings(
 	return connectrpc.NewResponse(&graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: mappings}), nil
 }
 
+func (s *GraphSupplyService) GetQrLocations(
+	ctx context.Context, req *connectrpc.Request[graphv1.GetQrLocationsRequest],
+) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+	locations, err := s.graphService.GetQrLocations(ctx, application.GetQrLocationsInput{EventPublicID: req.Msg.GetEventId()})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(&graphv1.GetQrLocationsResponse{QrLocations: qrLocationsToProto(locations)}), nil
+}
+
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {
 	points := make([]*kernelv1.Point, 0, len(graph.Points))
 	for _, point := range graph.Points {

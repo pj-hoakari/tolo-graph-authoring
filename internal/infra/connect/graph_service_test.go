@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 
 	connectrpc "connectrpc.com/connect"
@@ -17,12 +18,12 @@ import (
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
-	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
+	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 )
 
 type nopGraphRepository struct{}
@@ -71,7 +72,9 @@ func (nopGraphRepository) UpdateQrLocation(context.Context, domain.GraphRef, dom
 	return nil
 }
 
-func (nopGraphRepository) RemoveQrLocation(context.Context, domain.GraphRef, string) error { return nil }
+func (nopGraphRepository) RemoveQrLocation(context.Context, domain.GraphRef, string) error {
+	return nil
+}
 
 type inlineTransactor struct{}
 
@@ -502,4 +505,236 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 	if !proto.Equal(res.Msg, want) {
 		t.Errorf("GetGraph() = %v, want %v", res.Msg, want)
 	}
+}
+
+type qrLocationRepository struct {
+	draftGraphRepository
+
+	placements *domain.Placements
+}
+
+func (r qrLocationRepository) FindByEventPublicID(_ context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
+	return domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+}
+
+func (r qrLocationRepository) FindCurrentRevision(_ context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+	return domain.PublishedRevision{TenantPublicID: "a1b2c3d4e5f60718", EventPublicID: eventPublicID, RevisionID: "0123456789abcdef"}, nil
+}
+
+func (r qrLocationRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
+	return *r.placements, nil
+}
+
+func (r qrLocationRepository) AddQrLocation(_ context.Context, _ domain.GraphRef, location domain.QrLocation) error {
+	r.placements.QrLocations = append(r.placements.QrLocations, location)
+
+	return nil
+}
+
+func (r qrLocationRepository) UpdateQrLocation(_ context.Context, _ domain.GraphRef, location domain.QrLocation) error {
+	i := slices.IndexFunc(r.placements.QrLocations, func(stored domain.QrLocation) bool { return stored.ID == location.ID })
+	if i < 0 {
+		return repository.ErrQrLocationNotFound
+	}
+
+	r.placements.QrLocations[i] = location
+
+	return nil
+}
+
+func (r qrLocationRepository) RemoveQrLocation(_ context.Context, _ domain.GraphRef, qrLocationID string) error {
+	i := slices.IndexFunc(r.placements.QrLocations, func(stored domain.QrLocation) bool { return stored.ID == qrLocationID })
+	if i < 0 {
+		return repository.ErrQrLocationNotFound
+	}
+
+	r.placements.QrLocations = slices.Delete(r.placements.QrLocations, i, i+1)
+
+	return nil
+}
+
+func TestQrLocations(t *testing.T) {
+	t.Parallel()
+
+	graphs := application.NewGraphService(qrLocationRepository{
+		draftGraphRepository: draftGraphRepository{
+			nopGraphRepository: nopGraphRepository{},
+			draft: domain.GraphDocument{
+				Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
+				Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
+			},
+		},
+		placements: &domain.Placements{
+			Mappings: []domain.ObservationPointMapping{{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "e1"}}},
+		},
+	}, inlineTransactor{}, callerTenantEvents{})
+
+	authorization, keys := mintJWT(t, jwtgen.Config{
+		TokenUse:       internaljwt.TokenUseEventAccess,
+		TenantPublicID: "a1b2c3d4e5f60718",
+		EventPublicID:  "fedcba9876543210",
+		Scope:          "events.manage events.read",
+	})
+	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+
+	serviceAuthorization, serviceKeys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
+	supplyClient := newSupplyClient(t, serviceKeys, graphs)
+
+	addQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.QrLocation], error) {
+		req := connectrpc.NewRequest(&graphv1.AddQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
+		req.Header().Set("Authorization", authorization)
+
+		return client.AddQrLocation(context.Background(), req)
+	}
+	updateQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.QrLocation], error) {
+		req := connectrpc.NewRequest(&graphv1.UpdateQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
+		req.Header().Set("Authorization", authorization)
+
+		return client.UpdateQrLocation(context.Background(), req)
+	}
+	removeQrLocation := func(qrLocationID string) error {
+		req := connectrpc.NewRequest(&graphv1.RemoveQrLocationRequest{EventId: "fedcba9876543210", QrLocationId: qrLocationID})
+		req.Header().Set("Authorization", authorization)
+
+		_, err := client.RemoveQrLocation(context.Background(), req)
+
+		return err
+	}
+	getQrLocations := func() []*graphv1.QrLocation {
+		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210"})
+		req.Header().Set("Authorization", serviceAuthorization)
+
+		res, err := supplyClient.GetQrLocations(context.Background(), req)
+		if err != nil {
+			t.Fatalf("GetQrLocations() error = %v", err)
+		}
+
+		return res.Msg.GetQrLocations()
+	}
+	getGraphQrLocations := func() []*graphv1.QrLocation {
+		req := connectrpc.NewRequest(&graphv1.GetGraphRequest{EventId: "fedcba9876543210"})
+		req.Header().Set("Authorization", authorization)
+
+		res, err := client.GetGraph(context.Background(), req)
+		if err != nil {
+			t.Fatalf("GetGraph() error = %v", err)
+		}
+
+		return res.Msg.GetQrLocations()
+	}
+	assertServed := func(want ...*graphv1.QrLocation) {
+		t.Helper()
+
+		for name, got := range map[string][]*graphv1.QrLocation{"GetQrLocations": getQrLocations(), "GetGraph": getGraphQrLocations()} {
+			if !slices.EqualFunc(got, want, func(a, b *graphv1.QrLocation) bool { return proto.Equal(a, b) }) {
+				t.Errorf("%s() QR locations = %v, want %v", name, got, want)
+			}
+		}
+	}
+
+	added, err := addQrLocation(&graphv1.QrLocation{
+		Name:   "Main gate",
+		Kind:   "entrance",
+		Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}},
+	})
+	if err != nil {
+		t.Fatalf("AddQrLocation() error = %v", err)
+	}
+
+	if added.Msg.GetQrLocationId() == "" {
+		t.Fatalf("AddQrLocation() = %v, want an assigned qr_location_id", added.Msg)
+	}
+
+	assertServed(added.Msg)
+
+	moved := &graphv1.QrLocation{
+		QrLocationId: added.Msg.GetQrLocationId(),
+		Name:         "Hall door",
+		Kind:         "entrance",
+		Anchor:       &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "hall"}},
+	}
+
+	updated, err := updateQrLocation(moved)
+	if err != nil {
+		t.Fatalf("UpdateQrLocation() error = %v", err)
+	}
+
+	if !proto.Equal(updated.Msg, moved) {
+		t.Errorf("UpdateQrLocation() = %v, want %v", updated.Msg, moved)
+	}
+
+	assertServed(moved)
+
+	if err := removeQrLocation(added.Msg.GetQrLocationId()); err != nil {
+		t.Fatalf("RemoveQrLocation() error = %v", err)
+	}
+
+	assertServed()
+
+	onGate := &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}}
+
+	for _, tc := range []struct {
+		name string
+		call func() error
+		want connectrpc.Code
+	}{
+		{
+			"rejects a missing QR location",
+			func() error {
+				_, err := addQrLocation(nil)
+
+				return err
+			},
+			connectrpc.CodeInvalidArgument,
+		},
+		{
+			"rejects a QR location without kind",
+			func() error {
+				_, err := addQrLocation(&graphv1.QrLocation{Name: "Main gate", Anchor: onGate})
+
+				return err
+			},
+			connectrpc.CodeInvalidArgument,
+		},
+		{
+			"rejects a point missing from the draft",
+			func() error {
+				_, err := addQrLocation(&graphv1.QrLocation{
+					Name: "Nowhere", Kind: "poster", Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "nowhere"}},
+				})
+
+				return err
+			},
+			connectrpc.CodeFailedPrecondition,
+		},
+		{
+			"rejects a route mapped to a camera",
+			func() error {
+				_, err := addQrLocation(&graphv1.QrLocation{
+					Name: "Corridor", Kind: "poster", Anchor: &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_RouteId{RouteId: "e1"}},
+				})
+
+				return err
+			},
+			connectrpc.CodeFailedPrecondition,
+		},
+		{
+			"rejects updating an unknown QR location",
+			func() error {
+				_, err := updateQrLocation(&graphv1.QrLocation{QrLocationId: "unknown", Name: "Main gate", Kind: "entrance", Anchor: onGate})
+
+				return err
+			},
+			connectrpc.CodeNotFound,
+		},
+		{"rejects removing an unknown QR location", func() error { return removeQrLocation("unknown") }, connectrpc.CodeNotFound},
+	} {
+		if got := connectrpc.CodeOf(tc.call()); got != tc.want {
+			t.Errorf("%s: error code = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+
+	assertServed()
 }
