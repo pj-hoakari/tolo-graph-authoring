@@ -861,3 +861,62 @@ func TestAddQrLocationRejectsWithoutSaving(t *testing.T) {
 		})
 	}
 }
+
+func TestGetQrLocationsServesPlacedLocationsOfPublishedGraph(t *testing.T) {
+	t.Parallel()
+
+	located := qrLocation("n1")
+	located.ID = "qr-1"
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
+	graphs.EXPECT().FindPlacements(gomock.Any(), domain.GraphRef{TenantPublicID: tenantID, EventPublicID: eventID}).
+		Return(domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1-peer")}, QrLocations: []domain.QrLocation{located}}, nil)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID})
+	if err != nil {
+		t.Fatalf("GetQrLocations() error = %v", err)
+	}
+
+	if want := []domain.QrLocation{located}; !reflect.DeepEqual(got, want) {
+		t.Errorf("GetQrLocations() = %+v, want %+v", got, want)
+	}
+}
+
+func TestGetQrLocationsRejectsUnauthorizedRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ctx      context.Context
+		revision domain.PublishedRevision
+		want     error
+	}{
+		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), publishedRevision(tenantID), tenantctx.ErrEventMismatch},
+		{"revision of another tenant", serviceContext(tenantID, eventID), publishedRevision("ffffffffffffffff"), tenantctx.ErrMismatch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(tc.revision, nil).MaxTimes(1)
+
+			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(tc.ctx, application.GetQrLocationsInput{EventPublicID: eventID})
+			if !errors.Is(err, tc.want) {
+				t.Errorf("GetQrLocations() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetQrLocationsPropagatesUnpublishedEvent(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(domain.PublishedRevision{}, repository.ErrGraphNotFound)
+
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID})
+	if !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("GetQrLocations() error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+}

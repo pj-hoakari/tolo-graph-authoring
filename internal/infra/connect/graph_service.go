@@ -80,6 +80,42 @@ func (s *GraphService) MapObservationPoint(
 	return connectrpc.NewResponse(observationPointMappingToProto(mapping)), nil
 }
 
+func (s *GraphService) AddQrLocation(ctx context.Context, req *connectrpc.Request[graphv1.AddQrLocationRequest]) (*connectrpc.Response[graphv1.QrLocation], error) {
+	location, err := s.graphService.AddQrLocation(ctx, application.AddQrLocationInput{
+		EventPublicID: req.Msg.GetEventId(),
+		QrLocation:    qrLocationFromProto(req.Msg.GetQrLocation()),
+	})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(qrLocationToProto(location)), nil
+}
+
+func (s *GraphService) UpdateQrLocation(ctx context.Context, req *connectrpc.Request[graphv1.UpdateQrLocationRequest]) (*connectrpc.Response[graphv1.QrLocation], error) {
+	location, err := s.graphService.UpdateQrLocation(ctx, application.UpdateQrLocationInput{
+		EventPublicID: req.Msg.GetEventId(),
+		QrLocation:    qrLocationFromProto(req.Msg.GetQrLocation()),
+	})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(qrLocationToProto(location)), nil
+}
+
+func (s *GraphService) RemoveQrLocation(ctx context.Context, req *connectrpc.Request[graphv1.RemoveQrLocationRequest]) (*connectrpc.Response[graphv1.RemoveResponse], error) {
+	err := s.graphService.RemoveQrLocation(ctx, application.RemoveQrLocationInput{
+		EventPublicID: req.Msg.GetEventId(),
+		QrLocationID:  req.Msg.GetQrLocationId(),
+	})
+	if err != nil {
+		return nil, graphError(ctx, err)
+	}
+
+	return connectrpc.NewResponse(&graphv1.RemoveResponse{}), nil
+}
+
 func (s *GraphService) PublishRevision(ctx context.Context, req *connectrpc.Request[graphv1.PublishRevisionRequest]) (*connectrpc.Response[graphv1.GraphMeta], error) {
 	published, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.Msg.GetEventId()})
 	if err != nil {
@@ -104,21 +140,11 @@ func (s *GraphService) GetGraph(ctx context.Context, req *connectrpc.Request[gra
 		mappings = append(mappings, observationPointMappingToProto(mapping))
 	}
 
-	locations := make([]*graphv1.QrLocation, 0, len(saved.Placements.QrLocations))
-	for _, location := range saved.Placements.QrLocations {
-		locations = append(locations, &graphv1.QrLocation{
-			QrLocationId: location.ID,
-			Name:         location.Name,
-			Kind:         location.Kind,
-			Anchor:       graphAnchorToProto(location.Anchor),
-		})
-	}
-
 	return connectrpc.NewResponse(&graphv1.GetGraphResponse{
 		Meta:                     graphMeta(saved.Graph),
 		Document:                 graphDocumentToProto(saved.Graph.Draft()),
 		ObservationPointMappings: mappings,
-		QrLocations:              locations,
+		QrLocations:              qrLocationsToProto(saved.Placements.QrLocations),
 	}), nil
 }
 
@@ -133,7 +159,8 @@ func graphMeta(graph domain.Graph) *graphv1.GraphMeta {
 func graphError(ctx context.Context, err error) *connectrpc.Error {
 	switch {
 	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired),
-		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping):
+		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping),
+		errors.Is(err, domain.ErrInvalidQrLocation):
 		return connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
 	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
@@ -142,7 +169,7 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived),
 		errors.Is(err, domain.ErrAnchorTargetNotFound), errors.Is(err, domain.ErrPlacementConflict):
 		return connectrpc.NewError(connectrpc.CodeFailedPrecondition, err)
-	case errors.Is(err, repository.ErrGraphNotFound):
+	case errors.Is(err, repository.ErrGraphNotFound), errors.Is(err, repository.ErrQrLocationNotFound):
 		return connectrpc.NewError(connectrpc.CodeNotFound, err)
 	case errors.Is(err, dbinfra.ErrTransactionAborted):
 		return connectrpc.NewError(connectrpc.CodeAborted, err)
@@ -249,8 +276,41 @@ func layoutFromProto(layout *graphv1.Layout) domain.Layout {
 }
 
 func observationPointMappingFromProto(mapping *graphv1.ObservationPointMapping) domain.ObservationPointMapping {
-	anchor := mapping.GetAnchor()
+	return domain.ObservationPointMapping{ObservationPointID: mapping.GetObservationPointId(), Anchor: graphAnchorFromProto(mapping.GetAnchor())}
+}
 
+func observationPointMappingToProto(mapping domain.ObservationPointMapping) *graphv1.ObservationPointMapping {
+	return &graphv1.ObservationPointMapping{ObservationPointId: mapping.ObservationPointID, Anchor: graphAnchorToProto(mapping.Anchor)}
+}
+
+func qrLocationFromProto(location *graphv1.QrLocation) domain.QrLocation {
+	return domain.QrLocation{
+		ID:     location.GetQrLocationId(),
+		Name:   location.GetName(),
+		Kind:   location.GetKind(),
+		Anchor: graphAnchorFromProto(location.GetAnchor()),
+	}
+}
+
+func qrLocationToProto(location domain.QrLocation) *graphv1.QrLocation {
+	return &graphv1.QrLocation{
+		QrLocationId: location.ID,
+		Name:         location.Name,
+		Kind:         location.Kind,
+		Anchor:       graphAnchorToProto(location.Anchor),
+	}
+}
+
+func qrLocationsToProto(locations []domain.QrLocation) []*graphv1.QrLocation {
+	converted := make([]*graphv1.QrLocation, 0, len(locations))
+	for _, location := range locations {
+		converted = append(converted, qrLocationToProto(location))
+	}
+
+	return converted
+}
+
+func graphAnchorFromProto(anchor *kernelv1.GraphAnchor) domain.GraphAnchor {
 	graphAnchor := domain.GraphAnchor{Kind: domain.AnchorKindUnspecified, ElementID: "", RoutePosition: nil}
 	if anchor != nil {
 		graphAnchor.RoutePosition = anchor.RoutePosition
@@ -263,11 +323,7 @@ func observationPointMappingFromProto(mapping *graphv1.ObservationPointMapping) 
 		graphAnchor.Kind, graphAnchor.ElementID = domain.AnchorKindRoute, target.RouteId
 	}
 
-	return domain.ObservationPointMapping{ObservationPointID: mapping.GetObservationPointId(), Anchor: graphAnchor}
-}
-
-func observationPointMappingToProto(mapping domain.ObservationPointMapping) *graphv1.ObservationPointMapping {
-	return &graphv1.ObservationPointMapping{ObservationPointId: mapping.ObservationPointID, Anchor: graphAnchorToProto(mapping.Anchor)}
+	return graphAnchor
 }
 
 func graphAnchorToProto(graphAnchor domain.GraphAnchor) *kernelv1.GraphAnchor {
