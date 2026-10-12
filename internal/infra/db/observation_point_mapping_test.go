@@ -71,12 +71,12 @@ func TestPostgresGraphRepositorySaveObservationPointMappingKeepsOtherTenantOut(t
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
 
-	owned := saveGraph(t, repo, singleNode("n1"))
+	owned := saveGraph(t, repo, singleNode("n1")).Ref()
 	if err := repo.SaveObservationPointMapping(ctx, owned, routeMapping("cam-1", "e1", 0.5)); err != nil {
 		t.Fatalf("SaveObservationPointMapping() error = %v", err)
 	}
 
-	intruder := newGraph(t, otherTenant, singleNode("n1"))
+	intruder := newGraph(t, otherTenant, singleNode("n1")).Ref()
 	if err := repo.SaveObservationPointMapping(ctx, intruder, routeMapping("cam-1", "e2", 0.5)); !errors.Is(err, tenantctx.ErrMismatch) {
 		t.Errorf("SaveObservationPointMapping() by another tenant error = %v, want %v", err, tenantctx.ErrMismatch)
 	}

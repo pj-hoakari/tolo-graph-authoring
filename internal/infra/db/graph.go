@@ -38,6 +38,36 @@ func (r *PostgresGraphRepository) FindByEventPublicIDForUpdate(
 	return r.findByEventPublicID(ctx, tenantPublicID, eventPublicID, "FOR UPDATE OF g")
 }
 
+func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
+	ctx context.Context, tenantPublicID, eventPublicID string,
+) (domain.DraftKernel, error) {
+	var row struct {
+		EventPublicID  string                         `db:"event_public_id"`
+		TenantPublicID string                         `db:"tenant_public_id"`
+		Kernel         jsonColumn[domain.GraphKernel] `db:"kernel"`
+	}
+
+	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
+		SELECT d.event_public_id, d.tenant_public_id, d.kernel
+		FROM graph_drafts d
+		JOIN graphs g ON g.event_public_id = d.event_public_id
+		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
+		FOR UPDATE OF g`,
+		eventPublicID, tenantPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.DraftKernel{}, repository.ErrGraphNotFound
+	}
+
+	if err != nil {
+		return domain.DraftKernel{}, fmt.Errorf("find graph draft kernel: %w", err)
+	}
+
+	return domain.DraftKernel{
+		GraphRef: domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
+		Kernel:   row.Kernel.value,
+	}, nil
+}
+
 func (r *PostgresGraphRepository) findByEventPublicID(
 	ctx context.Context, tenantPublicID, eventPublicID, lock string,
 ) (domain.Graph, error) {

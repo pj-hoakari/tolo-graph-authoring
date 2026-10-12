@@ -261,6 +261,62 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 	}
 }
 
+func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+	graph := saveGraph(t, repo, richDocument())
+
+	if _, err := testDB.Exec(`DELETE FROM graph_layouts`); err != nil {
+		t.Fatalf("delete graph layouts: %v", err)
+	}
+
+	got, err := repo.FindDraftKernelForUpdate(ctx, ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindDraftKernelForUpdate() without a layout error = %v", err)
+	}
+
+	if want := (domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}); !reflect.DeepEqual(got, want) {
+		t.Errorf("FindDraftKernelForUpdate() = %#v, want %#v", got, want)
+	}
+
+	if _, err := repo.FindDraftKernelForUpdate(ctx, otherTenant, graphEvent); !errors.Is(err, repository.ErrGraphNotFound) {
+		t.Errorf("FindDraftKernelForUpdate() with other tenant error = %v, want %v", err, repository.ErrGraphNotFound)
+	}
+}
+
+func TestPostgresGraphRepositoryFindDraftKernelForUpdateWaitsForSaveGraphLock(t *testing.T) {
+	repo := newTestGraphRepository(t)
+	ctx := context.Background()
+
+	saveGraph(t, repo, singleNode("n1"))
+
+	var contenderErr error
+
+	err := repo.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if _, err := repo.FindByEventPublicIDForUpdate(txCtx, ownerTenant, graphEvent); err != nil {
+			return err
+		}
+
+		waitCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		defer cancel()
+
+		contenderErr = repo.WithinTransaction(waitCtx, func(ctx context.Context) error {
+			_, err := repo.FindDraftKernelForUpdate(ctx, ownerTenant, graphEvent)
+
+			return err
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("WithinTransaction() error = %v", err)
+	}
+
+	if contenderErr == nil {
+		t.Error("FindDraftKernelForUpdate() while FindByEventPublicIDForUpdate() holds the lock succeeded, want it to wait until the deadline")
+	}
+}
+
 type callerTenantEvents struct{}
 
 func (callerTenantEvents) FindEvent(ctx context.Context, eventPublicID string) (domain.Event, error) {

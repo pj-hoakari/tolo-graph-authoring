@@ -38,7 +38,7 @@ func (m observationPointMapping) mapping() domain.ObservationPointMapping {
 }
 
 func (r *PostgresGraphRepository) SaveObservationPointMapping(
-	ctx context.Context, graph domain.Graph, mapping domain.ObservationPointMapping,
+	ctx context.Context, graph domain.GraphRef, mapping domain.ObservationPointMapping,
 ) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
 		INSERT INTO observation_point_mappings
@@ -50,7 +50,7 @@ func (r *PostgresGraphRepository) SaveObservationPointMapping(
 			route_position = EXCLUDED.route_position,
 			updated_at = now()
 		WHERE observation_point_mappings.tenant_public_id = EXCLUDED.tenant_public_id`,
-		graph.EventPublicID(), graph.TenantPublicID(), mapping.ObservationPointID,
+		graph.EventPublicID, graph.TenantPublicID, mapping.ObservationPointID,
 		anchorKindNames[mapping.Anchor.Kind], mapping.Anchor.ElementID, mapping.Anchor.RoutePosition)
 
 	return requireRowWritten(result, err, "save observation point mapping")
