@@ -250,8 +250,16 @@ type Graph struct {
 	tenantPublicID  string
 	eventPublicID   string
 	draft           GraphParts
+	documentHash    string
+	placements      Placements
 	draftRevisionID string
 	revisionID      string
+}
+
+type GraphMeta struct {
+	EventPublicID   string
+	RevisionID      string
+	DraftRevisionID string
 }
 
 func NewGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (Graph, error) {
@@ -262,8 +270,12 @@ func NewGraph(tenantPublicID, eventPublicID string, draft GraphDocument) (Graph,
 	return graph.WithDraft(draft)
 }
 
-func RestoreGraph(tenantPublicID, eventPublicID string, draft GraphParts, revisionID string) (Graph, error) {
-	graph, err := NewGraph(tenantPublicID, eventPublicID, draft.Document())
+func RestoreGraph(tenantPublicID, eventPublicID string, draft GraphParts, placements Placements, revisionID string) (Graph, error) {
+	var graph Graph
+
+	graph.tenantPublicID, graph.eventPublicID, graph.placements = tenantPublicID, eventPublicID, placements
+
+	graph, err := graph.WithDraft(draft.Document())
 	if err != nil {
 		return Graph{}, err
 	}
@@ -286,12 +298,22 @@ func (g Graph) WithDraft(draft GraphDocument) (Graph, error) {
 
 	parts := draft.Parts()
 
-	revisionID, err := parts.revisionID()
+	if err := g.placements.verifyKept(parts.Kernel); err != nil {
+		return Graph{}, err
+	}
+
+	documentHash, err := parts.documentHash()
+	if err != nil {
+		return Graph{}, err
+	}
+
+	revisionID, err := RevisionID(documentHash, g.placements)
 	if err != nil {
 		return Graph{}, err
 	}
 
 	g.draft = parts
+	g.documentHash = documentHash
 	g.draftRevisionID = revisionID
 
 	return g, nil
@@ -301,6 +323,8 @@ func (g Graph) TenantPublicID() string  { return g.tenantPublicID }
 func (g Graph) EventPublicID() string   { return g.eventPublicID }
 func (g Graph) Draft() GraphDocument    { return g.draft.Document() }
 func (g Graph) DraftParts() GraphParts  { return g.draft }
+func (g Graph) DocumentHash() string    { return g.documentHash }
+func (g Graph) Placements() Placements  { return g.placements }
 func (g Graph) DraftRevisionID() string { return g.draftRevisionID }
 func (g Graph) RevisionID() string      { return g.revisionID }
 
@@ -308,11 +332,26 @@ func (g Graph) Ref() GraphRef {
 	return GraphRef{TenantPublicID: g.tenantPublicID, EventPublicID: g.eventPublicID}
 }
 
-func (p GraphParts) revisionID() (string, error) {
-	encoded, err := json.Marshal(struct {
+func (g Graph) Meta() GraphMeta {
+	return GraphMeta{EventPublicID: g.eventPublicID, RevisionID: g.revisionID, DraftRevisionID: g.draftRevisionID}
+}
+
+func (p GraphParts) documentHash() (string, error) {
+	return hashJSON(struct {
 		Kernel GraphKernel `json:"kernel"`
 		Labels GraphLabels `json:"labels"`
 	}{p.Kernel, p.Labels})
+}
+
+func RevisionID(documentHash string, placements Placements) (string, error) {
+	return hashJSON(struct {
+		Document   string     `json:"document"`
+		Placements Placements `json:"placements"`
+	}{documentHash, placements.canonical()})
+}
+
+func hashJSON(value any) (string, error) {
+	encoded, err := json.Marshal(value)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrInvalidGraphDocument, err)
 	}

@@ -2,9 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 )
 
@@ -54,27 +52,4 @@ func (r *PostgresGraphRepository) SaveObservationPointMapping(
 		anchorKindNames[mapping.Anchor.Kind], mapping.Anchor.ElementID, mapping.Anchor.RoutePosition)
 
 	return requireRowWritten(result, err, "save observation point mapping")
-}
-
-func (r *PostgresGraphRepository) FindObservationPointMappings(
-	ctx context.Context, eventPublicID string,
-) ([]domain.ObservationPointMapping, error) {
-	var rows []observationPointMapping
-
-	err := sqlx.SelectContext(ctx, r.executor(ctx), &rows, `
-		SELECT observation_point_id, anchor_kind, anchor_element_id, route_position
-		FROM observation_point_mappings
-		WHERE event_public_id = $1
-		ORDER BY observation_point_id`,
-		eventPublicID)
-	if err != nil {
-		return nil, fmt.Errorf("find observation point mappings: %w", err)
-	}
-
-	mappings := make([]domain.ObservationPointMapping, 0, len(rows))
-	for _, row := range rows {
-		mappings = append(mappings, row.mapping())
-	}
-
-	return mappings, nil
 }

@@ -16,6 +16,7 @@ import (
 	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 )
 
 type currentRevisionRepository struct {
@@ -124,35 +125,45 @@ func TestGetCurrentRevisionRejectsEventAccessToken(t *testing.T) {
 }
 
 type mappedRevisionRepository struct {
-	currentRevisionRepository
+	nopGraphRepository
 
-	mappings []domain.ObservationPointMapping
+	revision domain.PublishedRevision
 }
 
-func (r mappedRevisionRepository) FindObservationPointMappings(context.Context, string) ([]domain.ObservationPointMapping, error) {
-	return r.mappings, nil
+func (r mappedRevisionRepository) FindRevision(_ context.Context, eventPublicID, revisionID string) (domain.PublishedRevision, error) {
+	if eventPublicID != r.revision.EventPublicID || revisionID != r.revision.RevisionID {
+		return domain.PublishedRevision{}, repository.ErrRevisionNotFound
+	}
+
+	return r.revision, nil
 }
 
-func TestGetObservationPointMappingsServesMappingsToServiceToken(t *testing.T) {
+func TestGetObservationPointMappingsServesMappingsOfTheRequestedRevisionToServiceToken(t *testing.T) {
 	t.Parallel()
 
 	position := 0.25
 	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
 	client := newSupplyClient(t, keys, application.NewGraphService(mappedRevisionRepository{
-		currentRevisionRepository: currentRevisionRepository{
-			nopGraphRepository: nopGraphRepository{},
-			revision:           domain.PublishedRevision{TenantPublicID: "a1b2c3d4e5f60718", EventPublicID: "fedcba9876543210", RevisionID: "0123456789abcdef"},
-		},
-		mappings: []domain.ObservationPointMapping{
-			{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "e1", RoutePosition: &position}},
-			{ObservationPointID: "cam-2", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+		nopGraphRepository: nopGraphRepository{},
+		revision: domain.PublishedRevision{
+			TenantPublicID: "a1b2c3d4e5f60718",
+			EventPublicID:  "fedcba9876543210",
+			RevisionID:     "0123456789abcdef",
+			Placements: domain.Placements{Mappings: []domain.ObservationPointMapping{
+				{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "e1", RoutePosition: &position}},
+				{ObservationPointID: "cam-2", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+			}},
 		},
 	}, inlineTransactor{}, callerTenantEvents{}))
 
-	req := connectrpc.NewRequest(&graphv1.GetMappingsRequest{EventId: "fedcba9876543210"})
-	req.Header().Set("Authorization", authorization)
+	getMappings := func(revisionID string) (*connectrpc.Response[graphv1.GetMappingsResponse], error) {
+		req := connectrpc.NewRequest(&graphv1.GetMappingsRequest{EventId: "fedcba9876543210", RevisionId: revisionID})
+		req.Header().Set("Authorization", authorization)
 
-	res, err := client.GetObservationPointMappings(context.Background(), req)
+		return client.GetObservationPointMappings(context.Background(), req)
+	}
+
+	res, err := getMappings("0123456789abcdef")
 	if err != nil {
 		t.Fatalf("GetObservationPointMappings() error = %v", err)
 	}
@@ -167,5 +178,18 @@ func TestGetObservationPointMappingsServesMappingsToServiceToken(t *testing.T) {
 
 	if !proto.Equal(res.Msg, want) {
 		t.Errorf("GetObservationPointMappings() = %v, want %v", res.Msg, want)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		revisionID string
+		want       connectrpc.Code
+	}{
+		{"rejects a missing revision ID", "", connectrpc.CodeInvalidArgument},
+		{"answers an unknown revision with not found", "fedcba9876543210", connectrpc.CodeNotFound},
+	} {
+		if _, err := getMappings(tc.revisionID); connectrpc.CodeOf(err) != tc.want {
+			t.Errorf("%s: GetObservationPointMappings() error = %v, want code %v", tc.name, err, tc.want)
+		}
 	}
 }

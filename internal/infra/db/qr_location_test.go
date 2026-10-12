@@ -62,7 +62,7 @@ func TestQrLocationIsAddedUpdatedAndRemovedThroughService(t *testing.T) {
 		t.Fatalf("AddQrLocation() error = %v", err)
 	}
 
-	moved := domain.QrLocation{ID: added.ID, Name: "Corridor sign", Kind: "sign", Anchor: routeMapping("", "e1", 0.5).Anchor}
+	moved := domain.QrLocation{ID: added.QrLocation.ID, Name: "Corridor sign", Kind: "sign", Anchor: routeMapping("", "e1", 0.5).Anchor}
 	if _, err := service.UpdateQrLocation(ctx, application.UpdateQrLocationInput{EventPublicID: graphEvent, QrLocation: moved}); err != nil {
 		t.Fatalf("UpdateQrLocation() error = %v", err)
 	}
@@ -71,12 +71,12 @@ func TestQrLocationIsAddedUpdatedAndRemovedThroughService(t *testing.T) {
 		t.Errorf("FindPlacements() = %+v, want %+v", got, want)
 	}
 
-	remove := application.RemoveQrLocationInput{EventPublicID: graphEvent, QrLocationID: added.ID}
-	if err := service.RemoveQrLocation(ctx, remove); err != nil {
+	remove := application.RemoveQrLocationInput{EventPublicID: graphEvent, QrLocationID: added.QrLocation.ID}
+	if _, err := service.RemoveQrLocation(ctx, remove); err != nil {
 		t.Fatalf("RemoveQrLocation() error = %v", err)
 	}
 
-	if err := service.RemoveQrLocation(ctx, remove); !errors.Is(err, repository.ErrQrLocationNotFound) {
+	if _, err := service.RemoveQrLocation(ctx, remove); !errors.Is(err, repository.ErrQrLocationNotFound) {
 		t.Errorf("RemoveQrLocation() of a removed location error = %v, want %v", err, repository.ErrQrLocationNotFound)
 	}
 

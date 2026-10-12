@@ -22,9 +22,9 @@ const (
 )
 
 type GraphAnchor struct {
-	Kind          AnchorKind
-	ElementID     string
-	RoutePosition *float64
+	Kind          AnchorKind `json:"kind"`
+	ElementID     string     `json:"element_id"`
+	RoutePosition *float64   `json:"route_position"`
 }
 
 func (a GraphAnchor) sameElement(other GraphAnchor) bool {
@@ -32,26 +32,35 @@ func (a GraphAnchor) sameElement(other GraphAnchor) bool {
 }
 
 type ObservationPointMapping struct {
-	ObservationPointID string
-	Anchor             GraphAnchor
+	ObservationPointID string      `json:"observation_point_id"`
+	Anchor             GraphAnchor `json:"anchor"`
 }
 
 type QrLocation struct {
-	ID     string
-	Name   string
-	Kind   string
-	Anchor GraphAnchor
+	ID     string      `json:"id"`
+	Name   string      `json:"name"`
+	Kind   string      `json:"kind"`
+	Anchor GraphAnchor `json:"anchor"`
 }
 
 type Placements struct {
-	Mappings    []ObservationPointMapping
-	QrLocations []QrLocation
+	Mappings    []ObservationPointMapping `json:"mappings"`
+	QrLocations []QrLocation              `json:"qr_locations"`
+}
+
+func (p Placements) canonical() Placements {
+	return Placements{
+		Mappings:    sortedByID(p.Mappings, func(mapping ObservationPointMapping) string { return mapping.ObservationPointID }),
+		QrLocations: sortedByID(p.QrLocations, func(location QrLocation) string { return location.ID }),
+	}
 }
 
 type DraftKernel struct {
 	GraphRef
 
-	Kernel GraphKernel
+	Kernel       GraphKernel
+	DocumentHash string
+	RevisionID   string
 }
 
 func (k DraftKernel) VerifyMapping(mapping ObservationPointMapping) error {
@@ -107,15 +116,15 @@ func (k GraphKernel) contains(anchor GraphAnchor) bool {
 	return false
 }
 
-func (g Graph) VerifyPlacements(placements Placements) error {
-	for _, mapping := range placements.Mappings {
-		if !g.draft.Kernel.contains(mapping.Anchor) {
+func (p Placements) verifyKept(kernel GraphKernel) error {
+	for _, mapping := range p.Mappings {
+		if !kernel.contains(mapping.Anchor) {
 			return fmt.Errorf("%w: observation point %q", ErrAnchorTargetNotFound, mapping.ObservationPointID)
 		}
 	}
 
-	for _, location := range placements.QrLocations {
-		if !g.draft.Kernel.contains(location.Anchor) {
+	for _, location := range p.QrLocations {
+		if !kernel.contains(location.Anchor) {
 			return fmt.Errorf("%w: QR location %q", ErrAnchorTargetNotFound, location.ID)
 		}
 	}

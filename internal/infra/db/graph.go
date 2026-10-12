@@ -42,13 +42,16 @@ func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
 	ctx context.Context, tenantPublicID, eventPublicID string,
 ) (domain.DraftKernel, error) {
 	var row struct {
-		EventPublicID  string                         `db:"event_public_id"`
-		TenantPublicID string                         `db:"tenant_public_id"`
-		Kernel         jsonColumn[domain.GraphKernel] `db:"kernel"`
+		EventPublicID     string                         `db:"event_public_id"`
+		TenantPublicID    string                         `db:"tenant_public_id"`
+		Kernel            jsonColumn[domain.GraphKernel] `db:"kernel"`
+		DocumentHash      string                         `db:"doc_hash"`
+		CurrentRevisionID string                         `db:"current_revision_id"`
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.event_public_id, d.tenant_public_id, d.kernel
+		SELECT d.event_public_id, d.tenant_public_id, d.kernel, d.doc_hash,
+			`+currentRevisionIDColumn+`
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
@@ -63,8 +66,10 @@ func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
 	}
 
 	return domain.DraftKernel{
-		GraphRef: domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
-		Kernel:   row.Kernel.value,
+		GraphRef:     domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
+		Kernel:       row.Kernel.value,
+		DocumentHash: row.DocumentHash,
+		RevisionID:   row.CurrentRevisionID,
 	}, nil
 }
 
@@ -109,12 +114,7 @@ func (r *PostgresGraphRepository) findByEventPublicID(
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
 		SELECT d.event_public_id, d.tenant_public_id, d.revision_id, d.kernel, d.labels, l.layout,
-			COALESCE((
-				SELECT r.revision_id FROM graph_revisions r
-				WHERE r.event_public_id = d.event_public_id
-				ORDER BY r.last_published_at DESC
-				LIMIT 1
-			), '') AS current_revision_id
+			`+currentRevisionIDColumn+`
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		JOIN graph_layouts l ON l.event_public_id = d.event_public_id
@@ -129,8 +129,20 @@ func (r *PostgresGraphRepository) findByEventPublicID(
 		return domain.Graph{}, fmt.Errorf("find graph draft: %w", err)
 	}
 
-	return row.graph(row.CurrentRevisionID)
+	placements, err := r.FindPlacements(ctx, domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID})
+	if err != nil {
+		return domain.Graph{}, err
+	}
+
+	return row.graph(placements, row.CurrentRevisionID)
 }
+
+const currentRevisionIDColumn = `COALESCE((
+				SELECT r.revision_id FROM graph_revisions r
+				WHERE r.event_public_id = d.event_public_id
+				ORDER BY r.last_published_at DESC
+				LIMIT 1
+			), '') AS current_revision_id`
 
 func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) error {
 	draft := newGraphDraft(graph)
@@ -147,15 +159,16 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) 
 		}
 
 		saved, err := r.executor(ctx).ExecContext(ctx, `
-			INSERT INTO graph_drafts (event_public_id, tenant_public_id, revision_id, kernel, labels)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO graph_drafts (event_public_id, tenant_public_id, revision_id, doc_hash, kernel, labels)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (event_public_id) DO UPDATE SET
 				revision_id = EXCLUDED.revision_id,
+				doc_hash = EXCLUDED.doc_hash,
 				kernel = EXCLUDED.kernel,
 				labels = EXCLUDED.labels,
 				updated_at = now()
 			WHERE graph_drafts.tenant_public_id = EXCLUDED.tenant_public_id`,
-			draft.EventPublicID, draft.TenantPublicID, draft.RevisionID,
+			draft.EventPublicID, draft.TenantPublicID, draft.RevisionID, draft.DocumentHash,
 			draft.Kernel, draft.Labels)
 		if err := requireRowWritten(saved, err, "save graph draft"); err != nil {
 			return err
@@ -174,14 +187,23 @@ func (r *PostgresGraphRepository) Save(ctx context.Context, graph domain.Graph) 
 	})
 }
 
-func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.GraphRef) error {
+func (r *PostgresGraphRepository) SaveDraftRevisionID(ctx context.Context, graph domain.GraphRef, revisionID string) error {
 	result, err := r.executor(ctx).ExecContext(ctx, `
-		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels)
-		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels
+		UPDATE graph_drafts SET revision_id = $3, updated_at = now()
+		WHERE event_public_id = $1 AND tenant_public_id = $2`,
+		graph.EventPublicID, graph.TenantPublicID, revisionID)
+
+	return requireRowWritten(result, err, "save graph draft revision ID")
+}
+
+func (r *PostgresGraphRepository) Publish(ctx context.Context, graph domain.GraphRef, placements domain.Placements) error {
+	result, err := r.executor(ctx).ExecContext(ctx, `
+		INSERT INTO graph_revisions (event_public_id, tenant_public_id, revision_id, kernel, labels, placements)
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, $3
 		FROM graph_drafts
 		WHERE event_public_id = $1 AND tenant_public_id = $2
 		ON CONFLICT (event_public_id, revision_id) DO UPDATE SET last_published_at = EXCLUDED.last_published_at`,
-		graph.EventPublicID, graph.TenantPublicID)
+		graph.EventPublicID, graph.TenantPublicID, jsonColumn[domain.Placements]{value: placements})
 	if err != nil {
 		return fmt.Errorf("publish graph revision: %w", err)
 	}
@@ -214,6 +236,25 @@ func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, event
 
 	if err != nil {
 		return domain.PublishedRevision{}, fmt.Errorf("find current graph revision: %w", err)
+	}
+
+	return revision.publishedRevision(), nil
+}
+
+func (r *PostgresGraphRepository) FindRevision(ctx context.Context, eventPublicID, revisionID string) (domain.PublishedRevision, error) {
+	var revision graphRevision
+
+	err := sqlx.GetContext(ctx, r.executor(ctx), &revision, `
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, placements
+		FROM graph_revisions
+		WHERE event_public_id = $1 AND revision_id = $2`,
+		eventPublicID, revisionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.PublishedRevision{}, repository.ErrRevisionNotFound
+	}
+
+	if err != nil {
+		return domain.PublishedRevision{}, fmt.Errorf("find graph revision: %w", err)
 	}
 
 	return revision.publishedRevision(), nil

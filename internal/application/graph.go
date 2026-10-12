@@ -17,6 +17,7 @@ import (
 var (
 	ErrEventIDRequired       = errors.New("event_id is required")
 	ErrGraphDocumentRequired = errors.New("document is required")
+	ErrRevisionIDRequired    = errors.New("revision_id is required")
 )
 
 type SaveGraphInput struct {
@@ -49,12 +50,18 @@ type MapObservationPointInput struct {
 	Mapping       domain.ObservationPointMapping
 }
 
+type MappedObservationPoint struct {
+	Mapping domain.ObservationPointMapping
+	Meta    domain.GraphMeta
+}
+
 type MapObservationPointUseCase interface {
-	MapObservationPoint(context.Context, MapObservationPointInput) (domain.ObservationPointMapping, error)
+	MapObservationPoint(context.Context, MapObservationPointInput) (MappedObservationPoint, error)
 }
 
 type GetObservationPointMappingsInput struct {
 	EventPublicID string
+	RevisionID    string
 }
 
 type ObservationPointMappings struct {
@@ -71,8 +78,13 @@ type AddQrLocationInput struct {
 	QrLocation    domain.QrLocation
 }
 
+type PlacedQrLocation struct {
+	QrLocation domain.QrLocation
+	Meta       domain.GraphMeta
+}
+
 type AddQrLocationUseCase interface {
-	AddQrLocation(context.Context, AddQrLocationInput) (domain.QrLocation, error)
+	AddQrLocation(context.Context, AddQrLocationInput) (PlacedQrLocation, error)
 }
 
 type UpdateQrLocationInput struct {
@@ -81,7 +93,7 @@ type UpdateQrLocationInput struct {
 }
 
 type UpdateQrLocationUseCase interface {
-	UpdateQrLocation(context.Context, UpdateQrLocationInput) (domain.QrLocation, error)
+	UpdateQrLocation(context.Context, UpdateQrLocationInput) (PlacedQrLocation, error)
 }
 
 type RemoveQrLocationInput struct {
@@ -90,28 +102,29 @@ type RemoveQrLocationInput struct {
 }
 
 type RemoveQrLocationUseCase interface {
-	RemoveQrLocation(context.Context, RemoveQrLocationInput) error
+	RemoveQrLocation(context.Context, RemoveQrLocationInput) (domain.GraphMeta, error)
 }
 
 type GetQrLocationsInput struct {
 	EventPublicID string
+	RevisionID    string
+}
+
+type QrLocations struct {
+	RevisionID  string
+	QrLocations []domain.QrLocation
 }
 
 type GetQrLocationsUseCase interface {
-	GetQrLocations(context.Context, GetQrLocationsInput) ([]domain.QrLocation, error)
+	GetQrLocations(context.Context, GetQrLocationsInput) (QrLocations, error)
 }
 
 type GetGraphInput struct {
 	EventPublicID string
 }
 
-type SavedGraph struct {
-	Graph      domain.Graph
-	Placements domain.Placements
-}
-
 type GetGraphUseCase interface {
-	GetGraph(context.Context, GetGraphInput) (SavedGraph, error)
+	GetGraph(context.Context, GetGraphInput) (domain.Graph, error)
 }
 
 type GraphSupplyUseCases interface {
@@ -179,9 +192,6 @@ func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (dom
 			}
 
 			graph, err = graph.WithDraft(*input.Document)
-			if err == nil {
-				err = s.verifyPlacementsKept(ctx, graph)
-			}
 		}
 
 		if err != nil {
@@ -233,7 +243,12 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 			return err
 		}
 
-		if err := s.graphs.Publish(ctx, draft.GraphRef); err != nil {
+		placements, err := s.graphs.FindPlacements(ctx, draft.GraphRef)
+		if err != nil {
+			return err
+		}
+
+		if err := s.graphs.Publish(ctx, draft.GraphRef, placements); err != nil {
 			return err
 		}
 
@@ -248,35 +263,30 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 	return published, nil
 }
 
-func (s *GraphService) GetGraph(ctx context.Context, input GetGraphInput) (SavedGraph, error) {
+func (s *GraphService) GetGraph(ctx context.Context, input GetGraphInput) (domain.Graph, error) {
 	if input.EventPublicID == "" {
-		return SavedGraph{}, ErrEventIDRequired
+		return domain.Graph{}, ErrEventIDRequired
 	}
 
 	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
 	if !ok {
-		return SavedGraph{}, tenantctx.ErrMissing
+		return domain.Graph{}, tenantctx.ErrMissing
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, input.EventPublicID); err != nil {
-		return SavedGraph{}, err
+		return domain.Graph{}, err
 	}
 
 	graph, err := s.graphs.FindByEventPublicID(ctx, tenantPublicID, input.EventPublicID)
 	if err != nil {
-		return SavedGraph{}, err
+		return domain.Graph{}, err
 	}
 
 	if err := tenantctx.VerifyOwnership(ctx, graph.TenantPublicID()); err != nil {
-		return SavedGraph{}, err
+		return domain.Graph{}, err
 	}
 
-	placements, err := s.graphs.FindPlacements(ctx, graph.Ref())
-	if err != nil {
-		return SavedGraph{}, err
-	}
-
-	return SavedGraph{Graph: graph, Placements: placements}, nil
+	return graph, nil
 }
 
 func (s *GraphService) ensureEditableEvent(ctx context.Context, eventPublicID string) error {
@@ -306,6 +316,26 @@ func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentR
 }
 
 func (s *GraphService) currentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+	return s.publishedRevision(ctx, eventPublicID, s.graphs.FindCurrentRevision)
+}
+
+func (s *GraphService) revision(ctx context.Context, eventPublicID, revisionID string) (domain.PublishedRevision, error) {
+	if eventPublicID == "" {
+		return domain.PublishedRevision{}, ErrEventIDRequired
+	}
+
+	if revisionID == "" {
+		return domain.PublishedRevision{}, ErrRevisionIDRequired
+	}
+
+	return s.publishedRevision(ctx, eventPublicID, func(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {
+		return s.graphs.FindRevision(ctx, eventPublicID, revisionID)
+	})
+}
+
+func (s *GraphService) publishedRevision(
+	ctx context.Context, eventPublicID string, find func(context.Context, string) (domain.PublishedRevision, error),
+) (domain.PublishedRevision, error) {
 	if eventPublicID == "" {
 		return domain.PublishedRevision{}, ErrEventIDRequired
 	}
@@ -314,7 +344,7 @@ func (s *GraphService) currentRevision(ctx context.Context, eventPublicID string
 		return domain.PublishedRevision{}, err
 	}
 
-	revision, err := s.graphs.FindCurrentRevision(ctx, eventPublicID)
+	revision, err := find(ctx, eventPublicID)
 	if err != nil {
 		return domain.PublishedRevision{}, err
 	}
@@ -326,8 +356,8 @@ func (s *GraphService) currentRevision(ctx context.Context, eventPublicID string
 	return revision, nil
 }
 
-func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObservationPointInput) (domain.ObservationPointMapping, error) {
-	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
+func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObservationPointInput) (MappedObservationPoint, error) {
+	meta, err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
 		if err := draft.VerifyMapping(input.Mapping); err != nil {
 			return err
 		}
@@ -344,17 +374,17 @@ func (s *GraphService) MapObservationPoint(ctx context.Context, input MapObserva
 		return s.graphs.SaveObservationPointMapping(ctx, draft.GraphRef, input.Mapping)
 	})
 	if err != nil {
-		return domain.ObservationPointMapping{}, err
+		return MappedObservationPoint{}, err
 	}
 
-	return input.Mapping, nil
+	return MappedObservationPoint{Mapping: input.Mapping, Meta: meta}, nil
 }
 
-func (s *GraphService) AddQrLocation(ctx context.Context, input AddQrLocationInput) (domain.QrLocation, error) {
+func (s *GraphService) AddQrLocation(ctx context.Context, input AddQrLocationInput) (PlacedQrLocation, error) {
 	location := input.QrLocation
 	location.ID = newQrLocationID()
 
-	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
+	meta, err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
 		if err := s.verifyQrLocation(ctx, draft, location); err != nil {
 			return err
 		}
@@ -362,14 +392,14 @@ func (s *GraphService) AddQrLocation(ctx context.Context, input AddQrLocationInp
 		return s.graphs.AddQrLocation(ctx, draft.GraphRef, location)
 	})
 	if err != nil {
-		return domain.QrLocation{}, err
+		return PlacedQrLocation{}, err
 	}
 
-	return location, nil
+	return PlacedQrLocation{QrLocation: location, Meta: meta}, nil
 }
 
-func (s *GraphService) UpdateQrLocation(ctx context.Context, input UpdateQrLocationInput) (domain.QrLocation, error) {
-	err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
+func (s *GraphService) UpdateQrLocation(ctx context.Context, input UpdateQrLocationInput) (PlacedQrLocation, error) {
+	meta, err := s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
 		if err := s.verifyQrLocation(ctx, draft, input.QrLocation); err != nil {
 			return err
 		}
@@ -377,13 +407,13 @@ func (s *GraphService) UpdateQrLocation(ctx context.Context, input UpdateQrLocat
 		return s.graphs.UpdateQrLocation(ctx, draft.GraphRef, input.QrLocation)
 	})
 	if err != nil {
-		return domain.QrLocation{}, err
+		return PlacedQrLocation{}, err
 	}
 
-	return input.QrLocation, nil
+	return PlacedQrLocation{QrLocation: input.QrLocation, Meta: meta}, nil
 }
 
-func (s *GraphService) RemoveQrLocation(ctx context.Context, input RemoveQrLocationInput) error {
+func (s *GraphService) RemoveQrLocation(ctx context.Context, input RemoveQrLocationInput) (domain.GraphMeta, error) {
 	return s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
 		return s.graphs.RemoveQrLocation(ctx, draft.GraphRef, input.QrLocationID)
 	})
@@ -402,34 +432,29 @@ func (s *GraphService) verifyQrLocation(ctx context.Context, draft domain.DraftK
 	return placements.VerifyQrPlaceable(location.Anchor)
 }
 
-func (s *GraphService) verifyPlacementsKept(ctx context.Context, graph domain.Graph) error {
-	placements, err := s.graphs.FindPlacements(ctx, graph.Ref())
-	if err != nil {
-		return err
-	}
-
-	return graph.VerifyPlacements(placements)
-}
-
-func (s *GraphService) editGraph(ctx context.Context, eventPublicID string, edit func(context.Context, domain.DraftKernel) error) error {
+func (s *GraphService) editGraph(
+	ctx context.Context, eventPublicID string, edit func(context.Context, domain.DraftKernel) error,
+) (domain.GraphMeta, error) {
 	if eventPublicID == "" {
-		return ErrEventIDRequired
+		return domain.GraphMeta{}, ErrEventIDRequired
 	}
 
 	tenantPublicID, ok := tenantctx.TenantPublicIDFromContext(ctx)
 	if !ok {
-		return tenantctx.ErrMissing
+		return domain.GraphMeta{}, tenantctx.ErrMissing
 	}
 
 	if err := tenantctx.EnsureEvent(ctx, eventPublicID); err != nil {
-		return err
+		return domain.GraphMeta{}, err
 	}
 
 	if err := s.ensureEditableEvent(ctx, eventPublicID); err != nil {
-		return err
+		return domain.GraphMeta{}, err
 	}
 
-	return s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
+	var meta domain.GraphMeta
+
+	err := s.transactions.WithinTransaction(ctx, func(ctx context.Context) error {
 		draft, err := s.graphs.FindDraftKernelForUpdate(ctx, tenantPublicID, eventPublicID)
 		if err != nil {
 			return err
@@ -439,38 +464,53 @@ func (s *GraphService) editGraph(ctx context.Context, eventPublicID string, edit
 			return err
 		}
 
-		return edit(ctx, draft)
+		if err := edit(ctx, draft); err != nil {
+			return err
+		}
+
+		placements, err := s.graphs.FindPlacements(ctx, draft.GraphRef)
+		if err != nil {
+			return err
+		}
+
+		draftRevisionID, err := domain.RevisionID(draft.DocumentHash, placements)
+		if err != nil {
+			return err
+		}
+
+		if err := s.graphs.SaveDraftRevisionID(ctx, draft.GraphRef, draftRevisionID); err != nil {
+			return err
+		}
+
+		meta = domain.GraphMeta{EventPublicID: draft.EventPublicID, RevisionID: draft.RevisionID, DraftRevisionID: draftRevisionID}
+
+		return nil
 	})
+	if err != nil {
+		return domain.GraphMeta{}, err
+	}
+
+	return meta, nil
 }
 
 func (s *GraphService) GetObservationPointMappings(
 	ctx context.Context, input GetObservationPointMappingsInput,
 ) (ObservationPointMappings, error) {
-	revision, err := s.currentRevision(ctx, input.EventPublicID)
+	revision, err := s.revision(ctx, input.EventPublicID, input.RevisionID)
 	if err != nil {
 		return ObservationPointMappings{}, err
 	}
 
-	mappings, err := s.graphs.FindObservationPointMappings(ctx, input.EventPublicID)
-	if err != nil {
-		return ObservationPointMappings{}, err
-	}
-
-	return ObservationPointMappings{RevisionID: revision.RevisionID, Mappings: mappings}, nil
+	return ObservationPointMappings{RevisionID: revision.RevisionID, Mappings: revision.Placements.Mappings}, nil
 }
 
-func (s *GraphService) GetQrLocations(ctx context.Context, input GetQrLocationsInput) ([]domain.QrLocation, error) {
-	revision, err := s.currentRevision(ctx, input.EventPublicID)
+func (s *GraphService) GetQrLocations(ctx context.Context, input GetQrLocationsInput) (QrLocations, error) {
+	revision, err := s.revision(ctx, input.EventPublicID, input.RevisionID)
 	if err != nil {
-		return nil, err
+		return QrLocations{}, err
 	}
 
-	placements, err := s.graphs.FindPlacements(ctx, domain.GraphRef{TenantPublicID: revision.TenantPublicID, EventPublicID: revision.EventPublicID})
-	if err != nil {
-		return nil, err
-	}
-
-	return placements.QrLocations, nil
+	return QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}, nil
 }
 
 func newQrLocationID() string {

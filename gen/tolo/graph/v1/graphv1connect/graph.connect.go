@@ -77,10 +77,10 @@ const (
 // GraphAuthoringServiceClient is a client for the tolo.graph.v1.GraphAuthoringService service.
 type GraphAuthoringServiceClient interface {
 	SaveGraph(context.Context, *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error)
-	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.ObservationPointMapping], error)
-	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.QrLocation], error)
-	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.QrLocation], error)
-	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveResponse], error)
+	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error)
+	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error)
+	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error)
+	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error)
 	GetGraph(context.Context, *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error)
 	PublishRevision(context.Context, *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error)
 }
@@ -102,25 +102,25 @@ func NewGraphAuthoringServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(graphAuthoringServiceMethods.ByName("SaveGraph")),
 			connect.WithClientOptions(opts...),
 		),
-		mapObservationPoint: connect.NewClient[v1.MapObservationPointRequest, v1.ObservationPointMapping](
+		mapObservationPoint: connect.NewClient[v1.MapObservationPointRequest, v1.MapObservationPointResponse](
 			httpClient,
 			baseURL+GraphAuthoringServiceMapObservationPointProcedure,
 			connect.WithSchema(graphAuthoringServiceMethods.ByName("MapObservationPoint")),
 			connect.WithClientOptions(opts...),
 		),
-		addQrLocation: connect.NewClient[v1.AddQrLocationRequest, v1.QrLocation](
+		addQrLocation: connect.NewClient[v1.AddQrLocationRequest, v1.AddQrLocationResponse](
 			httpClient,
 			baseURL+GraphAuthoringServiceAddQrLocationProcedure,
 			connect.WithSchema(graphAuthoringServiceMethods.ByName("AddQrLocation")),
 			connect.WithClientOptions(opts...),
 		),
-		updateQrLocation: connect.NewClient[v1.UpdateQrLocationRequest, v1.QrLocation](
+		updateQrLocation: connect.NewClient[v1.UpdateQrLocationRequest, v1.UpdateQrLocationResponse](
 			httpClient,
 			baseURL+GraphAuthoringServiceUpdateQrLocationProcedure,
 			connect.WithSchema(graphAuthoringServiceMethods.ByName("UpdateQrLocation")),
 			connect.WithClientOptions(opts...),
 		),
-		removeQrLocation: connect.NewClient[v1.RemoveQrLocationRequest, v1.RemoveResponse](
+		removeQrLocation: connect.NewClient[v1.RemoveQrLocationRequest, v1.RemoveQrLocationResponse](
 			httpClient,
 			baseURL+GraphAuthoringServiceRemoveQrLocationProcedure,
 			connect.WithSchema(graphAuthoringServiceMethods.ByName("RemoveQrLocation")),
@@ -144,10 +144,10 @@ func NewGraphAuthoringServiceClient(httpClient connect.HTTPClient, baseURL strin
 // graphAuthoringServiceClient implements GraphAuthoringServiceClient.
 type graphAuthoringServiceClient struct {
 	saveGraph           *connect.Client[v1.SaveGraphRequest, v1.GraphMeta]
-	mapObservationPoint *connect.Client[v1.MapObservationPointRequest, v1.ObservationPointMapping]
-	addQrLocation       *connect.Client[v1.AddQrLocationRequest, v1.QrLocation]
-	updateQrLocation    *connect.Client[v1.UpdateQrLocationRequest, v1.QrLocation]
-	removeQrLocation    *connect.Client[v1.RemoveQrLocationRequest, v1.RemoveResponse]
+	mapObservationPoint *connect.Client[v1.MapObservationPointRequest, v1.MapObservationPointResponse]
+	addQrLocation       *connect.Client[v1.AddQrLocationRequest, v1.AddQrLocationResponse]
+	updateQrLocation    *connect.Client[v1.UpdateQrLocationRequest, v1.UpdateQrLocationResponse]
+	removeQrLocation    *connect.Client[v1.RemoveQrLocationRequest, v1.RemoveQrLocationResponse]
 	getGraph            *connect.Client[v1.GetGraphRequest, v1.GetGraphResponse]
 	publishRevision     *connect.Client[v1.PublishRevisionRequest, v1.GraphMeta]
 }
@@ -158,22 +158,22 @@ func (c *graphAuthoringServiceClient) SaveGraph(ctx context.Context, req *connec
 }
 
 // MapObservationPoint calls tolo.graph.v1.GraphAuthoringService.MapObservationPoint.
-func (c *graphAuthoringServiceClient) MapObservationPoint(ctx context.Context, req *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.ObservationPointMapping], error) {
+func (c *graphAuthoringServiceClient) MapObservationPoint(ctx context.Context, req *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error) {
 	return c.mapObservationPoint.CallUnary(ctx, req)
 }
 
 // AddQrLocation calls tolo.graph.v1.GraphAuthoringService.AddQrLocation.
-func (c *graphAuthoringServiceClient) AddQrLocation(ctx context.Context, req *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.QrLocation], error) {
+func (c *graphAuthoringServiceClient) AddQrLocation(ctx context.Context, req *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error) {
 	return c.addQrLocation.CallUnary(ctx, req)
 }
 
 // UpdateQrLocation calls tolo.graph.v1.GraphAuthoringService.UpdateQrLocation.
-func (c *graphAuthoringServiceClient) UpdateQrLocation(ctx context.Context, req *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.QrLocation], error) {
+func (c *graphAuthoringServiceClient) UpdateQrLocation(ctx context.Context, req *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error) {
 	return c.updateQrLocation.CallUnary(ctx, req)
 }
 
 // RemoveQrLocation calls tolo.graph.v1.GraphAuthoringService.RemoveQrLocation.
-func (c *graphAuthoringServiceClient) RemoveQrLocation(ctx context.Context, req *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveResponse], error) {
+func (c *graphAuthoringServiceClient) RemoveQrLocation(ctx context.Context, req *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error) {
 	return c.removeQrLocation.CallUnary(ctx, req)
 }
 
@@ -191,10 +191,10 @@ func (c *graphAuthoringServiceClient) PublishRevision(ctx context.Context, req *
 // service.
 type GraphAuthoringServiceHandler interface {
 	SaveGraph(context.Context, *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error)
-	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.ObservationPointMapping], error)
-	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.QrLocation], error)
-	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.QrLocation], error)
-	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveResponse], error)
+	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error)
+	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error)
+	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error)
+	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error)
 	GetGraph(context.Context, *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error)
 	PublishRevision(context.Context, *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error)
 }
@@ -277,19 +277,19 @@ func (UnimplementedGraphAuthoringServiceHandler) SaveGraph(context.Context, *con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.SaveGraph is not implemented"))
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.ObservationPointMapping], error) {
+func (UnimplementedGraphAuthoringServiceHandler) MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.MapObservationPoint is not implemented"))
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.QrLocation], error) {
+func (UnimplementedGraphAuthoringServiceHandler) AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.AddQrLocation is not implemented"))
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.QrLocation], error) {
+func (UnimplementedGraphAuthoringServiceHandler) UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.UpdateQrLocation is not implemented"))
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveResponse], error) {
+func (UnimplementedGraphAuthoringServiceHandler) RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.RemoveQrLocation is not implemented"))
 }
 

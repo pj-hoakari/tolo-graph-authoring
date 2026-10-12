@@ -603,42 +603,6 @@ func (x *SaveGraphRequest) GetDocument() *GraphDocument {
 	return nil
 }
 
-type RemoveResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RemoveResponse) Reset() {
-	*x = RemoveResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RemoveResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RemoveResponse) ProtoMessage() {}
-
-func (x *RemoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RemoveResponse.ProtoReflect.Descriptor instead.
-func (*RemoveResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{7}
-}
-
 type ObservationPointMapping struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	ObservationPointId string                 `protobuf:"bytes,1,opt,name=observation_point_id,json=observationPointId,proto3" json:"observation_point_id,omitempty"`
@@ -649,7 +613,7 @@ type ObservationPointMapping struct {
 
 func (x *ObservationPointMapping) Reset() {
 	*x = ObservationPointMapping{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[8]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +625,7 @@ func (x *ObservationPointMapping) String() string {
 func (*ObservationPointMapping) ProtoMessage() {}
 
 func (x *ObservationPointMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[8]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +638,7 @@ func (x *ObservationPointMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationPointMapping.ProtoReflect.Descriptor instead.
 func (*ObservationPointMapping) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{8}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ObservationPointMapping) GetObservationPointId() string {
@@ -701,7 +665,7 @@ type MapObservationPointRequest struct {
 
 func (x *MapObservationPointRequest) Reset() {
 	*x = MapObservationPointRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[9]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -713,7 +677,7 @@ func (x *MapObservationPointRequest) String() string {
 func (*MapObservationPointRequest) ProtoMessage() {}
 
 func (x *MapObservationPointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[9]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -726,7 +690,7 @@ func (x *MapObservationPointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapObservationPointRequest.ProtoReflect.Descriptor instead.
 func (*MapObservationPointRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{9}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *MapObservationPointRequest) GetEventId() string {
@@ -739,6 +703,58 @@ func (x *MapObservationPointRequest) GetEventId() string {
 func (x *MapObservationPointRequest) GetMapping() *ObservationPointMapping {
 	if x != nil {
 		return x.Mapping
+	}
+	return nil
+}
+
+type MapObservationPointResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Mapping       *ObservationPointMapping `protobuf:"bytes,1,opt,name=mapping,proto3" json:"mapping,omitempty"`
+	Meta          *GraphMeta               `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MapObservationPointResponse) Reset() {
+	*x = MapObservationPointResponse{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapObservationPointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapObservationPointResponse) ProtoMessage() {}
+
+func (x *MapObservationPointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapObservationPointResponse.ProtoReflect.Descriptor instead.
+func (*MapObservationPointResponse) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *MapObservationPointResponse) GetMapping() *ObservationPointMapping {
+	if x != nil {
+		return x.Mapping
+	}
+	return nil
+}
+
+func (x *MapObservationPointResponse) GetMeta() *GraphMeta {
+	if x != nil {
+		return x.Meta
 	}
 	return nil
 }
@@ -863,6 +879,58 @@ func (x *AddQrLocationRequest) GetQrLocation() *QrLocation {
 	return nil
 }
 
+type AddQrLocationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QrLocation    *QrLocation            `protobuf:"bytes,1,opt,name=qr_location,json=qrLocation,proto3" json:"qr_location,omitempty"`
+	Meta          *GraphMeta             `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddQrLocationResponse) Reset() {
+	*x = AddQrLocationResponse{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddQrLocationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddQrLocationResponse) ProtoMessage() {}
+
+func (x *AddQrLocationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddQrLocationResponse.ProtoReflect.Descriptor instead.
+func (*AddQrLocationResponse) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AddQrLocationResponse) GetQrLocation() *QrLocation {
+	if x != nil {
+		return x.QrLocation
+	}
+	return nil
+}
+
+func (x *AddQrLocationResponse) GetMeta() *GraphMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
 type UpdateQrLocationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -873,7 +941,7 @@ type UpdateQrLocationRequest struct {
 
 func (x *UpdateQrLocationRequest) Reset() {
 	*x = UpdateQrLocationRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[12]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -885,7 +953,7 @@ func (x *UpdateQrLocationRequest) String() string {
 func (*UpdateQrLocationRequest) ProtoMessage() {}
 
 func (x *UpdateQrLocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[12]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -898,7 +966,7 @@ func (x *UpdateQrLocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateQrLocationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateQrLocationRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{12}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateQrLocationRequest) GetEventId() string {
@@ -915,6 +983,58 @@ func (x *UpdateQrLocationRequest) GetQrLocation() *QrLocation {
 	return nil
 }
 
+type UpdateQrLocationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QrLocation    *QrLocation            `protobuf:"bytes,1,opt,name=qr_location,json=qrLocation,proto3" json:"qr_location,omitempty"`
+	Meta          *GraphMeta             `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateQrLocationResponse) Reset() {
+	*x = UpdateQrLocationResponse{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateQrLocationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateQrLocationResponse) ProtoMessage() {}
+
+func (x *UpdateQrLocationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateQrLocationResponse.ProtoReflect.Descriptor instead.
+func (*UpdateQrLocationResponse) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdateQrLocationResponse) GetQrLocation() *QrLocation {
+	if x != nil {
+		return x.QrLocation
+	}
+	return nil
+}
+
+func (x *UpdateQrLocationResponse) GetMeta() *GraphMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
 type RemoveQrLocationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -925,7 +1045,7 @@ type RemoveQrLocationRequest struct {
 
 func (x *RemoveQrLocationRequest) Reset() {
 	*x = RemoveQrLocationRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[13]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +1057,7 @@ func (x *RemoveQrLocationRequest) String() string {
 func (*RemoveQrLocationRequest) ProtoMessage() {}
 
 func (x *RemoveQrLocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[13]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +1070,7 @@ func (x *RemoveQrLocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveQrLocationRequest.ProtoReflect.Descriptor instead.
 func (*RemoveQrLocationRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{13}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RemoveQrLocationRequest) GetEventId() string {
@@ -967,16 +1087,61 @@ func (x *RemoveQrLocationRequest) GetQrLocationId() string {
 	return ""
 }
 
+type RemoveQrLocationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Meta          *GraphMeta             `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveQrLocationResponse) Reset() {
+	*x = RemoveQrLocationResponse{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveQrLocationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveQrLocationResponse) ProtoMessage() {}
+
+func (x *RemoveQrLocationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveQrLocationResponse.ProtoReflect.Descriptor instead.
+func (*RemoveQrLocationResponse) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RemoveQrLocationResponse) GetMeta() *GraphMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
 type GetQrLocationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetQrLocationsRequest) Reset() {
 	*x = GetQrLocationsRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[14]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -988,7 +1153,7 @@ func (x *GetQrLocationsRequest) String() string {
 func (*GetQrLocationsRequest) ProtoMessage() {}
 
 func (x *GetQrLocationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[14]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1001,7 +1166,7 @@ func (x *GetQrLocationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQrLocationsRequest.ProtoReflect.Descriptor instead.
 func (*GetQrLocationsRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{14}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetQrLocationsRequest) GetEventId() string {
@@ -1011,16 +1176,24 @@ func (x *GetQrLocationsRequest) GetEventId() string {
 	return ""
 }
 
+func (x *GetQrLocationsRequest) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
 type GetQrLocationsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	QrLocations   []*QrLocation          `protobuf:"bytes,1,rep,name=qr_locations,json=qrLocations,proto3" json:"qr_locations,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetQrLocationsResponse) Reset() {
 	*x = GetQrLocationsResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[15]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1032,7 +1205,7 @@ func (x *GetQrLocationsResponse) String() string {
 func (*GetQrLocationsResponse) ProtoMessage() {}
 
 func (x *GetQrLocationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[15]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1045,7 +1218,7 @@ func (x *GetQrLocationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQrLocationsResponse.ProtoReflect.Descriptor instead.
 func (*GetQrLocationsResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{15}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetQrLocationsResponse) GetQrLocations() []*QrLocation {
@@ -1053,6 +1226,13 @@ func (x *GetQrLocationsResponse) GetQrLocations() []*QrLocation {
 		return x.QrLocations
 	}
 	return nil
+}
+
+func (x *GetQrLocationsResponse) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
 }
 
 type GetGraphRequest struct {
@@ -1064,7 +1244,7 @@ type GetGraphRequest struct {
 
 func (x *GetGraphRequest) Reset() {
 	*x = GetGraphRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[16]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1076,7 +1256,7 @@ func (x *GetGraphRequest) String() string {
 func (*GetGraphRequest) ProtoMessage() {}
 
 func (x *GetGraphRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[16]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1089,7 +1269,7 @@ func (x *GetGraphRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGraphRequest.ProtoReflect.Descriptor instead.
 func (*GetGraphRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{16}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetGraphRequest) GetEventId() string {
@@ -1111,7 +1291,7 @@ type GetGraphResponse struct {
 
 func (x *GetGraphResponse) Reset() {
 	*x = GetGraphResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[17]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1123,7 +1303,7 @@ func (x *GetGraphResponse) String() string {
 func (*GetGraphResponse) ProtoMessage() {}
 
 func (x *GetGraphResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[17]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1136,7 +1316,7 @@ func (x *GetGraphResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGraphResponse.ProtoReflect.Descriptor instead.
 func (*GetGraphResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{17}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetGraphResponse) GetMeta() *GraphMeta {
@@ -1176,7 +1356,7 @@ type PublishRevisionRequest struct {
 
 func (x *PublishRevisionRequest) Reset() {
 	*x = PublishRevisionRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[18]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1188,7 +1368,7 @@ func (x *PublishRevisionRequest) String() string {
 func (*PublishRevisionRequest) ProtoMessage() {}
 
 func (x *PublishRevisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[18]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1201,7 +1381,7 @@ func (x *PublishRevisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishRevisionRequest.ProtoReflect.Descriptor instead.
 func (*PublishRevisionRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{18}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PublishRevisionRequest) GetEventId() string {
@@ -1220,7 +1400,7 @@ type GetCurrentRevisionRequest struct {
 
 func (x *GetCurrentRevisionRequest) Reset() {
 	*x = GetCurrentRevisionRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[19]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1232,7 +1412,7 @@ func (x *GetCurrentRevisionRequest) String() string {
 func (*GetCurrentRevisionRequest) ProtoMessage() {}
 
 func (x *GetCurrentRevisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[19]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1245,7 +1425,7 @@ func (x *GetCurrentRevisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentRevisionRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentRevisionRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{19}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetCurrentRevisionRequest) GetEventId() string {
@@ -1258,13 +1438,14 @@ func (x *GetCurrentRevisionRequest) GetEventId() string {
 type GetMappingsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetMappingsRequest) Reset() {
 	*x = GetMappingsRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[20]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1276,7 +1457,7 @@ func (x *GetMappingsRequest) String() string {
 func (*GetMappingsRequest) ProtoMessage() {}
 
 func (x *GetMappingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[20]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1289,12 +1470,19 @@ func (x *GetMappingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMappingsRequest.ProtoReflect.Descriptor instead.
 func (*GetMappingsRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{20}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetMappingsRequest) GetEventId() string {
 	if x != nil {
 		return x.EventId
+	}
+	return ""
+}
+
+func (x *GetMappingsRequest) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
 	}
 	return ""
 }
@@ -1309,7 +1497,7 @@ type GetMappingsResponse struct {
 
 func (x *GetMappingsResponse) Reset() {
 	*x = GetMappingsResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[21]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1321,7 +1509,7 @@ func (x *GetMappingsResponse) String() string {
 func (*GetMappingsResponse) ProtoMessage() {}
 
 func (x *GetMappingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[21]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1334,7 +1522,7 @@ func (x *GetMappingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMappingsResponse.ProtoReflect.Descriptor instead.
 func (*GetMappingsResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{21}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetMappingsResponse) GetRevisionId() string {
@@ -1360,7 +1548,7 @@ type GetDisplayNamesRequest struct {
 
 func (x *GetDisplayNamesRequest) Reset() {
 	*x = GetDisplayNamesRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[22]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1560,7 @@ func (x *GetDisplayNamesRequest) String() string {
 func (*GetDisplayNamesRequest) ProtoMessage() {}
 
 func (x *GetDisplayNamesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[22]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1573,7 @@ func (x *GetDisplayNamesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDisplayNamesRequest.ProtoReflect.Descriptor instead.
 func (*GetDisplayNamesRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{22}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetDisplayNamesRequest) GetEventId() string {
@@ -1407,7 +1595,7 @@ type GetDisplayNamesResponse struct {
 
 func (x *GetDisplayNamesResponse) Reset() {
 	*x = GetDisplayNamesResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1419,7 +1607,7 @@ func (x *GetDisplayNamesResponse) String() string {
 func (*GetDisplayNamesResponse) ProtoMessage() {}
 
 func (x *GetDisplayNamesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1432,7 +1620,7 @@ func (x *GetDisplayNamesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDisplayNamesResponse.ProtoReflect.Descriptor instead.
 func (*GetDisplayNamesResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{23}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetDisplayNamesResponse) GetRevisionId() string {
@@ -1472,7 +1660,7 @@ type LocalizedText struct {
 
 func (x *LocalizedText) Reset() {
 	*x = LocalizedText{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1484,7 +1672,7 @@ func (x *LocalizedText) String() string {
 func (*LocalizedText) ProtoMessage() {}
 
 func (x *LocalizedText) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1497,7 +1685,7 @@ func (x *LocalizedText) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalizedText.ProtoReflect.Descriptor instead.
 func (*LocalizedText) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{24}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *LocalizedText) GetTexts() map[string]string {
@@ -1517,7 +1705,7 @@ type RouteEndpoints struct {
 
 func (x *RouteEndpoints) Reset() {
 	*x = RouteEndpoints{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1529,7 +1717,7 @@ func (x *RouteEndpoints) String() string {
 func (*RouteEndpoints) ProtoMessage() {}
 
 func (x *RouteEndpoints) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1542,7 +1730,7 @@ func (x *RouteEndpoints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteEndpoints.ProtoReflect.Descriptor instead.
 func (*RouteEndpoints) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{25}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RouteEndpoints) GetFromPointId() string {
@@ -1568,7 +1756,7 @@ type GetGatePointsRequest struct {
 
 func (x *GetGatePointsRequest) Reset() {
 	*x = GetGatePointsRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1768,7 @@ func (x *GetGatePointsRequest) String() string {
 func (*GetGatePointsRequest) ProtoMessage() {}
 
 func (x *GetGatePointsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1593,7 +1781,7 @@ func (x *GetGatePointsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatePointsRequest.ProtoReflect.Descriptor instead.
 func (*GetGatePointsRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{26}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetGatePointsRequest) GetEventId() string {
@@ -1613,7 +1801,7 @@ type GetGatePointsResponse struct {
 
 func (x *GetGatePointsResponse) Reset() {
 	*x = GetGatePointsResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1625,7 +1813,7 @@ func (x *GetGatePointsResponse) String() string {
 func (*GetGatePointsResponse) ProtoMessage() {}
 
 func (x *GetGatePointsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1638,7 +1826,7 @@ func (x *GetGatePointsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatePointsResponse.ProtoReflect.Descriptor instead.
 func (*GetGatePointsResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{27}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetGatePointsResponse) GetRevisionId() string {
@@ -1708,14 +1896,16 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x06_label\"g\n" +
 	"\x10SaveGraphRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x128\n" +
-	"\bdocument\x18\x02 \x01(\v2\x1c.tolo.graph.v1.GraphDocumentR\bdocument\"\x10\n" +
-	"\x0eRemoveResponse\"\x80\x01\n" +
+	"\bdocument\x18\x02 \x01(\v2\x1c.tolo.graph.v1.GraphDocumentR\bdocument\"\x80\x01\n" +
 	"\x17ObservationPointMapping\x120\n" +
 	"\x14observation_point_id\x18\x01 \x01(\tR\x12observationPointId\x123\n" +
 	"\x06anchor\x18\x02 \x01(\v2\x1b.tolo.kernel.v1.GraphAnchorR\x06anchor\"y\n" +
 	"\x1aMapObservationPointRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12@\n" +
-	"\amapping\x18\x02 \x01(\v2&.tolo.graph.v1.ObservationPointMappingR\amapping\"\x8f\x01\n" +
+	"\amapping\x18\x02 \x01(\v2&.tolo.graph.v1.ObservationPointMappingR\amapping\"\x8d\x01\n" +
+	"\x1bMapObservationPointResponse\x12@\n" +
+	"\amapping\x18\x01 \x01(\v2&.tolo.graph.v1.ObservationPointMappingR\amapping\x12,\n" +
+	"\x04meta\x18\x02 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"\x8f\x01\n" +
 	"\n" +
 	"QrLocation\x12$\n" +
 	"\x0eqr_location_id\x18\x01 \x01(\tR\fqrLocationId\x12\x12\n" +
@@ -1725,18 +1915,32 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x14AddQrLocationRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12:\n" +
 	"\vqr_location\x18\x02 \x01(\v2\x19.tolo.graph.v1.QrLocationR\n" +
-	"qrLocation\"p\n" +
+	"qrLocation\"\x81\x01\n" +
+	"\x15AddQrLocationResponse\x12:\n" +
+	"\vqr_location\x18\x01 \x01(\v2\x19.tolo.graph.v1.QrLocationR\n" +
+	"qrLocation\x12,\n" +
+	"\x04meta\x18\x02 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"p\n" +
 	"\x17UpdateQrLocationRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12:\n" +
 	"\vqr_location\x18\x02 \x01(\v2\x19.tolo.graph.v1.QrLocationR\n" +
-	"qrLocation\"Z\n" +
+	"qrLocation\"\x84\x01\n" +
+	"\x18UpdateQrLocationResponse\x12:\n" +
+	"\vqr_location\x18\x01 \x01(\v2\x19.tolo.graph.v1.QrLocationR\n" +
+	"qrLocation\x12,\n" +
+	"\x04meta\x18\x02 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"Z\n" +
 	"\x17RemoveQrLocationRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
-	"\x0eqr_location_id\x18\x02 \x01(\tR\fqrLocationId\"2\n" +
+	"\x0eqr_location_id\x18\x02 \x01(\tR\fqrLocationId\"H\n" +
+	"\x18RemoveQrLocationResponse\x12,\n" +
+	"\x04meta\x18\x01 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"S\n" +
 	"\x15GetQrLocationsRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"V\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
+	"\vrevision_id\x18\x02 \x01(\tR\n" +
+	"revisionId\"w\n" +
 	"\x16GetQrLocationsResponse\x12<\n" +
-	"\fqr_locations\x18\x01 \x03(\v2\x19.tolo.graph.v1.QrLocationR\vqrLocations\",\n" +
+	"\fqr_locations\x18\x01 \x03(\v2\x19.tolo.graph.v1.QrLocationR\vqrLocations\x12\x1f\n" +
+	"\vrevision_id\x18\x02 \x01(\tR\n" +
+	"revisionId\",\n" +
 	"\x0fGetGraphRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"\x9e\x02\n" +
 	"\x10GetGraphResponse\x12,\n" +
@@ -1747,9 +1951,11 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x16PublishRevisionRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"6\n" +
 	"\x19GetCurrentRevisionRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"/\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\"P\n" +
 	"\x12GetMappingsRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"z\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
+	"\vrevision_id\x18\x02 \x01(\tR\n" +
+	"revisionId\"z\n" +
 	"\x13GetMappingsResponse\x12\x1f\n" +
 	"\vrevision_id\x18\x01 \x01(\tR\n" +
 	"revisionId\x12B\n" +
@@ -1795,13 +2001,13 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\rEdgeDirection\x12\x1e\n" +
 	"\x1aEDGE_DIRECTION_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16EDGE_DIRECTION_ONE_WAY\x10\x01\x12\x1c\n" +
-	"\x18EDGE_DIRECTION_BOTH_WAYS\x10\x022\xef\x06\n" +
+	"\x18EDGE_DIRECTION_BOTH_WAYS\x10\x022\x98\a\n" +
 	"\x15GraphAuthoringService\x12k\n" +
-	"\tSaveGraph\x12\x1f.tolo.graph.v1.SaveGraphRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x8d\x01\n" +
-	"\x13MapObservationPoint\x12).tolo.graph.v1.MapObservationPointRequest\x1a&.tolo.graph.v1.ObservationPointMapping\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12t\n" +
-	"\rAddQrLocation\x12#.tolo.graph.v1.AddQrLocationRequest\x1a\x19.tolo.graph.v1.QrLocation\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12z\n" +
-	"\x10UpdateQrLocation\x12&.tolo.graph.v1.UpdateQrLocationRequest\x1a\x19.tolo.graph.v1.QrLocation\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12~\n" +
-	"\x10RemoveQrLocation\x12&.tolo.graph.v1.RemoveQrLocationRequest\x1a\x1d.tolo.graph.v1.RemoveResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12n\n" +
+	"\tSaveGraph\x12\x1f.tolo.graph.v1.SaveGraphRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x91\x01\n" +
+	"\x13MapObservationPoint\x12).tolo.graph.v1.MapObservationPointRequest\x1a*.tolo.graph.v1.MapObservationPointResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x7f\n" +
+	"\rAddQrLocation\x12#.tolo.graph.v1.AddQrLocationRequest\x1a$.tolo.graph.v1.AddQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x88\x01\n" +
+	"\x10UpdateQrLocation\x12&.tolo.graph.v1.UpdateQrLocationRequest\x1a'.tolo.graph.v1.UpdateQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x88\x01\n" +
+	"\x10RemoveQrLocation\x12&.tolo.graph.v1.RemoveQrLocationRequest\x1a'.tolo.graph.v1.RemoveQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12n\n" +
 	"\bGetGraph\x12\x1e.tolo.graph.v1.GetGraphRequest\x1a\x1f.tolo.graph.v1.GetGraphResponse\"!\x8a\xb5\x18\x1d\b\x02\x12\vevents.read\x1a\fevent_access\x12w\n" +
 	"\x0fPublishRevision\x12%.tolo.graph.v1.PublishRevisionRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access2\xf6\x03\n" +
 	"\x12GraphSupplyService\x12U\n" +
@@ -1826,104 +2032,114 @@ func file_tolo_graph_v1_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_tolo_graph_v1_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_tolo_graph_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_tolo_graph_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_tolo_graph_v1_graph_proto_goTypes = []any{
-	(NodeType)(0),                      // 0: tolo.graph.v1.NodeType
-	(EdgeDirection)(0),                 // 1: tolo.graph.v1.EdgeDirection
-	(*GraphMeta)(nil),                  // 2: tolo.graph.v1.GraphMeta
-	(*GraphDocument)(nil),              // 3: tolo.graph.v1.GraphDocument
-	(*GraphNode)(nil),                  // 4: tolo.graph.v1.GraphNode
-	(*NodeGroup)(nil),                  // 5: tolo.graph.v1.NodeGroup
-	(*Layout)(nil),                     // 6: tolo.graph.v1.Layout
-	(*GraphEdge)(nil),                  // 7: tolo.graph.v1.GraphEdge
-	(*SaveGraphRequest)(nil),           // 8: tolo.graph.v1.SaveGraphRequest
-	(*RemoveResponse)(nil),             // 9: tolo.graph.v1.RemoveResponse
-	(*ObservationPointMapping)(nil),    // 10: tolo.graph.v1.ObservationPointMapping
-	(*MapObservationPointRequest)(nil), // 11: tolo.graph.v1.MapObservationPointRequest
-	(*QrLocation)(nil),                 // 12: tolo.graph.v1.QrLocation
-	(*AddQrLocationRequest)(nil),       // 13: tolo.graph.v1.AddQrLocationRequest
-	(*UpdateQrLocationRequest)(nil),    // 14: tolo.graph.v1.UpdateQrLocationRequest
-	(*RemoveQrLocationRequest)(nil),    // 15: tolo.graph.v1.RemoveQrLocationRequest
-	(*GetQrLocationsRequest)(nil),      // 16: tolo.graph.v1.GetQrLocationsRequest
-	(*GetQrLocationsResponse)(nil),     // 17: tolo.graph.v1.GetQrLocationsResponse
-	(*GetGraphRequest)(nil),            // 18: tolo.graph.v1.GetGraphRequest
-	(*GetGraphResponse)(nil),           // 19: tolo.graph.v1.GetGraphResponse
-	(*PublishRevisionRequest)(nil),     // 20: tolo.graph.v1.PublishRevisionRequest
-	(*GetCurrentRevisionRequest)(nil),  // 21: tolo.graph.v1.GetCurrentRevisionRequest
-	(*GetMappingsRequest)(nil),         // 22: tolo.graph.v1.GetMappingsRequest
-	(*GetMappingsResponse)(nil),        // 23: tolo.graph.v1.GetMappingsResponse
-	(*GetDisplayNamesRequest)(nil),     // 24: tolo.graph.v1.GetDisplayNamesRequest
-	(*GetDisplayNamesResponse)(nil),    // 25: tolo.graph.v1.GetDisplayNamesResponse
-	(*LocalizedText)(nil),              // 26: tolo.graph.v1.LocalizedText
-	(*RouteEndpoints)(nil),             // 27: tolo.graph.v1.RouteEndpoints
-	(*GetGatePointsRequest)(nil),       // 28: tolo.graph.v1.GetGatePointsRequest
-	(*GetGatePointsResponse)(nil),      // 29: tolo.graph.v1.GetGatePointsResponse
-	nil,                                // 30: tolo.graph.v1.GraphNode.LabelsEntry
-	nil,                                // 31: tolo.graph.v1.NodeGroup.LabelsEntry
-	nil,                                // 32: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
-	nil,                                // 33: tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
-	nil,                                // 34: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
-	nil,                                // 35: tolo.graph.v1.LocalizedText.TextsEntry
-	(*v1.GraphAnchor)(nil),             // 36: tolo.kernel.v1.GraphAnchor
-	(*v1.Graph)(nil),                   // 37: tolo.kernel.v1.Graph
+	(NodeType)(0),                       // 0: tolo.graph.v1.NodeType
+	(EdgeDirection)(0),                  // 1: tolo.graph.v1.EdgeDirection
+	(*GraphMeta)(nil),                   // 2: tolo.graph.v1.GraphMeta
+	(*GraphDocument)(nil),               // 3: tolo.graph.v1.GraphDocument
+	(*GraphNode)(nil),                   // 4: tolo.graph.v1.GraphNode
+	(*NodeGroup)(nil),                   // 5: tolo.graph.v1.NodeGroup
+	(*Layout)(nil),                      // 6: tolo.graph.v1.Layout
+	(*GraphEdge)(nil),                   // 7: tolo.graph.v1.GraphEdge
+	(*SaveGraphRequest)(nil),            // 8: tolo.graph.v1.SaveGraphRequest
+	(*ObservationPointMapping)(nil),     // 9: tolo.graph.v1.ObservationPointMapping
+	(*MapObservationPointRequest)(nil),  // 10: tolo.graph.v1.MapObservationPointRequest
+	(*MapObservationPointResponse)(nil), // 11: tolo.graph.v1.MapObservationPointResponse
+	(*QrLocation)(nil),                  // 12: tolo.graph.v1.QrLocation
+	(*AddQrLocationRequest)(nil),        // 13: tolo.graph.v1.AddQrLocationRequest
+	(*AddQrLocationResponse)(nil),       // 14: tolo.graph.v1.AddQrLocationResponse
+	(*UpdateQrLocationRequest)(nil),     // 15: tolo.graph.v1.UpdateQrLocationRequest
+	(*UpdateQrLocationResponse)(nil),    // 16: tolo.graph.v1.UpdateQrLocationResponse
+	(*RemoveQrLocationRequest)(nil),     // 17: tolo.graph.v1.RemoveQrLocationRequest
+	(*RemoveQrLocationResponse)(nil),    // 18: tolo.graph.v1.RemoveQrLocationResponse
+	(*GetQrLocationsRequest)(nil),       // 19: tolo.graph.v1.GetQrLocationsRequest
+	(*GetQrLocationsResponse)(nil),      // 20: tolo.graph.v1.GetQrLocationsResponse
+	(*GetGraphRequest)(nil),             // 21: tolo.graph.v1.GetGraphRequest
+	(*GetGraphResponse)(nil),            // 22: tolo.graph.v1.GetGraphResponse
+	(*PublishRevisionRequest)(nil),      // 23: tolo.graph.v1.PublishRevisionRequest
+	(*GetCurrentRevisionRequest)(nil),   // 24: tolo.graph.v1.GetCurrentRevisionRequest
+	(*GetMappingsRequest)(nil),          // 25: tolo.graph.v1.GetMappingsRequest
+	(*GetMappingsResponse)(nil),         // 26: tolo.graph.v1.GetMappingsResponse
+	(*GetDisplayNamesRequest)(nil),      // 27: tolo.graph.v1.GetDisplayNamesRequest
+	(*GetDisplayNamesResponse)(nil),     // 28: tolo.graph.v1.GetDisplayNamesResponse
+	(*LocalizedText)(nil),               // 29: tolo.graph.v1.LocalizedText
+	(*RouteEndpoints)(nil),              // 30: tolo.graph.v1.RouteEndpoints
+	(*GetGatePointsRequest)(nil),        // 31: tolo.graph.v1.GetGatePointsRequest
+	(*GetGatePointsResponse)(nil),       // 32: tolo.graph.v1.GetGatePointsResponse
+	nil,                                 // 33: tolo.graph.v1.GraphNode.LabelsEntry
+	nil,                                 // 34: tolo.graph.v1.NodeGroup.LabelsEntry
+	nil,                                 // 35: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
+	nil,                                 // 36: tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
+	nil,                                 // 37: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
+	nil,                                 // 38: tolo.graph.v1.LocalizedText.TextsEntry
+	(*v1.GraphAnchor)(nil),              // 39: tolo.kernel.v1.GraphAnchor
+	(*v1.Graph)(nil),                    // 40: tolo.kernel.v1.Graph
 }
 var file_tolo_graph_v1_graph_proto_depIdxs = []int32{
 	4,  // 0: tolo.graph.v1.GraphDocument.nodes:type_name -> tolo.graph.v1.GraphNode
 	5,  // 1: tolo.graph.v1.GraphDocument.groups:type_name -> tolo.graph.v1.NodeGroup
 	7,  // 2: tolo.graph.v1.GraphDocument.edges:type_name -> tolo.graph.v1.GraphEdge
 	0,  // 3: tolo.graph.v1.GraphNode.node_type:type_name -> tolo.graph.v1.NodeType
-	30, // 4: tolo.graph.v1.GraphNode.labels:type_name -> tolo.graph.v1.GraphNode.LabelsEntry
+	33, // 4: tolo.graph.v1.GraphNode.labels:type_name -> tolo.graph.v1.GraphNode.LabelsEntry
 	6,  // 5: tolo.graph.v1.GraphNode.layout:type_name -> tolo.graph.v1.Layout
-	31, // 6: tolo.graph.v1.NodeGroup.labels:type_name -> tolo.graph.v1.NodeGroup.LabelsEntry
+	34, // 6: tolo.graph.v1.NodeGroup.labels:type_name -> tolo.graph.v1.NodeGroup.LabelsEntry
 	6,  // 7: tolo.graph.v1.NodeGroup.layout:type_name -> tolo.graph.v1.Layout
 	1,  // 8: tolo.graph.v1.GraphEdge.direction:type_name -> tolo.graph.v1.EdgeDirection
 	3,  // 9: tolo.graph.v1.SaveGraphRequest.document:type_name -> tolo.graph.v1.GraphDocument
-	36, // 10: tolo.graph.v1.ObservationPointMapping.anchor:type_name -> tolo.kernel.v1.GraphAnchor
-	10, // 11: tolo.graph.v1.MapObservationPointRequest.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
-	36, // 12: tolo.graph.v1.QrLocation.anchor:type_name -> tolo.kernel.v1.GraphAnchor
-	12, // 13: tolo.graph.v1.AddQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
-	12, // 14: tolo.graph.v1.UpdateQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
-	12, // 15: tolo.graph.v1.GetQrLocationsResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
-	2,  // 16: tolo.graph.v1.GetGraphResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	3,  // 17: tolo.graph.v1.GetGraphResponse.document:type_name -> tolo.graph.v1.GraphDocument
-	10, // 18: tolo.graph.v1.GetGraphResponse.observation_point_mappings:type_name -> tolo.graph.v1.ObservationPointMapping
-	12, // 19: tolo.graph.v1.GetGraphResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
-	10, // 20: tolo.graph.v1.GetMappingsResponse.mappings:type_name -> tolo.graph.v1.ObservationPointMapping
-	32, // 21: tolo.graph.v1.GetDisplayNamesResponse.display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
-	33, // 22: tolo.graph.v1.GetDisplayNamesResponse.route_display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
-	34, // 23: tolo.graph.v1.GetDisplayNamesResponse.route_endpoints:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
-	35, // 24: tolo.graph.v1.LocalizedText.texts:type_name -> tolo.graph.v1.LocalizedText.TextsEntry
-	26, // 25: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry.value:type_name -> tolo.graph.v1.LocalizedText
-	27, // 26: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry.value:type_name -> tolo.graph.v1.RouteEndpoints
-	8,  // 27: tolo.graph.v1.GraphAuthoringService.SaveGraph:input_type -> tolo.graph.v1.SaveGraphRequest
-	11, // 28: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:input_type -> tolo.graph.v1.MapObservationPointRequest
-	13, // 29: tolo.graph.v1.GraphAuthoringService.AddQrLocation:input_type -> tolo.graph.v1.AddQrLocationRequest
-	14, // 30: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:input_type -> tolo.graph.v1.UpdateQrLocationRequest
-	15, // 31: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:input_type -> tolo.graph.v1.RemoveQrLocationRequest
-	18, // 32: tolo.graph.v1.GraphAuthoringService.GetGraph:input_type -> tolo.graph.v1.GetGraphRequest
-	20, // 33: tolo.graph.v1.GraphAuthoringService.PublishRevision:input_type -> tolo.graph.v1.PublishRevisionRequest
-	21, // 34: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:input_type -> tolo.graph.v1.GetCurrentRevisionRequest
-	22, // 35: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:input_type -> tolo.graph.v1.GetMappingsRequest
-	24, // 36: tolo.graph.v1.GraphSupplyService.GetDisplayNames:input_type -> tolo.graph.v1.GetDisplayNamesRequest
-	28, // 37: tolo.graph.v1.GraphSupplyService.GetGatePoints:input_type -> tolo.graph.v1.GetGatePointsRequest
-	16, // 38: tolo.graph.v1.GraphSupplyService.GetQrLocations:input_type -> tolo.graph.v1.GetQrLocationsRequest
-	2,  // 39: tolo.graph.v1.GraphAuthoringService.SaveGraph:output_type -> tolo.graph.v1.GraphMeta
-	10, // 40: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:output_type -> tolo.graph.v1.ObservationPointMapping
-	12, // 41: tolo.graph.v1.GraphAuthoringService.AddQrLocation:output_type -> tolo.graph.v1.QrLocation
-	12, // 42: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:output_type -> tolo.graph.v1.QrLocation
-	9,  // 43: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:output_type -> tolo.graph.v1.RemoveResponse
-	19, // 44: tolo.graph.v1.GraphAuthoringService.GetGraph:output_type -> tolo.graph.v1.GetGraphResponse
-	2,  // 45: tolo.graph.v1.GraphAuthoringService.PublishRevision:output_type -> tolo.graph.v1.GraphMeta
-	37, // 46: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:output_type -> tolo.kernel.v1.Graph
-	23, // 47: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:output_type -> tolo.graph.v1.GetMappingsResponse
-	25, // 48: tolo.graph.v1.GraphSupplyService.GetDisplayNames:output_type -> tolo.graph.v1.GetDisplayNamesResponse
-	29, // 49: tolo.graph.v1.GraphSupplyService.GetGatePoints:output_type -> tolo.graph.v1.GetGatePointsResponse
-	17, // 50: tolo.graph.v1.GraphSupplyService.GetQrLocations:output_type -> tolo.graph.v1.GetQrLocationsResponse
-	39, // [39:51] is the sub-list for method output_type
-	27, // [27:39] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	39, // 10: tolo.graph.v1.ObservationPointMapping.anchor:type_name -> tolo.kernel.v1.GraphAnchor
+	9,  // 11: tolo.graph.v1.MapObservationPointRequest.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
+	9,  // 12: tolo.graph.v1.MapObservationPointResponse.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
+	2,  // 13: tolo.graph.v1.MapObservationPointResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	39, // 14: tolo.graph.v1.QrLocation.anchor:type_name -> tolo.kernel.v1.GraphAnchor
+	12, // 15: tolo.graph.v1.AddQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
+	12, // 16: tolo.graph.v1.AddQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
+	2,  // 17: tolo.graph.v1.AddQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	12, // 18: tolo.graph.v1.UpdateQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
+	12, // 19: tolo.graph.v1.UpdateQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
+	2,  // 20: tolo.graph.v1.UpdateQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	2,  // 21: tolo.graph.v1.RemoveQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	12, // 22: tolo.graph.v1.GetQrLocationsResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
+	2,  // 23: tolo.graph.v1.GetGraphResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	3,  // 24: tolo.graph.v1.GetGraphResponse.document:type_name -> tolo.graph.v1.GraphDocument
+	9,  // 25: tolo.graph.v1.GetGraphResponse.observation_point_mappings:type_name -> tolo.graph.v1.ObservationPointMapping
+	12, // 26: tolo.graph.v1.GetGraphResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
+	9,  // 27: tolo.graph.v1.GetMappingsResponse.mappings:type_name -> tolo.graph.v1.ObservationPointMapping
+	35, // 28: tolo.graph.v1.GetDisplayNamesResponse.display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
+	36, // 29: tolo.graph.v1.GetDisplayNamesResponse.route_display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
+	37, // 30: tolo.graph.v1.GetDisplayNamesResponse.route_endpoints:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
+	38, // 31: tolo.graph.v1.LocalizedText.texts:type_name -> tolo.graph.v1.LocalizedText.TextsEntry
+	29, // 32: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry.value:type_name -> tolo.graph.v1.LocalizedText
+	30, // 33: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry.value:type_name -> tolo.graph.v1.RouteEndpoints
+	8,  // 34: tolo.graph.v1.GraphAuthoringService.SaveGraph:input_type -> tolo.graph.v1.SaveGraphRequest
+	10, // 35: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:input_type -> tolo.graph.v1.MapObservationPointRequest
+	13, // 36: tolo.graph.v1.GraphAuthoringService.AddQrLocation:input_type -> tolo.graph.v1.AddQrLocationRequest
+	15, // 37: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:input_type -> tolo.graph.v1.UpdateQrLocationRequest
+	17, // 38: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:input_type -> tolo.graph.v1.RemoveQrLocationRequest
+	21, // 39: tolo.graph.v1.GraphAuthoringService.GetGraph:input_type -> tolo.graph.v1.GetGraphRequest
+	23, // 40: tolo.graph.v1.GraphAuthoringService.PublishRevision:input_type -> tolo.graph.v1.PublishRevisionRequest
+	24, // 41: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:input_type -> tolo.graph.v1.GetCurrentRevisionRequest
+	25, // 42: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:input_type -> tolo.graph.v1.GetMappingsRequest
+	27, // 43: tolo.graph.v1.GraphSupplyService.GetDisplayNames:input_type -> tolo.graph.v1.GetDisplayNamesRequest
+	31, // 44: tolo.graph.v1.GraphSupplyService.GetGatePoints:input_type -> tolo.graph.v1.GetGatePointsRequest
+	19, // 45: tolo.graph.v1.GraphSupplyService.GetQrLocations:input_type -> tolo.graph.v1.GetQrLocationsRequest
+	2,  // 46: tolo.graph.v1.GraphAuthoringService.SaveGraph:output_type -> tolo.graph.v1.GraphMeta
+	11, // 47: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:output_type -> tolo.graph.v1.MapObservationPointResponse
+	14, // 48: tolo.graph.v1.GraphAuthoringService.AddQrLocation:output_type -> tolo.graph.v1.AddQrLocationResponse
+	16, // 49: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:output_type -> tolo.graph.v1.UpdateQrLocationResponse
+	18, // 50: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:output_type -> tolo.graph.v1.RemoveQrLocationResponse
+	22, // 51: tolo.graph.v1.GraphAuthoringService.GetGraph:output_type -> tolo.graph.v1.GetGraphResponse
+	2,  // 52: tolo.graph.v1.GraphAuthoringService.PublishRevision:output_type -> tolo.graph.v1.GraphMeta
+	40, // 53: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:output_type -> tolo.kernel.v1.Graph
+	26, // 54: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:output_type -> tolo.graph.v1.GetMappingsResponse
+	28, // 55: tolo.graph.v1.GraphSupplyService.GetDisplayNames:output_type -> tolo.graph.v1.GetDisplayNamesResponse
+	32, // 56: tolo.graph.v1.GraphSupplyService.GetGatePoints:output_type -> tolo.graph.v1.GetGatePointsResponse
+	20, // 57: tolo.graph.v1.GraphSupplyService.GetQrLocations:output_type -> tolo.graph.v1.GetQrLocationsResponse
+	46, // [46:58] is the sub-list for method output_type
+	34, // [34:46] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_tolo_graph_v1_graph_proto_init() }
@@ -1940,7 +2156,7 @@ func file_tolo_graph_v1_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tolo_graph_v1_graph_proto_rawDesc), len(file_tolo_graph_v1_graph_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   34,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

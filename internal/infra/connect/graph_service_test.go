@@ -46,7 +46,17 @@ func (nopGraphRepository) FindDraftRevisionForUpdate(context.Context, string, st
 	return domain.DraftRevision{}, repository.ErrGraphNotFound
 }
 
-func (nopGraphRepository) Publish(context.Context, domain.GraphRef) error { return nil }
+func (nopGraphRepository) SaveDraftRevisionID(context.Context, domain.GraphRef, string) error {
+	return nil
+}
+
+func (nopGraphRepository) Publish(context.Context, domain.GraphRef, domain.Placements) error {
+	return nil
+}
+
+func (nopGraphRepository) FindRevision(context.Context, string, string) (domain.PublishedRevision, error) {
+	return domain.PublishedRevision{}, repository.ErrRevisionNotFound
+}
 
 func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.PublishedRevision, error) {
 	return domain.PublishedRevision{}, repository.ErrGraphNotFound
@@ -54,10 +64,6 @@ func (nopGraphRepository) FindCurrentRevision(context.Context, string) (domain.P
 
 func (nopGraphRepository) SaveObservationPointMapping(context.Context, domain.GraphRef, domain.ObservationPointMapping) error {
 	return nil
-}
-
-func (nopGraphRepository) FindObservationPointMappings(context.Context, string) ([]domain.ObservationPointMapping, error) {
-	return nil, nil
 }
 
 func (nopGraphRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
@@ -288,7 +294,7 @@ type draftGraphRepository struct {
 func (r draftGraphRepository) FindDraftKernelForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error) {
 	graph, err := domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
 
-	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}, err
+	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, DocumentHash: graph.DocumentHash()}, err
 }
 
 func TestMapObservationPoint(t *testing.T) {
@@ -306,7 +312,7 @@ func TestMapObservationPoint(t *testing.T) {
 	t.Cleanup(httpServer.Close)
 	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
 
-	mapPoint := func(mapping *graphv1.ObservationPointMapping) (*connectrpc.Response[graphv1.ObservationPointMapping], error) {
+	mapPoint := func(mapping *graphv1.ObservationPointMapping) (*connectrpc.Response[graphv1.MapObservationPointResponse], error) {
 		req := connectrpc.NewRequest(&graphv1.MapObservationPointRequest{EventId: "fedcba9876543210", Mapping: mapping})
 		req.Header().Set("Authorization", authorization)
 
@@ -326,8 +332,12 @@ func TestMapObservationPoint(t *testing.T) {
 			t.Fatalf("MapObservationPoint() error = %v", err)
 		}
 
-		if !proto.Equal(res.Msg, mapping) {
-			t.Errorf("MapObservationPoint() = %v, want %v", res.Msg, mapping)
+		if !proto.Equal(res.Msg.GetMapping(), mapping) {
+			t.Errorf("MapObservationPoint() mapping = %v, want %v", res.Msg.GetMapping(), mapping)
+		}
+
+		if meta := res.Msg.GetMeta(); meta.GetEventId() != "fedcba9876543210" || len(meta.GetDraftRevisionId()) != 16 {
+			t.Errorf("MapObservationPoint() meta = %v, want the event and its 16 character draft revision ID", meta)
 		}
 	})
 
@@ -373,11 +383,7 @@ func (r storedGraphRepository) FindByEventPublicID(context.Context, string, stri
 		return domain.Graph{}, repository.ErrGraphNotFound
 	}
 
-	return *r.saved, nil
-}
-
-func (r storedGraphRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
-	return r.placements, nil
+	return domain.RestoreGraph(r.saved.TenantPublicID(), r.saved.EventPublicID(), r.saved.DraftParts(), r.placements, "")
 }
 
 func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
@@ -474,9 +480,20 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 	})
 	saveReq.Header().Set("Authorization", authorization)
 
-	meta, err := client.SaveGraph(context.Background(), saveReq)
-	if err != nil {
+	if _, err := client.SaveGraph(context.Background(), saveReq); err != nil {
 		t.Fatalf("SaveGraph() error = %v", err)
+	}
+
+	placed, err := domain.RevisionID(saved.DocumentHash(), domain.Placements{
+		Mappings: []domain.ObservationPointMapping{
+			{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "to-hall", RoutePosition: proto.Float64(0.25)}},
+		},
+		QrLocations: []domain.QrLocation{
+			{ID: "qr-1", Name: "Main gate", Kind: "entrance", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RevisionID() error = %v", err)
 	}
 
 	res, err := getGraph()
@@ -485,7 +502,7 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 	}
 
 	want := &graphv1.GetGraphResponse{
-		Meta: meta.Msg,
+		Meta:     &graphv1.GraphMeta{EventId: "fedcba9876543210", DraftRevisionId: placed},
 		Document: &graphv1.GraphDocument{
 			Nodes:  []*graphv1.GraphNode{gate, hall, outside},
 			Groups: []*graphv1.NodeGroup{inner, outer},
@@ -511,18 +528,57 @@ type qrLocationRepository struct {
 	draftGraphRepository
 
 	placements *domain.Placements
+	published  *publishedPlacements
+}
+
+type publishedPlacements struct {
+	draftRevisionID string
+	revisionID      string
+	revisions       map[string]domain.Placements
 }
 
 func (r qrLocationRepository) FindByEventPublicID(_ context.Context, tenantPublicID, eventPublicID string) (domain.Graph, error) {
-	return domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+	return domain.RestoreGraph(tenantPublicID, eventPublicID, r.draft.Parts(), *r.placements, r.published.revisionID)
 }
 
-func (r qrLocationRepository) FindCurrentRevision(_ context.Context, eventPublicID string) (domain.PublishedRevision, error) {
-	return domain.PublishedRevision{TenantPublicID: "a1b2c3d4e5f60718", EventPublicID: eventPublicID, RevisionID: "0123456789abcdef"}, nil
+func (r qrLocationRepository) FindDraftKernelForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftKernel, error) {
+	draft, err := r.draftGraphRepository.FindDraftKernelForUpdate(ctx, tenantPublicID, eventPublicID)
+	draft.RevisionID = r.published.revisionID
+
+	return draft, err
 }
 
 func (r qrLocationRepository) FindPlacements(context.Context, domain.GraphRef) (domain.Placements, error) {
-	return *r.placements, nil
+	return domain.Placements{Mappings: slices.Clone(r.placements.Mappings), QrLocations: slices.Clone(r.placements.QrLocations)}, nil
+}
+
+func (r qrLocationRepository) SaveDraftRevisionID(_ context.Context, _ domain.GraphRef, revisionID string) error {
+	r.published.draftRevisionID = revisionID
+
+	return nil
+}
+
+func (r qrLocationRepository) FindDraftRevisionForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
+	return domain.DraftRevision{
+		GraphRef:   domain.GraphRef{TenantPublicID: tenantPublicID, EventPublicID: eventPublicID},
+		RevisionID: r.published.draftRevisionID,
+	}, nil
+}
+
+func (r qrLocationRepository) Publish(_ context.Context, _ domain.GraphRef, placements domain.Placements) error {
+	r.published.revisions[r.published.draftRevisionID] = placements
+	r.published.revisionID = r.published.draftRevisionID
+
+	return nil
+}
+
+func (r qrLocationRepository) FindRevision(_ context.Context, eventPublicID, revisionID string) (domain.PublishedRevision, error) {
+	placements, ok := r.published.revisions[revisionID]
+	if !ok {
+		return domain.PublishedRevision{}, repository.ErrRevisionNotFound
+	}
+
+	return domain.PublishedRevision{TenantPublicID: "a1b2c3d4e5f60718", EventPublicID: eventPublicID, RevisionID: revisionID, Placements: placements}, nil
 }
 
 func (r qrLocationRepository) AddQrLocation(_ context.Context, _ domain.GraphRef, location domain.QrLocation) error {
@@ -567,6 +623,7 @@ func TestQrLocations(t *testing.T) {
 		placements: &domain.Placements{
 			Mappings: []domain.ObservationPointMapping{{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindRoute, ElementID: "e1"}}},
 		},
+		published: &publishedPlacements{revisions: map[string]domain.Placements{}},
 	}, inlineTransactor{}, callerTenantEvents{})
 
 	authorization, keys := mintJWT(t, jwtgen.Config{
@@ -582,38 +639,46 @@ func TestQrLocations(t *testing.T) {
 	serviceAuthorization, serviceKeys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
 	supplyClient := newSupplyClient(t, serviceKeys, graphs)
 
-	addQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.QrLocation], error) {
+	addQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.AddQrLocationResponse], error) {
 		req := connectrpc.NewRequest(&graphv1.AddQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
 		req.Header().Set("Authorization", authorization)
 
 		return client.AddQrLocation(context.Background(), req)
 	}
-	updateQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.QrLocation], error) {
+	updateQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.UpdateQrLocationResponse], error) {
 		req := connectrpc.NewRequest(&graphv1.UpdateQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
 		req.Header().Set("Authorization", authorization)
 
 		return client.UpdateQrLocation(context.Background(), req)
 	}
-	removeQrLocation := func(qrLocationID string) error {
+	removeQrLocation := func(qrLocationID string) (*connectrpc.Response[graphv1.RemoveQrLocationResponse], error) {
 		req := connectrpc.NewRequest(&graphv1.RemoveQrLocationRequest{EventId: "fedcba9876543210", QrLocationId: qrLocationID})
 		req.Header().Set("Authorization", authorization)
 
-		_, err := client.RemoveQrLocation(context.Background(), req)
-
-		return err
+		return client.RemoveQrLocation(context.Background(), req)
 	}
-	getQrLocations := func() []*graphv1.QrLocation {
-		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210"})
-		req.Header().Set("Authorization", serviceAuthorization)
+	publish := func() string {
+		t.Helper()
 
-		res, err := supplyClient.GetQrLocations(context.Background(), req)
+		req := connectrpc.NewRequest(&graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"})
+		req.Header().Set("Authorization", authorization)
+
+		res, err := client.PublishRevision(context.Background(), req)
 		if err != nil {
-			t.Fatalf("GetQrLocations() error = %v", err)
+			t.Fatalf("PublishRevision() error = %v", err)
 		}
 
-		return res.Msg.GetQrLocations()
+		return res.Msg.GetRevisionId()
 	}
-	getGraphQrLocations := func() []*graphv1.QrLocation {
+	getQrLocations := func(revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210", RevisionId: revisionID})
+		req.Header().Set("Authorization", serviceAuthorization)
+
+		return supplyClient.GetQrLocations(context.Background(), req)
+	}
+	getGraph := func() *graphv1.GetGraphResponse {
+		t.Helper()
+
 		req := connectrpc.NewRequest(&graphv1.GetGraphRequest{EventId: "fedcba9876543210"})
 		req.Header().Set("Authorization", authorization)
 
@@ -622,17 +687,37 @@ func TestQrLocations(t *testing.T) {
 			t.Fatalf("GetGraph() error = %v", err)
 		}
 
-		return res.Msg.GetQrLocations()
+		return res.Msg
 	}
-	assertServed := func(want ...*graphv1.QrLocation) {
+	equalLocations := func(got, want []*graphv1.QrLocation) bool {
+		return slices.EqualFunc(got, want, func(a, b *graphv1.QrLocation) bool { return proto.Equal(a, b) })
+	}
+	assertDraft := func(meta *graphv1.GraphMeta, want ...*graphv1.QrLocation) {
 		t.Helper()
 
-		for name, got := range map[string][]*graphv1.QrLocation{"GetQrLocations": getQrLocations(), "GetGraph": getGraphQrLocations()} {
-			if !slices.EqualFunc(got, want, func(a, b *graphv1.QrLocation) bool { return proto.Equal(a, b) }) {
-				t.Errorf("%s() QR locations = %v, want %v", name, got, want)
-			}
+		graph := getGraph()
+		if !equalLocations(graph.GetQrLocations(), want) {
+			t.Errorf("GetGraph() QR locations = %v, want %v", graph.GetQrLocations(), want)
+		}
+
+		if !proto.Equal(graph.GetMeta(), meta) {
+			t.Errorf("GetGraph() meta = %v, want the meta of the last edit %v", graph.GetMeta(), meta)
 		}
 	}
+	assertPublished := func(revisionID string, want ...*graphv1.QrLocation) {
+		t.Helper()
+
+		res, err := getQrLocations(revisionID)
+		if err != nil {
+			t.Fatalf("GetQrLocations(%q) error = %v", revisionID, err)
+		}
+
+		if !equalLocations(res.Msg.GetQrLocations(), want) || res.Msg.GetRevisionId() != revisionID {
+			t.Errorf("GetQrLocations(%q) = %v, want revision %q with %v", revisionID, res.Msg, revisionID, want)
+		}
+	}
+
+	initial := getGraph().GetMeta()
 
 	added, err := addQrLocation(&graphv1.QrLocation{
 		Name:   "Main gate",
@@ -643,14 +728,30 @@ func TestQrLocations(t *testing.T) {
 		t.Fatalf("AddQrLocation() error = %v", err)
 	}
 
-	if added.Msg.GetQrLocationId() == "" {
+	location := added.Msg.GetQrLocation()
+	if location.GetQrLocationId() == "" {
 		t.Fatalf("AddQrLocation() = %v, want an assigned qr_location_id", added.Msg)
 	}
 
-	assertServed(added.Msg)
+	if added.Msg.GetMeta().GetDraftRevisionId() == initial.GetDraftRevisionId() {
+		t.Errorf("AddQrLocation() draft revision = %q, want it to differ from %q", added.Msg.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
+	}
+
+	assertDraft(added.Msg.GetMeta(), location)
+
+	if _, err := getQrLocations(added.Msg.GetMeta().GetDraftRevisionId()); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
+		t.Errorf("GetQrLocations() of the unpublished draft error = %v, want code %v", err, connectrpc.CodeNotFound)
+	}
+
+	first := publish()
+	if first != added.Msg.GetMeta().GetDraftRevisionId() {
+		t.Errorf("PublishRevision() revision = %q, want the draft revision %q", first, added.Msg.GetMeta().GetDraftRevisionId())
+	}
+
+	assertPublished(first, location)
 
 	moved := &graphv1.QrLocation{
-		QrLocationId: added.Msg.GetQrLocationId(),
+		QrLocationId: location.GetQrLocationId(),
 		Name:         "Hall door",
 		Kind:         "entrance",
 		Anchor:       &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "hall"}},
@@ -661,17 +762,33 @@ func TestQrLocations(t *testing.T) {
 		t.Fatalf("UpdateQrLocation() error = %v", err)
 	}
 
-	if !proto.Equal(updated.Msg, moved) {
-		t.Errorf("UpdateQrLocation() = %v, want %v", updated.Msg, moved)
+	if !proto.Equal(updated.Msg.GetQrLocation(), moved) {
+		t.Errorf("UpdateQrLocation() = %v, want %v", updated.Msg.GetQrLocation(), moved)
 	}
 
-	assertServed(moved)
+	if meta := updated.Msg.GetMeta(); meta.GetRevisionId() != first || meta.GetDraftRevisionId() == first {
+		t.Errorf("UpdateQrLocation() meta = %v, want published revision %q and a new draft revision", meta, first)
+	}
 
-	if err := removeQrLocation(added.Msg.GetQrLocationId()); err != nil {
+	assertDraft(updated.Msg.GetMeta(), moved)
+	assertPublished(first, location)
+
+	second := publish()
+	assertPublished(second, moved)
+	assertPublished(first, location)
+
+	removed, err := removeQrLocation(location.GetQrLocationId())
+	if err != nil {
 		t.Fatalf("RemoveQrLocation() error = %v", err)
 	}
 
-	assertServed()
+	if removed.Msg.GetMeta().GetDraftRevisionId() != initial.GetDraftRevisionId() {
+		t.Errorf("RemoveQrLocation() draft revision = %q, want the revision before the QR location was added %q",
+			removed.Msg.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
+	}
+
+	assertDraft(removed.Msg.GetMeta())
+	assertPublished(second, moved)
 
 	onGate := &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}}
 
@@ -729,12 +846,29 @@ func TestQrLocations(t *testing.T) {
 			},
 			connectrpc.CodeNotFound,
 		},
-		{"rejects removing an unknown QR location", func() error { return removeQrLocation("unknown") }, connectrpc.CodeNotFound},
+		{
+			"rejects removing an unknown QR location",
+			func() error {
+				_, err := removeQrLocation("unknown")
+
+				return err
+			},
+			connectrpc.CodeNotFound,
+		},
+		{
+			"rejects reading QR locations without a revision ID",
+			func() error {
+				_, err := getQrLocations("")
+
+				return err
+			},
+			connectrpc.CodeInvalidArgument,
+		},
 	} {
 		if got := connectrpc.CodeOf(tc.call()); got != tc.want {
 			t.Errorf("%s: error code = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 
-	assertServed()
+	assertDraft(removed.Msg.GetMeta())
 }

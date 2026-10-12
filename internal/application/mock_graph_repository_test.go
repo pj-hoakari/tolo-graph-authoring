@@ -130,21 +130,6 @@ func (mr *MockGraphRepositoryMockRecorder) FindDraftRevisionForUpdate(ctx, tenan
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDraftRevisionForUpdate", reflect.TypeOf((*MockGraphRepository)(nil).FindDraftRevisionForUpdate), ctx, tenantPublicID, eventPublicID)
 }
 
-// FindObservationPointMappings mocks base method.
-func (m *MockGraphRepository) FindObservationPointMappings(ctx context.Context, eventPublicID string) ([]domain.ObservationPointMapping, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindObservationPointMappings", ctx, eventPublicID)
-	ret0, _ := ret[0].([]domain.ObservationPointMapping)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindObservationPointMappings indicates an expected call of FindObservationPointMappings.
-func (mr *MockGraphRepositoryMockRecorder) FindObservationPointMappings(ctx, eventPublicID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindObservationPointMappings", reflect.TypeOf((*MockGraphRepository)(nil).FindObservationPointMappings), ctx, eventPublicID)
-}
-
 // FindPlacements mocks base method.
 func (m *MockGraphRepository) FindPlacements(ctx context.Context, graph domain.GraphRef) (domain.Placements, error) {
 	m.ctrl.T.Helper()
@@ -160,18 +145,33 @@ func (mr *MockGraphRepositoryMockRecorder) FindPlacements(ctx, graph any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindPlacements", reflect.TypeOf((*MockGraphRepository)(nil).FindPlacements), ctx, graph)
 }
 
-// Publish mocks base method.
-func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.GraphRef) error {
+// FindRevision mocks base method.
+func (m *MockGraphRepository) FindRevision(ctx context.Context, eventPublicID, revisionID string) (domain.PublishedRevision, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Publish", ctx, graph)
+	ret := m.ctrl.Call(m, "FindRevision", ctx, eventPublicID, revisionID)
+	ret0, _ := ret[0].(domain.PublishedRevision)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindRevision indicates an expected call of FindRevision.
+func (mr *MockGraphRepositoryMockRecorder) FindRevision(ctx, eventPublicID, revisionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRevision", reflect.TypeOf((*MockGraphRepository)(nil).FindRevision), ctx, eventPublicID, revisionID)
+}
+
+// Publish mocks base method.
+func (m *MockGraphRepository) Publish(ctx context.Context, graph domain.GraphRef, placements domain.Placements) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Publish", ctx, graph, placements)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph any) *gomock.Call {
+func (mr *MockGraphRepositoryMockRecorder) Publish(ctx, graph, placements any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockGraphRepository)(nil).Publish), ctx, graph)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockGraphRepository)(nil).Publish), ctx, graph, placements)
 }
 
 // RemoveQrLocation mocks base method.
@@ -200,6 +200,20 @@ func (m *MockGraphRepository) Save(ctx context.Context, graph domain.Graph) erro
 func (mr *MockGraphRepositoryMockRecorder) Save(ctx, graph any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockGraphRepository)(nil).Save), ctx, graph)
+}
+
+// SaveDraftRevisionID mocks base method.
+func (m *MockGraphRepository) SaveDraftRevisionID(ctx context.Context, graph domain.GraphRef, revisionID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveDraftRevisionID", ctx, graph, revisionID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveDraftRevisionID indicates an expected call of SaveDraftRevisionID.
+func (mr *MockGraphRepositoryMockRecorder) SaveDraftRevisionID(ctx, graph, revisionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveDraftRevisionID", reflect.TypeOf((*MockGraphRepository)(nil).SaveDraftRevisionID), ctx, graph, revisionID)
 }
 
 // SaveObservationPointMapping mocks base method.

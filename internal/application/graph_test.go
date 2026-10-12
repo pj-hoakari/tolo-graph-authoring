@@ -72,7 +72,32 @@ func draftKernel(t *testing.T, tenantPublicID string, draft *domain.GraphDocumen
 
 	graph := newGraph(t, tenantPublicID, draft)
 
-	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}
+	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, DocumentHash: graph.DocumentHash(), RevisionID: "0123456789abcdef"}
+}
+
+func restoreGraph(t *testing.T, draft *domain.GraphDocument, placements domain.Placements) domain.Graph {
+	t.Helper()
+
+	graph, err := domain.RestoreGraph(tenantID, eventID, draft.Parts(), placements, "")
+	if err != nil {
+		t.Fatalf("RestoreGraph() error = %v", err)
+	}
+
+	return graph
+}
+
+func expectDraftRevisionIDSaved(t *testing.T, graphs *MockGraphRepository, draft domain.DraftKernel, edited domain.Placements) (domain.GraphMeta, []any) {
+	t.Helper()
+
+	draftRevisionID, err := domain.RevisionID(draft.DocumentHash, edited)
+	if err != nil {
+		t.Fatalf("RevisionID() error = %v", err)
+	}
+
+	return domain.GraphMeta{EventPublicID: eventID, RevisionID: draft.RevisionID, DraftRevisionID: draftRevisionID}, []any{
+		graphs.EXPECT().FindPlacements(inTransaction, draft.GraphRef).Return(edited, nil),
+		graphs.EXPECT().SaveDraftRevisionID(inTransaction, draft.GraphRef, draftRevisionID).Return(nil),
+	}
 }
 
 func saveNewGraph(t *testing.T, draft *domain.GraphDocument) domain.Graph {
@@ -117,7 +142,6 @@ func TestSaveGraphKeepsDraftRevisionIDWhenResavingSameDocument(t *testing.T) {
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(existing, nil)
-	graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(domain.Placements{}, nil)
 	graphs.EXPECT().Save(inTransaction, gomock.Any()).Return(nil)
 
 	graph, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
@@ -199,7 +223,6 @@ func TestSaveGraphReplacesDraftOfExistingGraph(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	graphs := NewMockGraphRepository(ctrl)
 	graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(existing, nil)
-	graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(domain.Placements{}, nil)
 
 	var saved domain.Graph
 
@@ -374,15 +397,17 @@ func publish(ctx context.Context, graphs repository.GraphRepository) (domain.Dra
 	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: eventID})
 }
 
-func TestPublishRevisionPublishesDraftUnderLockInOneTransaction(t *testing.T) {
+func TestPublishRevisionPublishesDraftWithItsPlacementsUnderLockInOneTransaction(t *testing.T) {
 	t.Parallel()
 
 	draft := domain.DraftRevision{GraphRef: domain.GraphRef{TenantPublicID: tenantID, EventPublicID: eventID}, RevisionID: "0123456789abcdef"}
+	placements := domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1")}, QrLocations: []domain.QrLocation{qrLocation("n1-peer")}}
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	gomock.InOrder(
 		graphs.EXPECT().FindDraftRevisionForUpdate(inTransaction, tenantID, eventID).Return(draft, nil),
-		graphs.EXPECT().Publish(inTransaction, draft.GraphRef).Return(nil),
+		graphs.EXPECT().FindPlacements(inTransaction, draft.GraphRef).Return(placements, nil),
+		graphs.EXPECT().Publish(inTransaction, draft.GraphRef, placements).Return(nil),
 	)
 
 	got, err := publish(eventContext(tenantID, eventID), graphs)
@@ -444,7 +469,7 @@ func TestPublishRevisionRejectsUnauthorizedContext(t *testing.T) {
 	}
 }
 
-func getGraph(ctx context.Context, graphs repository.GraphRepository) (application.SavedGraph, error) {
+func getGraph(ctx context.Context, graphs repository.GraphRepository) (domain.Graph, error) {
 	archivedEvent := fakeEvents{eventID: domain.NewEvent(eventID, tenantID, true)}
 
 	return application.NewGraphService(graphs, fakeTransactor{}, archivedEvent).GetGraph(ctx, application.GetGraphInput{EventPublicID: eventID})
@@ -453,23 +478,21 @@ func getGraph(ctx context.Context, graphs repository.GraphRepository) (applicati
 func TestGetGraphServesDraftAndPlacementsOfArchivedEvent(t *testing.T) {
 	t.Parallel()
 
-	draft := newGraph(t, tenantID, document("n1"))
-	placements := domain.Placements{
+	draft := restoreGraph(t, document("n1"), domain.Placements{
 		Mappings:    []domain.ObservationPointMapping{{ObservationPointID: "cam-1", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1"}}},
 		QrLocations: []domain.QrLocation{{ID: "qr-1", Name: "Gate", Kind: "entrance", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1"}}},
-	}
+	})
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
 	graphs.EXPECT().FindByEventPublicID(gomock.Any(), tenantID, eventID).Return(draft, nil)
-	graphs.EXPECT().FindPlacements(gomock.Any(), draft.Ref()).Return(placements, nil)
 
 	got, err := getGraph(eventContext(tenantID, eventID), graphs)
 	if err != nil {
 		t.Fatalf("GetGraph() error = %v", err)
 	}
 
-	if want := (application.SavedGraph{Graph: draft, Placements: placements}); !reflect.DeepEqual(got, want) {
-		t.Errorf("GetGraph() = %#v, want %#v", got, want)
+	if !reflect.DeepEqual(got, draft) {
+		t.Errorf("GetGraph() = %#v, want %#v", got, draft)
 	}
 }
 
@@ -536,6 +559,10 @@ func publishedRevision(tenantPublicID string) domain.PublishedRevision {
 		EventPublicID:  eventID,
 		RevisionID:     "0123456789abcdef",
 		Kernel:         document("n1").Parts().Kernel,
+		Placements: domain.Placements{
+			Mappings:    []domain.ObservationPointMapping{pointMapping("n1")},
+			QrLocations: []domain.QrLocation{{ID: "qr-1", Name: "Entrance poster", Kind: "poster", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "n1-peer"}}},
+		},
 	}
 }
 
@@ -622,32 +649,37 @@ func pointMapping(nodeID string) domain.ObservationPointMapping {
 	}
 }
 
-func mapObservationPoint(ctx context.Context, graphs repository.GraphRepository, mapping domain.ObservationPointMapping) (domain.ObservationPointMapping, error) {
+func mapObservationPoint(ctx context.Context, graphs repository.GraphRepository, mapping domain.ObservationPointMapping) (application.MappedObservationPoint, error) {
 	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).MapObservationPoint(ctx, application.MapObservationPointInput{
 		EventPublicID: eventID,
 		Mapping:       mapping,
 	})
 }
 
-func TestMapObservationPointSavesMappingUnderLockInOneTransaction(t *testing.T) {
+func TestMapObservationPointSavesMappingAndNewDraftRevisionIDUnderLockInOneTransaction(t *testing.T) {
 	t.Parallel()
 
 	draft := draftKernel(t, tenantID, document("n1"))
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
-	gomock.InOrder(
+	meta, followUp := expectDraftRevisionIDSaved(t, graphs, draft, domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1")}})
+	gomock.InOrder(append([]any{
 		graphs.EXPECT().FindDraftKernelForUpdate(inTransaction, tenantID, eventID).Return(draft, nil),
 		graphs.EXPECT().FindPlacements(inTransaction, draft.GraphRef).Return(domain.Placements{}, nil),
 		graphs.EXPECT().SaveObservationPointMapping(inTransaction, draft.GraphRef, pointMapping("n1")).Return(nil),
-	)
+	}, followUp...)...)
 
 	got, err := mapObservationPoint(eventContext(tenantID, eventID), graphs, pointMapping("n1"))
 	if err != nil {
 		t.Fatalf("MapObservationPoint() error = %v", err)
 	}
 
-	if !reflect.DeepEqual(got, pointMapping("n1")) {
-		t.Errorf("MapObservationPoint() = %+v, want %+v", got, pointMapping("n1"))
+	if want := (application.MappedObservationPoint{Mapping: pointMapping("n1"), Meta: meta}); !reflect.DeepEqual(got, want) {
+		t.Errorf("MapObservationPoint() = %+v, want %+v", got, want)
+	}
+
+	if unmapped, _ := domain.RevisionID(draft.DocumentHash, domain.Placements{}); got.Meta.DraftRevisionID == unmapped {
+		t.Errorf("MapObservationPoint() DraftRevisionID = %q, want it to differ from the draft without the mapping", unmapped)
 	}
 }
 
@@ -696,43 +728,51 @@ func TestMapObservationPointRejectsUnauthorizedContext(t *testing.T) {
 	}
 }
 
-func TestGetObservationPointMappingsServesMappingsWithCurrentRevision(t *testing.T) {
+func TestGetObservationPointMappingsServesMappingsOfTheRequestedRevision(t *testing.T) {
 	t.Parallel()
 
-	graphs := NewMockGraphRepository(gomock.NewController(t))
-	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
-	graphs.EXPECT().FindObservationPointMappings(gomock.Any(), eventID).Return([]domain.ObservationPointMapping{pointMapping("n1")}, nil)
+	revision := publishedRevision(tenantID)
 
-	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(serviceContext("", ""), application.GetObservationPointMappingsInput{EventPublicID: eventID})
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindRevision(gomock.Any(), eventID, revision.RevisionID).Return(revision, nil)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(serviceContext("", ""), application.GetObservationPointMappingsInput{
+		EventPublicID: eventID,
+		RevisionID:    revision.RevisionID,
+	})
 	if err != nil {
 		t.Fatalf("GetObservationPointMappings() error = %v", err)
 	}
 
-	want := application.ObservationPointMappings{RevisionID: "0123456789abcdef", Mappings: []domain.ObservationPointMapping{pointMapping("n1")}}
+	want := application.ObservationPointMappings{RevisionID: revision.RevisionID, Mappings: revision.Placements.Mappings}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("GetObservationPointMappings() = %+v, want %+v", got, want)
 	}
 }
 
-func TestGetObservationPointMappingsRejectsUnauthorizedRequest(t *testing.T) {
+func TestGetObservationPointMappingsRejectsInvalidRequest(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		name     string
 		ctx      context.Context
+		input    application.GetObservationPointMappingsInput
 		revision domain.PublishedRevision
+		err      error
 		want     error
 	}{
-		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), publishedRevision(tenantID), tenantctx.ErrEventMismatch},
-		{"revision of another tenant", serviceContext(tenantID, eventID), publishedRevision("ffffffffffffffff"), tenantctx.ErrMismatch},
+		{"missing revision ID", serviceContext("", ""), application.GetObservationPointMappingsInput{EventPublicID: eventID}, domain.PublishedRevision{}, nil, application.ErrRevisionIDRequired},
+		{"unknown revision", serviceContext("", ""), application.GetObservationPointMappingsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, domain.PublishedRevision{}, repository.ErrRevisionNotFound, repository.ErrRevisionNotFound},
+		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), application.GetObservationPointMappingsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision(tenantID), nil, tenantctx.ErrEventMismatch},
+		{"revision of another tenant", serviceContext(tenantID, eventID), application.GetObservationPointMappingsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision("ffffffffffffffff"), nil, tenantctx.ErrMismatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			graphs := NewMockGraphRepository(gomock.NewController(t))
-			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(tc.revision, nil).MaxTimes(1)
+			graphs.EXPECT().FindRevision(gomock.Any(), eventID, tc.input.RevisionID).Return(tc.revision, tc.err).MaxTimes(1)
 
-			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(tc.ctx, application.GetObservationPointMappingsInput{EventPublicID: eventID})
+			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetObservationPointMappings(tc.ctx, tc.input)
 			if !errors.Is(err, tc.want) {
 				t.Errorf("GetObservationPointMappings() error = %v, want %v", err, tc.want)
 			}
@@ -762,8 +802,7 @@ func TestSaveGraphRejectsRemovingPlacedElementWithoutSaving(t *testing.T) {
 			t.Parallel()
 
 			graphs := NewMockGraphRepository(gomock.NewController(t))
-			graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(newGraph(t, tenantID, document("n1")), nil)
-			graphs.EXPECT().FindPlacements(inTransaction, gomock.Any()).Return(tc.placements, nil)
+			graphs.EXPECT().FindByEventPublicIDForUpdate(inTransaction, tenantID, eventID).Return(restoreGraph(t, document("n1"), tc.placements), nil)
 
 			_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).SaveGraph(eventContext(tenantID, eventID), application.SaveGraphInput{
 				EventPublicID: eventID,
@@ -790,14 +829,14 @@ func TestMapObservationPointRejectsElementWithQrLocation(t *testing.T) {
 	}
 }
 
-func addQrLocation(graphs repository.GraphRepository, location domain.QrLocation) (domain.QrLocation, error) {
+func addQrLocation(graphs repository.GraphRepository, location domain.QrLocation) (application.PlacedQrLocation, error) {
 	return application.NewGraphService(graphs, fakeTransactor{}, activeEvent).AddQrLocation(eventContext(tenantID, eventID), application.AddQrLocationInput{
 		EventPublicID: eventID,
 		QrLocation:    location,
 	})
 }
 
-func TestAddQrLocationAssignsIDAndSavesUnderLockInOneTransaction(t *testing.T) {
+func TestAddQrLocationAssignsIDAndSavesWithNewDraftRevisionIDUnderLockInOneTransaction(t *testing.T) {
 	t.Parallel()
 
 	draft := draftKernel(t, tenantID, document("n1"))
@@ -813,6 +852,10 @@ func TestAddQrLocationAssignsIDAndSavesUnderLockInOneTransaction(t *testing.T) {
 
 			return nil
 		}),
+		graphs.EXPECT().FindPlacements(inTransaction, draft.GraphRef).DoAndReturn(func(context.Context, domain.GraphRef) (domain.Placements, error) {
+			return domain.Placements{QrLocations: []domain.QrLocation{qrLocation("n1"), saved}}, nil
+		}),
+		graphs.EXPECT().SaveDraftRevisionID(inTransaction, draft.GraphRef, gomock.Any()).Return(nil),
 	)
 
 	got, err := addQrLocation(graphs, qrLocation("n1"))
@@ -820,15 +863,67 @@ func TestAddQrLocationAssignsIDAndSavesUnderLockInOneTransaction(t *testing.T) {
 		t.Fatalf("AddQrLocation() error = %v", err)
 	}
 
-	if !revisionIDPattern.MatchString(got.ID) {
-		t.Errorf("AddQrLocation() ID = %q, want 16 lowercase hex characters", got.ID)
+	if !revisionIDPattern.MatchString(got.QrLocation.ID) {
+		t.Errorf("AddQrLocation() ID = %q, want 16 lowercase hex characters", got.QrLocation.ID)
 	}
 
 	want := qrLocation("n1")
-	want.ID = got.ID
+	want.ID = got.QrLocation.ID
 
-	if got != want || saved != want {
-		t.Errorf("AddQrLocation() = %+v, saved %+v, want %+v", got, saved, want)
+	if got.QrLocation != want || saved != want {
+		t.Errorf("AddQrLocation() = %+v, saved %+v, want %+v", got.QrLocation, saved, want)
+	}
+
+	wantRevisionID, err := domain.RevisionID(draft.DocumentHash, domain.Placements{QrLocations: []domain.QrLocation{qrLocation("n1"), want}})
+	if err != nil {
+		t.Fatalf("RevisionID() error = %v", err)
+	}
+
+	if wantMeta := (domain.GraphMeta{EventPublicID: eventID, RevisionID: draft.RevisionID, DraftRevisionID: wantRevisionID}); got.Meta != wantMeta {
+		t.Errorf("AddQrLocation() Meta = %+v, want %+v", got.Meta, wantMeta)
+	}
+}
+
+func TestRemoveQrLocationSavesNewDraftRevisionIDUnderLockInOneTransaction(t *testing.T) {
+	t.Parallel()
+
+	draft := draftKernel(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	meta, followUp := expectDraftRevisionIDSaved(t, graphs, draft, domain.Placements{})
+	gomock.InOrder(append([]any{
+		graphs.EXPECT().FindDraftKernelForUpdate(inTransaction, tenantID, eventID).Return(draft, nil),
+		graphs.EXPECT().RemoveQrLocation(inTransaction, draft.GraphRef, "qr-1").Return(nil),
+	}, followUp...)...)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).RemoveQrLocation(eventContext(tenantID, eventID), application.RemoveQrLocationInput{
+		EventPublicID: eventID,
+		QrLocationID:  "qr-1",
+	})
+	if err != nil {
+		t.Fatalf("RemoveQrLocation() error = %v", err)
+	}
+
+	if got != meta {
+		t.Errorf("RemoveQrLocation() = %+v, want %+v", got, meta)
+	}
+}
+
+func TestRemoveQrLocationOfUnknownIDSavesNothing(t *testing.T) {
+	t.Parallel()
+
+	draft := draftKernel(t, tenantID, document("n1"))
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindDraftKernelForUpdate(inTransaction, tenantID, eventID).Return(draft, nil)
+	graphs.EXPECT().RemoveQrLocation(inTransaction, draft.GraphRef, "qr-1").Return(repository.ErrQrLocationNotFound)
+
+	_, err := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).RemoveQrLocation(eventContext(tenantID, eventID), application.RemoveQrLocationInput{
+		EventPublicID: eventID,
+		QrLocationID:  "qr-1",
+	})
+	if !errors.Is(err, repository.ErrQrLocationNotFound) {
+		t.Errorf("RemoveQrLocation() error = %v, want %v", err, repository.ErrQrLocationNotFound)
 	}
 }
 
@@ -862,61 +957,54 @@ func TestAddQrLocationRejectsWithoutSaving(t *testing.T) {
 	}
 }
 
-func TestGetQrLocationsServesPlacedLocationsOfPublishedGraph(t *testing.T) {
+func TestGetQrLocationsServesLocationsOfTheRequestedRevision(t *testing.T) {
 	t.Parallel()
 
-	located := qrLocation("n1")
-	located.ID = "qr-1"
+	revision := publishedRevision(tenantID)
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
-	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
-	graphs.EXPECT().FindPlacements(gomock.Any(), domain.GraphRef{TenantPublicID: tenantID, EventPublicID: eventID}).
-		Return(domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1-peer")}, QrLocations: []domain.QrLocation{located}}, nil)
+	graphs.EXPECT().FindRevision(gomock.Any(), eventID, revision.RevisionID).Return(revision, nil)
 
-	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID})
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{
+		EventPublicID: eventID,
+		RevisionID:    revision.RevisionID,
+	})
 	if err != nil {
 		t.Fatalf("GetQrLocations() error = %v", err)
 	}
 
-	if want := []domain.QrLocation{located}; !reflect.DeepEqual(got, want) {
+	if want := (application.QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}); !reflect.DeepEqual(got, want) {
 		t.Errorf("GetQrLocations() = %+v, want %+v", got, want)
 	}
 }
 
-func TestGetQrLocationsRejectsUnauthorizedRequest(t *testing.T) {
+func TestGetQrLocationsRejectsInvalidRequest(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		name     string
 		ctx      context.Context
+		input    application.GetQrLocationsInput
 		revision domain.PublishedRevision
+		err      error
 		want     error
 	}{
-		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), publishedRevision(tenantID), tenantctx.ErrEventMismatch},
-		{"revision of another tenant", serviceContext(tenantID, eventID), publishedRevision("ffffffffffffffff"), tenantctx.ErrMismatch},
+		{"missing event ID", serviceContext("", ""), application.GetQrLocationsInput{RevisionID: "0123456789abcdef"}, domain.PublishedRevision{}, nil, application.ErrEventIDRequired},
+		{"missing revision ID", serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID}, domain.PublishedRevision{}, nil, application.ErrRevisionIDRequired},
+		{"unknown revision", serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, domain.PublishedRevision{}, repository.ErrRevisionNotFound, repository.ErrRevisionNotFound},
+		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision(tenantID), nil, tenantctx.ErrEventMismatch},
+		{"revision of another tenant", serviceContext(tenantID, eventID), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision("ffffffffffffffff"), nil, tenantctx.ErrMismatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			graphs := NewMockGraphRepository(gomock.NewController(t))
-			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(tc.revision, nil).MaxTimes(1)
+			graphs.EXPECT().FindRevision(gomock.Any(), eventID, tc.input.RevisionID).Return(tc.revision, tc.err).MaxTimes(1)
 
-			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(tc.ctx, application.GetQrLocationsInput{EventPublicID: eventID})
+			_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(tc.ctx, tc.input)
 			if !errors.Is(err, tc.want) {
 				t.Errorf("GetQrLocations() error = %v, want %v", err, tc.want)
 			}
 		})
-	}
-}
-
-func TestGetQrLocationsPropagatesUnpublishedEvent(t *testing.T) {
-	t.Parallel()
-
-	graphs := NewMockGraphRepository(gomock.NewController(t))
-	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(domain.PublishedRevision{}, repository.ErrGraphNotFound)
-
-	_, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID})
-	if !errors.Is(err, repository.ErrGraphNotFound) {
-		t.Errorf("GetQrLocations() error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 }

@@ -13,28 +13,28 @@ service GraphAuthoringService {
       token_uses: "event_access"
     };
   }
-  rpc MapObservationPoint(MapObservationPointRequest) returns (ObservationPointMapping) {
+  rpc MapObservationPoint(MapObservationPointRequest) returns (MapObservationPointResponse) {
     option (authz.v1.auth_policy) = {
       level: AUTH_LEVEL_AUTHENTICATED
       required_scopes: "events.manage"
       token_uses: "event_access"
     };
   }
-  rpc AddQrLocation(AddQrLocationRequest) returns (QrLocation) {
+  rpc AddQrLocation(AddQrLocationRequest) returns (AddQrLocationResponse) {
     option (authz.v1.auth_policy) = {
       level: AUTH_LEVEL_AUTHENTICATED
       required_scopes: "events.manage"
       token_uses: "event_access"
     };
   }
-  rpc UpdateQrLocation(UpdateQrLocationRequest) returns (QrLocation) {
+  rpc UpdateQrLocation(UpdateQrLocationRequest) returns (UpdateQrLocationResponse) {
     option (authz.v1.auth_policy) = {
       level: AUTH_LEVEL_AUTHENTICATED
       required_scopes: "events.manage"
       token_uses: "event_access"
     };
   }
-  rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveResponse) {
+  rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveQrLocationResponse) {
     option (authz.v1.auth_policy) = {
       level: AUTH_LEVEL_AUTHENTICATED
       required_scopes: "events.manage"
@@ -129,8 +129,6 @@ message SaveGraphRequest {
   GraphDocument document = 2;
 }
 
-message RemoveResponse {}
-
 message ObservationPointMapping {
   string observation_point_id = 1;
   tolo.kernel.v1.GraphAnchor anchor = 2;
@@ -139,6 +137,11 @@ message ObservationPointMapping {
 message MapObservationPointRequest {
   string event_id = 1;
   ObservationPointMapping mapping = 2;
+}
+
+message MapObservationPointResponse {
+  ObservationPointMapping mapping = 1;
+  GraphMeta meta = 2;
 }
 
 message QrLocation {
@@ -153,9 +156,19 @@ message AddQrLocationRequest {
   QrLocation qr_location = 2;
 }
 
+message AddQrLocationResponse {
+  QrLocation qr_location = 1;
+  GraphMeta meta = 2;
+}
+
 message UpdateQrLocationRequest {
   string event_id = 1;
   QrLocation qr_location = 2;
+}
+
+message UpdateQrLocationResponse {
+  QrLocation qr_location = 1;
+  GraphMeta meta = 2;
 }
 
 message RemoveQrLocationRequest {
@@ -163,12 +176,18 @@ message RemoveQrLocationRequest {
   string qr_location_id = 2;
 }
 
+message RemoveQrLocationResponse {
+  GraphMeta meta = 1;
+}
+
 message GetQrLocationsRequest {
   string event_id = 1;
+  string revision_id = 2;
 }
 
 message GetQrLocationsResponse {
   repeated QrLocation qr_locations = 1;
+  string revision_id = 2;
 }
 
 message GetGraphRequest {
@@ -192,6 +211,7 @@ message GetCurrentRevisionRequest {
 
 message GetMappingsRequest {
   string event_id = 1;
+  string revision_id = 2;
 }
 
 message GetMappingsResponse {

@@ -53,28 +53,29 @@ func (s *GraphSupplyService) GetCurrentRevision(ctx context.Context, req *connec
 func (s *GraphSupplyService) GetObservationPointMappings(
 	ctx context.Context, req *connectrpc.Request[graphv1.GetMappingsRequest],
 ) (*connectrpc.Response[graphv1.GetMappingsResponse], error) {
-	result, err := s.graphService.GetObservationPointMappings(ctx, application.GetObservationPointMappingsInput{EventPublicID: req.Msg.GetEventId()})
+	result, err := s.graphService.GetObservationPointMappings(ctx, application.GetObservationPointMappingsInput{
+		EventPublicID: req.Msg.GetEventId(),
+		RevisionID:    req.Msg.GetRevisionId(),
+	})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	mappings := make([]*graphv1.ObservationPointMapping, 0, len(result.Mappings))
-	for _, mapping := range result.Mappings {
-		mappings = append(mappings, observationPointMappingToProto(mapping))
-	}
-
-	return connectrpc.NewResponse(&graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: mappings}), nil
+	return connectrpc.NewResponse(&graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: observationPointMappingsToProto(result.Mappings)}), nil
 }
 
 func (s *GraphSupplyService) GetQrLocations(
 	ctx context.Context, req *connectrpc.Request[graphv1.GetQrLocationsRequest],
 ) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
-	locations, err := s.graphService.GetQrLocations(ctx, application.GetQrLocationsInput{EventPublicID: req.Msg.GetEventId()})
+	result, err := s.graphService.GetQrLocations(ctx, application.GetQrLocationsInput{
+		EventPublicID: req.Msg.GetEventId(),
+		RevisionID:    req.Msg.GetRevisionId(),
+	})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(&graphv1.GetQrLocationsResponse{QrLocations: qrLocationsToProto(locations)}), nil
+	return connectrpc.NewResponse(&graphv1.GetQrLocationsResponse{RevisionId: result.RevisionID, QrLocations: qrLocationsToProto(result.QrLocations)}), nil
 }
 
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {

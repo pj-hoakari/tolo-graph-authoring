@@ -59,7 +59,7 @@ func TestDraftIsTheDocumentInCanonicalOrderAndSurvivesItsParts(t *testing.T) {
 		t.Fatalf("Draft() = %+v, want %+v", got, want)
 	}
 
-	restored, err := domain.RestoreGraph(graph.TenantPublicID(), graph.EventPublicID(), graph.DraftParts(), "")
+	restored, err := domain.RestoreGraph(graph.TenantPublicID(), graph.EventPublicID(), graph.DraftParts(), domain.Placements{}, "")
 	if err != nil {
 		t.Fatalf("RestoreGraph() error = %v", err)
 	}

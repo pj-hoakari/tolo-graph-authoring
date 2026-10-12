@@ -229,7 +229,7 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 		t.Fatalf("Save() error = %v", err)
 	}
 
-	if err := repo.Publish(ctx, graph.Ref()); err != nil {
+	if err := repo.Publish(ctx, graph.Ref(), graph.Placements()); err != nil {
 		t.Fatalf("Publish() error = %v", err)
 	}
 
@@ -264,6 +264,7 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *testing.T) {
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
+	published := publishGraph(t, repo, saveGraph(t, repo, singleNode("a")))
 	graph := saveGraph(t, repo, richDocument())
 
 	if _, err := testDB.Exec(`DELETE FROM graph_layouts`); err != nil {
@@ -275,7 +276,8 @@ func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *te
 		t.Fatalf("FindDraftKernelForUpdate() without a layout error = %v", err)
 	}
 
-	if want := (domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel}); !reflect.DeepEqual(got, want) {
+	want := domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, DocumentHash: graph.DocumentHash(), RevisionID: published.RevisionID()}
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindDraftKernelForUpdate() = %#v, want %#v", got, want)
 	}
 
@@ -393,7 +395,7 @@ func saveGraph(t *testing.T, repo *PostgresGraphRepository, document domain.Grap
 func publishGraph(t *testing.T, repo *PostgresGraphRepository, graph domain.Graph) domain.Graph {
 	t.Helper()
 
-	if err := repo.Publish(context.Background(), graph.Ref()); err != nil {
+	if err := repo.Publish(context.Background(), graph.Ref(), graph.Placements()); err != nil {
 		t.Fatalf("Publish() error = %v", err)
 	}
 
@@ -475,13 +477,13 @@ func TestPostgresGraphRepositoryPublishWithoutOwnedDraftWritesNothing(t *testing
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
 
-	if err := repo.Publish(ctx, newGraph(t, ownerTenant, singleNode("n1")).Ref()); !errors.Is(err, repository.ErrGraphNotFound) {
+	if err := repo.Publish(ctx, newGraph(t, ownerTenant, singleNode("n1")).Ref(), domain.Placements{}); !errors.Is(err, repository.ErrGraphNotFound) {
 		t.Errorf("Publish() without a draft error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 
 	saveGraph(t, repo, singleNode("n1"))
 
-	if err := repo.Publish(ctx, newGraph(t, otherTenant, singleNode("n1")).Ref()); !errors.Is(err, repository.ErrGraphNotFound) {
+	if err := repo.Publish(ctx, newGraph(t, otherTenant, singleNode("n1")).Ref(), domain.Placements{}); !errors.Is(err, repository.ErrGraphNotFound) {
 		t.Errorf("Publish() by another tenant error = %v, want %v", err, repository.ErrGraphNotFound)
 	}
 
@@ -559,5 +561,77 @@ func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindCurrentRevision() = %+v, want %+v", got, want)
+	}
+}
+
+func TestPostgresGraphRepositoryFindRevisionServesThePlacementsPublishedWithIt(t *testing.T) {
+	repo, service, graph := placedGraph(t)
+	ctx := editingContext()
+
+	added, err := service.AddQrLocation(ctx, application.AddQrLocationInput{
+		EventPublicID: graphEvent,
+		QrLocation:    domain.QrLocation{Name: "Gate poster", Kind: "poster", Anchor: domain.GraphAnchor{Kind: domain.AnchorKindPoint, ElementID: "gate"}},
+	})
+	if err != nil {
+		t.Fatalf("AddQrLocation() error = %v", err)
+	}
+
+	editing, err := repo.FindByEventPublicID(context.Background(), ownerTenant, graphEvent)
+	if err != nil {
+		t.Fatalf("FindByEventPublicID() error = %v", err)
+	}
+
+	if editing.DraftRevisionID() != added.Meta.DraftRevisionID || editing.DraftRevisionID() == graph.DraftRevisionID() {
+		t.Errorf("FindByEventPublicID() DraftRevisionID() = %q, want the revision saved by AddQrLocation() %q", editing.DraftRevisionID(), added.Meta.DraftRevisionID)
+	}
+
+	first, err := service.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: graphEvent})
+	if err != nil {
+		t.Fatalf("PublishRevision() error = %v", err)
+	}
+
+	firstPlacements := domain.Placements{Mappings: []domain.ObservationPointMapping{}, QrLocations: []domain.QrLocation{added.QrLocation}}
+
+	if _, err := service.MapObservationPoint(ctx, application.MapObservationPointInput{EventPublicID: graphEvent, Mapping: routeMapping("cam-1", "e1", 0.5)}); err != nil {
+		t.Fatalf("MapObservationPoint() error = %v", err)
+	}
+
+	if _, err := service.RemoveQrLocation(ctx, application.RemoveQrLocationInput{EventPublicID: graphEvent, QrLocationID: added.QrLocation.ID}); err != nil {
+		t.Fatalf("RemoveQrLocation() error = %v", err)
+	}
+
+	assertRevision := func(revisionID string, want domain.Placements) {
+		t.Helper()
+
+		got, err := repo.FindRevision(context.Background(), graphEvent, revisionID)
+		if err != nil {
+			t.Fatalf("FindRevision(%q) error = %v", revisionID, err)
+		}
+
+		if got.RevisionID != revisionID || got.TenantPublicID != ownerTenant || !reflect.DeepEqual(got.Kernel, graph.DraftParts().Kernel) {
+			t.Errorf("FindRevision(%q) = %+v, want that revision of the saved kernel", revisionID, got)
+		}
+
+		if !reflect.DeepEqual(got.Placements, want) {
+			t.Errorf("FindRevision(%q) placements = %+v, want %+v", revisionID, got.Placements, want)
+		}
+	}
+
+	assertRevision(first.RevisionID, firstPlacements)
+
+	second, err := service.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: graphEvent})
+	if err != nil {
+		t.Fatalf("PublishRevision() error = %v", err)
+	}
+
+	assertRevision(second.RevisionID, domain.Placements{Mappings: []domain.ObservationPointMapping{routeMapping("cam-1", "e1", 0.5)}, QrLocations: []domain.QrLocation{}})
+	assertRevision(first.RevisionID, firstPlacements)
+
+	if _, err := repo.FindRevision(context.Background(), graphEvent, graph.DraftRevisionID()); !errors.Is(err, repository.ErrRevisionNotFound) {
+		t.Errorf("FindRevision() of a never published draft error = %v, want %v", err, repository.ErrRevisionNotFound)
+	}
+
+	if _, err := repo.FindRevision(context.Background(), "0123456789abcdef", first.RevisionID); !errors.Is(err, repository.ErrRevisionNotFound) {
+		t.Errorf("FindRevision() of another event error = %v, want %v", err, repository.ErrRevisionNotFound)
 	}
 }
