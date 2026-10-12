@@ -27,20 +27,22 @@ package: `tolo.graph.v1`
 | RPC | 説明（ユビキタス言語） | 認可 | 関連ドメインイベント |
 |---|---|---|---|
 | SaveGraph | グラフ文書を一括登録する。初回の登録がイベントへのグラフの新設（グラフはイベント単位）。保存は下書き（カーネルとラベル）とレイアウトを上書きし、公開までは下流に影響しない | `event_access` + events.manage | GraphCreated（初回）／GraphSaved |
-| MapObservationPoint | 観測点をグラフ要素（ポイント／ルート）に対応づける。本コンテキストが紐づけを所有。同一グラフ要素へカメラ方式と QR 方式を併存させない（QR 設置箇所が参照する要素への紐づけは `failed_precondition`） | 同上 | ObservationPointMappedToGraph |
-| AddQrLocation／UpdateQrLocation／RemoveQrLocation | QR 設置箇所（名称・種類・グラフ要素参照）の追加・編集・削除。掲示計画は会場設計の一部として本コンテキストが所有（URL の発行は Guest Service）。カメラ方式の観測点が紐づく要素への追加・付け替えは `failed_precondition` | 同上 | QrLocationChanged |
-| GetGraph | 保存済みのグラフ文書・観測点紐づけ・QR 設置箇所・版情報を返す。管理 UI の表示とエディタへの復元用。アーカイブ中のイベントでも読める。グラフを保存していないイベントは `not_found` | `event_access` + events.read | （参照のみ） |
-| PublishRevision | 保存済みのグラフ文書をグラフ版として公開し、下流が消費可能にする | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
+| MapObservationPoint | 観測点をグラフ要素（ポイント／ルート）に対応づける。本コンテキストが紐づけを所有。同一グラフ要素へカメラ方式と QR 方式を併存させない（QR 設置箇所が参照する要素への紐づけは `failed_precondition`）。紐づけは下書きの配置（観測点紐づけ・QR 設置箇所）を書き換え、公開までは下流に影響しない。応答は紐づけと更新後の `GraphMeta` を返す | 同上 | ObservationPointMappedToGraph |
+| AddQrLocation／UpdateQrLocation／RemoveQrLocation | QR 設置箇所（名称・種類・グラフ要素参照）の追加・編集・削除。掲示計画は会場設計の一部として本コンテキストが所有（URL の発行は Guest Service）。カメラ方式の観測点が紐づく要素への追加・付け替えは `failed_precondition`。下書きの配置を書き換え、公開までは下流に影響しない。応答は更新後の `GraphMeta` を含む | 同上 | QrLocationChanged |
+| GetGraph | 保存済みのグラフ文書と、下書きの観測点紐づけ・QR 設置箇所、版情報を返す。管理 UI の表示とエディタへの復元用。アーカイブ中のイベントでも読める。グラフを保存していないイベントは `not_found` | `event_access` + events.read | （参照のみ） |
+| PublishRevision | 保存済みのグラフ文書と下書きの配置をグラフ版として公開し、下流が消費可能にする | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
 
 ### 供給（下流向け）
 
 | RPC | 説明（ユビキタス言語） | 呼び出し元 | 認可 | 関連ドメインイベント |
 |---|---|---|---|---|
 | GetCurrentRevision | 現在のグラフ版を共有カーネルの Graph として返す | 観測 | サービス間（token_use=service） | （参照のみ） |
-| GetObservationPointMappings | 観測点とグラフ要素の対応を返す（観測がスコア算出時に使用） | 観測 | サービス間（token_use=service） | （参照のみ） |
+| GetObservationPointMappings | 指定した版の観測点とグラフ要素の対応を返す（観測がスコア算出時に使用）。観測は GetCurrentRevision で得た `revision_id` を指定し、グラフと紐づけを同じ版からそろえる | 観測 | サービス間（token_use=service） | （参照のみ） |
 | GetDisplayNames | ポイントのラベル（言語コード別）・ルート表示名・ルート端点を返す。ゲスト向け表示の組み立てに使用 | Guest Service | サービス間（token_use=service） | （参照のみ） |
 | GetGatePoints | 設計時にゲート指定されたポイントの一覧を返す。観測が GateState の初期構築に使用 | 観測 | サービス間（token_use=service） | （参照のみ） |
-| GetQrLocations | QR 設置箇所の一覧（名称・種類・グラフ要素参照）を返す。Guest Service が発行 URL の生成に使用し、観測が QR 方式の観測点として読み替える | Guest Service、観測 | サービス間（token_use=service） | （参照のみ） |
+| GetQrLocations | 指定した版の QR 設置箇所の一覧（名称・種類・グラフ要素参照）を返す。Guest Service が発行 URL の生成に使用し、観測が QR 方式の観測点として読み替える | Guest Service、観測 | サービス間（token_use=service） | （参照のみ） |
+
+GetObservationPointMappings と GetQrLocations は `revision_id` を必須で受け取り、その版の配置を返す。公開済みの版であれば、現在の版でなくても返す。公開済みの版にない `revision_id` は `not_found`、`revision_id` の未指定は `invalid_argument` とする。
 
 ## グラフ文書（GraphDocument）の構造
 
@@ -105,10 +107,10 @@ import "tolo/kernel/v1/kernel.proto";
 
 service GraphAuthoringService {
   rpc SaveGraph(SaveGraphRequest) returns (GraphMeta);
-  rpc MapObservationPoint(MapObservationPointRequest) returns (ObservationPointMapping);
-  rpc AddQrLocation(AddQrLocationRequest) returns (QrLocation);
-  rpc UpdateQrLocation(UpdateQrLocationRequest) returns (QrLocation);
-  rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveResponse);
+  rpc MapObservationPoint(MapObservationPointRequest) returns (MapObservationPointResponse);
+  rpc AddQrLocation(AddQrLocationRequest) returns (AddQrLocationResponse);
+  rpc UpdateQrLocation(UpdateQrLocationRequest) returns (UpdateQrLocationResponse);
+  rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveQrLocationResponse);
   rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
   rpc PublishRevision(PublishRevisionRequest) returns (GraphMeta);
 }
@@ -126,7 +128,7 @@ service GraphSupplyService {
 message GraphMeta {
   string event_id = 1;
   string revision_id = 2;        // 公開済みの現在版
-  string draft_revision_id = 3;  // 編集中の版（あれば）
+  string draft_revision_id = 3;  // 下書きの版（文書と配置から導出。配置の編集でも変わる）
 }
 
 // グラフ文書: エディタで完成させたグラフの文書（構造・多言語ラベル・レイアウト）
@@ -194,7 +196,6 @@ message SaveGraphRequest {
   string event_id = 1;        // 存在しないイベント ID へは作らない（テナントで参照整合）
   GraphDocument document = 2;
 }
-message RemoveResponse {}
 
 // 観測点グラフ紐づけ（WebRTC での映像確認手順は対象外）
 // 同一のポイント／ルートに複数の観測点を紐づけられる。スコア算出は要素単位（anchor.route_position は表示用途のみ）
@@ -205,6 +206,10 @@ message ObservationPointMapping {
 message MapObservationPointRequest {
   string event_id = 1;
   ObservationPointMapping mapping = 2;  // 存在するポイント／ルートに対してのみ（外部ポイントとその接続は不可）
+}
+message MapObservationPointResponse {
+  ObservationPointMapping mapping = 1;
+  GraphMeta meta = 2;  // 紐づけ後の下書きの版を含む
 }
 
 // QR 設置箇所: 掲示計画（会場設計の一部）として本コンテキストが所有。URL の発行は Guest Service
@@ -219,19 +224,32 @@ message AddQrLocationRequest {
   string event_id = 1;
   QrLocation qr_location = 2;  // qr_location_id は未指定（サーバ採番）
 }
+message AddQrLocationResponse {
+  QrLocation qr_location = 1;
+  GraphMeta meta = 2;  // 追加後の下書きの版を含む
+}
 message UpdateQrLocationRequest {
   string event_id = 1;
   QrLocation qr_location = 2;
+}
+message UpdateQrLocationResponse {
+  QrLocation qr_location = 1;
+  GraphMeta meta = 2;  // 編集後の下書きの版を含む
 }
 message RemoveQrLocationRequest {
   string event_id = 1;
   string qr_location_id = 2;
 }
+message RemoveQrLocationResponse {
+  GraphMeta meta = 1;  // 削除後の下書きの版を含む
+}
 message GetQrLocationsRequest {
   string event_id = 1;
+  string revision_id = 2;  // 必須。公開済みの版（現在の版でなくてよい）
 }
 message GetQrLocationsResponse {
   repeated QrLocation qr_locations = 1;
+  string revision_id = 2;
 }
 
 // 管理 UI の表示とエディタへの復元用（下流供給は GetCurrentRevision＝kernel 型）
@@ -241,8 +259,8 @@ message GetGraphRequest {
 message GetGraphResponse {
   GraphMeta meta = 1;
   GraphDocument document = 2;  // 保存した文書と構造的に同一の文書を返す（要素は種類ごとに ID 順）
-  repeated ObservationPointMapping observation_point_mappings = 3;
-  repeated QrLocation qr_locations = 4;
+  repeated ObservationPointMapping observation_point_mappings = 3;  // 下書きの紐づけ
+  repeated QrLocation qr_locations = 4;                              // 下書きの QR 設置箇所
 }
 
 message PublishRevisionRequest {
@@ -254,6 +272,7 @@ message GetCurrentRevisionRequest {
 }
 message GetMappingsRequest {
   string event_id = 1;
+  string revision_id = 2;  // 必須。公開済みの版（現在の版でなくてよい）
 }
 message GetMappingsResponse {
   string revision_id = 1;
@@ -291,7 +310,7 @@ message GetGatePointsResponse {
 
 ## 補足
 
-- 保存は下書きの上書きとして累積し、`PublishRevision` までは下流に影響しない
+- 保存と配置の編集は下書きの上書きとして累積し、`PublishRevision` までは下流に影響しない
 - 参照整合は `failed_precondition`: 存在しないイベント ID へのグラフ新設（初回保存）、存在しないポイント／ルートへの紐づけ（観測点・QR 設置箇所とも。外部ポイントと、外部ポイントを端点に持つエッジはポイント／ルートではないため、紐づけ先にできない）、既存の観測点紐づけ・QR 設置箇所が参照するポイント／ルートを文書から消す保存（先に紐づけ側を削除してから保存し直す）
   同一のポイント／ルートへカメラ方式の観測点紐づけと QR 設置箇所を併存させる操作も `failed_precondition` とする。同じ来場者をカメラと QR で二重に数えないためで、MapObservationPoint と AddQrLocation／UpdateQrLocation の双方で検証する
 - QR 設置箇所（掲示計画）の正本は本コンテキスト。管理 UI がグラフと同じ画面で管理でき、Guest Service は GetQrLocations で pull して発行 URL（設置箇所×種類）を生成する
@@ -303,14 +322,16 @@ message GetGatePointsResponse {
 - 保存した文書は3つの部分に分けて持つ
   カーネルは入退出点の向きを含むポイントとルート、ラベルはポイント・グループ・ルートの表示名である
   レイアウトは座標と寸法、グループへの所属、グループの親と最小寸法、外部ポイント（表示名と座標を含む）、外部ポイントを端点に持つエッジ（向きと表示名を含む）である
-- グラフ版はカーネルとラベルのスナップショット
-  版は、外部へ出る可能性があり、ある程度の頻度で変わる内容を管理する。レイアウトは管理 UI の表示にだけ使い、外部へ出ないため版に含めない
-  PublishRevision でカーネルとラベルの全体を1版として公開し、下流は常に整合した現在版を消費する。公開済み版の内容と導出結果は変更しない。差分供給は将来の最適化
+- グラフ版はカーネル・ラベル・配置（観測点紐づけ・QR 設置箇所）のスナップショット
+  版は、外部へ出る可能性があり、ある程度の頻度で変わる内容を管理する。配置は観測と Guest Service へ供給するため版に含める。レイアウトは管理 UI の表示にだけ使い、外部へ出ないため版に含めない
+  PublishRevision で、下書きの文書（カーネルとラベル）と配置を同じトランザクションで写し、その全体を1版として公開する。下流は常に整合した現在版を消費する。公開済み版の内容（配置を含む）と導出結果は変更しない。差分供給は将来の最適化
+  供給系の配置は公開済みの版から返し、`GetGraph` は下書きの配置を返す
   レイアウトはイベントのグラフごとに版の外へ1つだけ保存し、保存のたびに上書きする。版管理せず、下流へも供給しない
-- 版の同一性はカーネルとラベルの内容で判定する
-  `draft_revision_id` は、カーネルとラベルの要素を ID 順に並べて直列化した内容の SHA-256 の先頭 8 バイトを hex で表したものである。同じ内容は同じ ID になり、要素の順序は ID に影響しない。`SaveGraph` は同じ文書の再保存に対して同じ `GraphMeta` を返す（冪等）
+- 版の同一性はカーネル・ラベル・配置の内容で判定する。配置は識別子まで含めて比べるため、QR 設置箇所を消して同じ内容で足し直すと ID が変わる（`qr_location_id` はサーバがランダムに採番する）
+  `draft_revision_id` は2段で求める。まず、カーネルとラベルの要素を ID 順に並べて直列化した内容のハッシュ（文書のハッシュ）を求め、下書きとともに保存する。次に、文書のハッシュと、配置を ID 順に並べて直列化した内容の SHA-256 を求め、その先頭 8 バイトを hex で表したものを ID とする。同じ内容は同じ ID になり、要素と配置の順序は ID に影響しない。`SaveGraph` は同じ文書の再保存に対して同じ `GraphMeta` を返す（冪等）
+  配置の編集は、保存してある文書のハッシュと編集後の配置から `draft_revision_id` を求め直し、応答の `GraphMeta` で返す
   レイアウトだけの変更は ID を変えない。要素の移動・寸法の変更・入れ子の付け替え、外部ポイントとのエッジを向きの同じ別の外部ポイントへ付け替えること、そのエッジの表示名の変更がこれに当たる。外部ポイントとの接続の追加・削除と向きの変更は、入退出点の向きが変わるため ID を変える
-  `PublishRevision` は公開時点の `draft_revision_id` をそのまま `revision_id` とする。`draft_revision_id` と `revision_id` が異なるとき、公開版に対して未公開の編集がある（編集中）とみなす。編集後に公開版と同じ内容へ戻した文書と、レイアウトだけを変えた文書は編集中とみなさない
+  `PublishRevision` は公開時点の `draft_revision_id` をそのまま `revision_id` とする。`draft_revision_id` と `revision_id` が異なるとき、公開版に対して未公開の編集がある（編集中）とみなす。配置だけを変えた下書きも編集中とみなす。編集後に公開版と同じ内容へ戻した下書きと、レイアウトだけを変えた下書きは編集中とみなさない
   同時編集の検出（後勝ちの防止）は本判定の対象外とする
 - イベントアーカイブ時はグラフ・紐づけを保持し、読み取り専用にする
   編集系 RPC は `failed_precondition`、供給系 RPC（GetCurrentRevision 等）と GetGraph は継続。復元（EventUnarchived）で編集を再開できる
