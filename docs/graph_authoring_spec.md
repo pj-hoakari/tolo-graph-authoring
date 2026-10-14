@@ -44,6 +44,8 @@ package: `tolo.graph.v1`
 
 GetObservationPointMappings と GetQrLocations は `revision_id` を必須で受け取り、その版の配置を返す。公開済みの版であれば、現在の版でなくても返す。公開済みの版にない `revision_id` は `not_found`、`revision_id` の未指定は `invalid_argument` とする。
 
+GetQrLocations は `tenant_id` も必須で受け取る。本サービスは、グラフの保存時に Tenant Management の `GetEvent` で確かめたイベントの所属テナントと比べ、一致しなければ `permission_denied` を返す。`tenant_id` の未指定は `invalid_argument` とする。呼び出し元はマシン起点の `token_use=service` でテナントのクレームを持たないため、受け取った `tenant_id` を本サービスが持つ所属で確かめる。
+
 ## グラフ文書（GraphDocument）の構造
 
 グラフ文書はノード（ポイントになる要素と外部ポイント）・グループ（フロア等のレイアウト用まとまり）・エッジ（ルートになる要素と外部ポイントとの接続）を持つ。定義は「参考 proto 定義」の `GraphDocument` が正本で、ここでは意味だけを述べる。
@@ -246,6 +248,7 @@ message RemoveQrLocationResponse {
 message GetQrLocationsRequest {
   string event_id = 1;
   string revision_id = 2;  // 必須。公開済みの版（現在の版でなくてよい）
+  string tenant_id = 3;    // 必須。イベントの所属テナントと一致しなければ permission_denied
 }
 message GetQrLocationsResponse {
   repeated QrLocation qr_locations = 1;
