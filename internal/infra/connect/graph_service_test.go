@@ -670,11 +670,14 @@ func TestQrLocations(t *testing.T) {
 
 		return res.Msg.GetRevisionId()
 	}
-	getQrLocations := func(revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210", RevisionId: revisionID})
+	getQrLocationsOf := func(tenantID, revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210", RevisionId: revisionID, TenantId: tenantID})
 		req.Header().Set("Authorization", serviceAuthorization)
 
 		return supplyClient.GetQrLocations(context.Background(), req)
+	}
+	getQrLocations := func(revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+		return getQrLocationsOf("a1b2c3d4e5f60718", revisionID)
 	}
 	getGraph := func() *graphv1.GetGraphResponse {
 		t.Helper()
@@ -777,6 +780,10 @@ func TestQrLocations(t *testing.T) {
 	assertPublished(second, moved)
 	assertPublished(first, location)
 
+	if res, err := getQrLocationsOf("", second); err != nil || !equalLocations(res.Msg.GetQrLocations(), []*graphv1.QrLocation{moved}) {
+		t.Errorf("GetQrLocations(%q) without tenant_id = %v, %v, want %v", second, res, err, moved)
+	}
+
 	removed, err := removeQrLocation(location.GetQrLocationId())
 	if err != nil {
 		t.Fatalf("RemoveQrLocation() error = %v", err)
@@ -863,6 +870,15 @@ func TestQrLocations(t *testing.T) {
 				return err
 			},
 			connectrpc.CodeInvalidArgument,
+		},
+		{
+			"rejects reading QR locations of another tenant",
+			func() error {
+				_, err := getQrLocationsOf("ffffffffffffffff", second)
+
+				return err
+			},
+			connectrpc.CodePermissionDenied,
 		},
 	} {
 		if got := connectrpc.CodeOf(tc.call()); got != tc.want {

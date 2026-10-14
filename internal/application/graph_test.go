@@ -960,21 +960,34 @@ func TestAddQrLocationRejectsWithoutSaving(t *testing.T) {
 func TestGetQrLocationsServesLocationsOfTheRequestedRevision(t *testing.T) {
 	t.Parallel()
 
-	revision := publishedRevision(tenantID)
+	for _, tc := range []struct {
+		name           string
+		tenantPublicID string
+	}{
+		{"requested tenant matching the revision's", tenantID},
+		{"no requested tenant", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	graphs := NewMockGraphRepository(gomock.NewController(t))
-	graphs.EXPECT().FindRevision(gomock.Any(), eventID, revision.RevisionID).Return(revision, nil)
+			revision := publishedRevision(tenantID)
 
-	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{
-		EventPublicID: eventID,
-		RevisionID:    revision.RevisionID,
-	})
-	if err != nil {
-		t.Fatalf("GetQrLocations() error = %v", err)
-	}
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindRevision(gomock.Any(), eventID, revision.RevisionID).Return(revision, nil)
 
-	if want := (application.QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}); !reflect.DeepEqual(got, want) {
-		t.Errorf("GetQrLocations() = %+v, want %+v", got, want)
+			got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetQrLocations(serviceContext("", ""), application.GetQrLocationsInput{
+				EventPublicID:  eventID,
+				RevisionID:     revision.RevisionID,
+				TenantPublicID: tc.tenantPublicID,
+			})
+			if err != nil {
+				t.Fatalf("GetQrLocations() error = %v", err)
+			}
+
+			if want := (application.QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}); !reflect.DeepEqual(got, want) {
+				t.Errorf("GetQrLocations() = %+v, want %+v", got, want)
+			}
+		})
 	}
 }
 
@@ -994,6 +1007,8 @@ func TestGetQrLocationsRejectsInvalidRequest(t *testing.T) {
 		{"unknown revision", serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, domain.PublishedRevision{}, repository.ErrRevisionNotFound, repository.ErrRevisionNotFound},
 		{"user-origin token of another event", serviceContext(tenantID, "0123456789abcdef"), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision(tenantID), nil, tenantctx.ErrEventMismatch},
 		{"revision of another tenant", serviceContext(tenantID, eventID), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef"}, publishedRevision("ffffffffffffffff"), nil, tenantctx.ErrMismatch},
+		{"requested tenant other than the revision's on a machine-origin call", serviceContext("", ""), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef", TenantPublicID: "ffffffffffffffff"}, publishedRevision(tenantID), nil, tenantctx.ErrMismatch},
+		{"requested tenant other than the revision's under a matching claim", serviceContext(tenantID, eventID), application.GetQrLocationsInput{EventPublicID: eventID, RevisionID: "0123456789abcdef", TenantPublicID: "ffffffffffffffff"}, publishedRevision(tenantID), nil, tenantctx.ErrMismatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

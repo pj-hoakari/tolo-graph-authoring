@@ -1135,6 +1135,7 @@ type GetQrLocationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1179,6 +1180,13 @@ func (x *GetQrLocationsRequest) GetEventId() string {
 func (x *GetQrLocationsRequest) GetRevisionId() string {
 	if x != nil {
 		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *GetQrLocationsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
 	}
 	return ""
 }
@@ -1932,11 +1940,12 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
 	"\x0eqr_location_id\x18\x02 \x01(\tR\fqrLocationId\"H\n" +
 	"\x18RemoveQrLocationResponse\x12,\n" +
-	"\x04meta\x18\x01 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"S\n" +
+	"\x04meta\x18\x01 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\"p\n" +
 	"\x15GetQrLocationsRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
 	"\vrevision_id\x18\x02 \x01(\tR\n" +
-	"revisionId\"w\n" +
+	"revisionId\x12\x1b\n" +
+	"\ttenant_id\x18\x03 \x01(\tR\btenantId\"w\n" +
 	"\x16GetQrLocationsResponse\x12<\n" +
 	"\fqr_locations\x18\x01 \x03(\v2\x19.tolo.graph.v1.QrLocationR\vqrLocations\x12\x1f\n" +
 	"\vrevision_id\x18\x02 \x01(\tR\n" +
