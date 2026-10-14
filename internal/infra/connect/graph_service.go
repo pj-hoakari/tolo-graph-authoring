@@ -170,7 +170,8 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 	switch {
 	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired),
 		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping),
-		errors.Is(err, domain.ErrInvalidQrLocation), errors.Is(err, application.ErrRevisionIDRequired):
+		errors.Is(err, domain.ErrInvalidQrLocation), errors.Is(err, application.ErrRevisionIDRequired),
+		errors.Is(err, application.ErrTenantIDRequired):
 		return connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
 	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
