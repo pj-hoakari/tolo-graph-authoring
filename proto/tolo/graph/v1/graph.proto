@@ -183,6 +183,7 @@ message RemoveQrLocationResponse {
 message GetQrLocationsRequest {
   string event_id = 1;
   string revision_id = 2;
+  string tenant_id = 3;
 }
 
 message GetQrLocationsResponse {

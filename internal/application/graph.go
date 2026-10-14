@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
@@ -106,8 +107,9 @@ type RemoveQrLocationUseCase interface {
 }
 
 type GetQrLocationsInput struct {
-	EventPublicID string
-	RevisionID    string
+	EventPublicID  string
+	RevisionID     string
+	TenantPublicID string
 }
 
 type QrLocations struct {
@@ -508,6 +510,10 @@ func (s *GraphService) GetQrLocations(ctx context.Context, input GetQrLocationsI
 	revision, err := s.revision(ctx, input.EventPublicID, input.RevisionID)
 	if err != nil {
 		return QrLocations{}, err
+	}
+
+	if input.TenantPublicID != "" && input.TenantPublicID != revision.TenantPublicID {
+		return QrLocations{}, fmt.Errorf("tenant_id of the request: %w", tenantctx.ErrMismatch)
 	}
 
 	return QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}, nil

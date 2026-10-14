@@ -68,8 +68,9 @@ func (s *GraphSupplyService) GetQrLocations(
 	ctx context.Context, req *connectrpc.Request[graphv1.GetQrLocationsRequest],
 ) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
 	result, err := s.graphService.GetQrLocations(ctx, application.GetQrLocationsInput{
-		EventPublicID: req.Msg.GetEventId(),
-		RevisionID:    req.Msg.GetRevisionId(),
+		EventPublicID:  req.Msg.GetEventId(),
+		RevisionID:     req.Msg.GetRevisionId(),
+		TenantPublicID: req.Msg.GetTenantId(),
 	})
 	if err != nil {
 		return nil, graphError(ctx, err)
