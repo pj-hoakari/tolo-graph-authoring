@@ -8,12 +8,12 @@ import (
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
-	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
+	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 )
 
 var nodeTypes = map[graphv1.NodeType]domain.NodeType{

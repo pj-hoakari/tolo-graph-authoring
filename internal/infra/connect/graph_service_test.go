@@ -502,7 +502,7 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 	}
 
 	want := &graphv1.GetGraphResponse{
-		Meta:     &graphv1.GraphMeta{EventId: "fedcba9876543210", DraftRevisionId: placed},
+		Meta: &graphv1.GraphMeta{EventId: "fedcba9876543210", DraftRevisionId: placed},
 		Document: &graphv1.GraphDocument{
 			Nodes:  []*graphv1.GraphNode{gate, hall, outside},
 			Groups: []*graphv1.NodeGroup{inner, outer},

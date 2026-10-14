@@ -206,7 +206,10 @@ func TestDraftRevisionIDIgnoresLayout(t *testing.T) {
 	}{
 		{"node moved", func(d *domain.GraphDocument) { d.Nodes[0].Layout = domain.Layout{X: 999, Y: 999} }},
 		{"node regrouped", func(d *domain.GraphDocument) { d.Nodes[4].GroupID = "hall" }},
-		{"group resized", func(d *domain.GraphDocument) { d.Groups[1].Layout.Width = ptr(500.0); d.Groups[1].MinWidth = ptr(400.0) }},
+		{"group resized", func(d *domain.GraphDocument) {
+			d.Groups[1].Layout.Width = ptr(500.0)
+			d.Groups[1].MinWidth = ptr(400.0)
+		}},
 		{"group unnested", func(d *domain.GraphDocument) { d.Groups[0].ParentGroupID = "" }},
 		{"external moved and renamed", func(d *domain.GraphDocument) {
 			d.Nodes[1].Layout = domain.Layout{X: 1, Y: 1}
