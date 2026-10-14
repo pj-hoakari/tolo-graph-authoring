@@ -19,6 +19,7 @@ var (
 	ErrEventIDRequired       = errors.New("event_id is required")
 	ErrGraphDocumentRequired = errors.New("document is required")
 	ErrRevisionIDRequired    = errors.New("revision_id is required")
+	ErrTenantIDRequired      = errors.New("tenant_id is required")
 )
 
 type SaveGraphInput struct {
@@ -512,7 +513,11 @@ func (s *GraphService) GetQrLocations(ctx context.Context, input GetQrLocationsI
 		return QrLocations{}, err
 	}
 
-	if input.TenantPublicID != "" && input.TenantPublicID != revision.TenantPublicID {
+	if input.TenantPublicID == "" {
+		return QrLocations{}, ErrTenantIDRequired
+	}
+
+	if input.TenantPublicID != revision.TenantPublicID {
 		return QrLocations{}, fmt.Errorf("tenant_id of the request: %w", tenantctx.ErrMismatch)
 	}
 

@@ -780,8 +780,8 @@ func TestQrLocations(t *testing.T) {
 	assertPublished(second, moved)
 	assertPublished(first, location)
 
-	if res, err := getQrLocationsOf("", second); err != nil || !equalLocations(res.Msg.GetQrLocations(), []*graphv1.QrLocation{moved}) {
-		t.Errorf("GetQrLocations(%q) without tenant_id = %v, %v, want %v", second, res, err, moved)
+	if _, err := getQrLocationsOf("", second); connectrpc.CodeOf(err) != connectrpc.CodeInvalidArgument {
+		t.Errorf("GetQrLocations(%q) without tenant_id error = %v, want invalid_argument", second, err)
 	}
 
 	removed, err := removeQrLocation(location.GetQrLocationId())
