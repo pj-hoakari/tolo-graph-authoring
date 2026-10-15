@@ -78,6 +78,37 @@ GetQrLocations は `tenant_id` も必須で受け取る。本サービスは、�
 
 ルートを持たないポイント、どこにも結ばれない外部ポイント、要素のないグループ、自分自身へのエッジは、公開後に Flow Control や Operation など下流の中核の動作に影響する。このため、編集途中の下書きであっても保存時に拒否する。
 
+#### 検証エラーの詳細
+
+検証は最初の違反で止めず、文書内のすべての違反を集める。`invalid_argument` のエラーには、集めた違反を `GraphViolations` として Connect のエラー詳細に載せる。違反の並び順は契約に含めない。エラーのメッセージ文は人が読むためのもので、利用側は種類と ID をエラー詳細から読む。
+
+ID が空か重複する要素は、以降の検査の対象にしない（重複する ID は最初の要素だけを検査する）。文書内にないノードを端点に持つエッジも、以降の検査の対象にしない。種類や向きが UNSPECIFIED の要素、レイアウトが有限でない要素は、以降の検査を続ける。対象から外した要素が原因で別の要素に生じた違反（外したエッジしか持たないノードのルートの欠如など）も、そのまま違反として返す。
+
+| 検査 | `kind` | `element_kind` | `element_id` | `related_ids` |
+|---|---|---|---|---|
+| `node_id` が空 | `EMPTY_NODE_ID` | `NODE` | 空文字列 | なし |
+| `node_id` が重複 | `DUPLICATE_NODE_ID` | `NODE` | 重複した ID | なし |
+| `node_type` が UNSPECIFIED | `NODE_WITHOUT_TYPE` | `NODE` | ノード | なし |
+| ノードのレイアウトが有限でない | `NON_FINITE_NODE_LAYOUT` | `NODE` | ノード | なし |
+| `group_id` が空 | `EMPTY_GROUP_ID` | `GROUP` | 空文字列 | なし |
+| `group_id` が重複 | `DUPLICATE_GROUP_ID` | `GROUP` | 重複した ID | なし |
+| グループのレイアウトか `min_width`／`min_height` が有限でない | `NON_FINITE_GROUP_LAYOUT` | `GROUP` | グループ | なし |
+| 外部ポイントが `group_id` を持つ | `EXTERNAL_NODE_IN_GROUP` | `NODE` | 外部ポイント | 所属先のグループ |
+| ノードの `group_id` が文書内のグループを指さない | `MISSING_GROUP` | `NODE` | ノード | 指しているグループ ID |
+| グループの `parent_group_id` が文書内のグループを指さない | `MISSING_PARENT_GROUP` | `GROUP` | グループ | 指している親グループ ID |
+| 親をたどると循環に入る | `GROUP_CYCLE` | `GROUP` | 循環に入るグループ（循環の下にある子孫を含む） | なし |
+| `edge_id` が空 | `EMPTY_EDGE_ID` | `EDGE` | 空文字列 | なし |
+| `edge_id` が重複 | `DUPLICATE_EDGE_ID` | `EDGE` | 重複した ID | なし |
+| `direction` が UNSPECIFIED | `EDGE_WITHOUT_DIRECTION` | `EDGE` | エッジ | なし |
+| 端点が文書内のノードを指さない | `MISSING_NODE` | `EDGE` | エッジ | 指しているノード ID のうち、文書内にないもの（source、target の順） |
+| 外部ポイント同士を結ぶ | `EDGE_BETWEEN_EXTERNAL_NODES` | `EDGE` | エッジ | なし |
+| 端点が同じノード | `SELF_LOOP_EDGE` | `EDGE` | エッジ | 端点のノード |
+| 外部ポイントがエッジを持たない | `EXTERNAL_NODE_WITHOUT_EDGE` | `NODE` | 外部ポイント | なし |
+| 外部ポイント以外のノードがルートになるエッジを持たない | `NODE_WITHOUT_ROUTE` | `NODE` | ノード | なし |
+| グループが所属するノードも子グループも持たない | `GROUP_WITHOUT_MEMBERS` | `GROUP` | グループ | なし |
+
+`kind` の列は `VIOLATION_KIND_`、`element_kind` の列は `ELEMENT_KIND_` を省いて書く。
+
 ## 共有カーネル Graph への導出
 
 公開時（`PublishRevision`）に、保存済みのグラフ文書から共有カーネルの Graph を導出する。
@@ -197,6 +228,50 @@ enum EdgeDirection {
 message SaveGraphRequest {
   string event_id = 1;        // 存在しないイベント ID へは作らない（テナントで参照整合）
   GraphDocument document = 2;
+}
+
+// 構造検証の違反。invalid_argument のエラー詳細に GraphViolations として載せる
+message GraphViolations {
+  repeated GraphViolation violations = 1;  // 検出したすべての違反
+}
+
+message GraphViolation {
+  ViolationKind kind = 1;
+  ElementKind element_kind = 2;   // 違反した要素の種類
+  string element_id = 3;          // 違反した要素の ID（ID が空の違反では空文字列）
+  repeated string related_ids = 4;  // 違反に関わる他の要素の ID（対応は「検証エラーの詳細」の表）
+}
+
+// 違反の種類。公開時の拒否などの違反は値の追加として足す
+enum ViolationKind {
+  VIOLATION_KIND_UNSPECIFIED = 0;
+  VIOLATION_KIND_EMPTY_NODE_ID = 1;
+  VIOLATION_KIND_DUPLICATE_NODE_ID = 2;
+  VIOLATION_KIND_NODE_WITHOUT_TYPE = 3;
+  VIOLATION_KIND_NON_FINITE_NODE_LAYOUT = 4;
+  VIOLATION_KIND_EMPTY_GROUP_ID = 5;
+  VIOLATION_KIND_DUPLICATE_GROUP_ID = 6;
+  VIOLATION_KIND_NON_FINITE_GROUP_LAYOUT = 7;
+  VIOLATION_KIND_EXTERNAL_NODE_IN_GROUP = 8;
+  VIOLATION_KIND_MISSING_GROUP = 9;
+  VIOLATION_KIND_MISSING_PARENT_GROUP = 10;
+  VIOLATION_KIND_GROUP_CYCLE = 11;
+  VIOLATION_KIND_EMPTY_EDGE_ID = 12;
+  VIOLATION_KIND_DUPLICATE_EDGE_ID = 13;
+  VIOLATION_KIND_EDGE_WITHOUT_DIRECTION = 14;
+  VIOLATION_KIND_MISSING_NODE = 15;
+  VIOLATION_KIND_EDGE_BETWEEN_EXTERNAL_NODES = 16;
+  VIOLATION_KIND_SELF_LOOP_EDGE = 17;
+  VIOLATION_KIND_EXTERNAL_NODE_WITHOUT_EDGE = 18;
+  VIOLATION_KIND_NODE_WITHOUT_ROUTE = 19;
+  VIOLATION_KIND_GROUP_WITHOUT_MEMBERS = 20;
+}
+
+enum ElementKind {
+  ELEMENT_KIND_UNSPECIFIED = 0;
+  ELEMENT_KIND_NODE = 1;
+  ELEMENT_KIND_GROUP = 2;
+  ELEMENT_KIND_EDGE = 3;
 }
 
 // 観測点グラフ紐づけ（WebRTC での映像確認手順は対象外）
