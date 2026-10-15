@@ -115,8 +115,11 @@ ID が空か重複する要素は、以降の検査の対象にしない（重�
 
 - ポイントを1件以上持つ。ポイントは、外部ポイント以外のノード（共有カーネルの Point へ導出するノード）を指す
 - 各ポイントの `labels` が、空文字列でない表示名を1つ以上持つ
+- ポイントが 20 件以下で、ルートが 100 件以下である。ルートは、外部ポイントを端点に持たないエッジ（共有カーネルの Route へ導出するエッジ）を指す
 
 ポイントのない版を公開すると、下流はポイントもルートもない空のグラフを受け取る。エラーにはならず、推定の対象がない版が現在の版になる。どの言語にも表示名のないポイントは GetDisplayNames に含まれない。ゲスト向けの表示では、その地点の名前を出せず、表示名を持たないルートのうちそのポイントを端点に持つものの名前も合成できない。どちらも編集途中の下書きでは普通に起きる状態なので、保存時ではなく公開時に拒否する。
+
+ポイントとルートの上限は、Flow Control が処理するグラフの規模上限（ノード 20、エッジ 100）と同じ値である。観測は共有カーネルのポイントを Flow Control のノードに、ルートをエッジに 1 対 1 で変換するので、数え方も一致する。上限を超える版を公開すると、Flow Control はその版の間、最適化の要求をすべて `VERDICT_ERROR_SIZE_EXCEEDED` で返し、最適化が一度も動かない。ポイントやルートをいったん増やしてから整理する編集もありうるため、保存時ではなく公開時に拒否する。
 
 次の状態は公開を拒否しない。
 
@@ -131,6 +134,8 @@ ID が空か重複する要素は、以降の検査の対象にしない（重�
 |---|---|---|---|---|
 | ポイントが1件もない | `GRAPH_WITHOUT_POINT` | `UNSPECIFIED` | 空文字列 | なし |
 | ポイントの `labels` に空文字列でない表示名がない | `POINT_WITHOUT_LABEL` | `NODE` | ポイント | なし |
+| ポイントが 20 件を超える | `TOO_MANY_POINTS` | `UNSPECIFIED` | 空文字列 | なし |
+| ルートが 100 件を超える | `TOO_MANY_ROUTES` | `UNSPECIFIED` | 空文字列 | なし |
 
 ## 共有カーネル Graph への導出
 
@@ -290,6 +295,8 @@ enum ViolationKind {
   VIOLATION_KIND_GROUP_WITHOUT_MEMBERS = 20;
   VIOLATION_KIND_GRAPH_WITHOUT_POINT = 21;
   VIOLATION_KIND_POINT_WITHOUT_LABEL = 22;
+  VIOLATION_KIND_TOO_MANY_POINTS = 23;
+  VIOLATION_KIND_TOO_MANY_ROUTES = 24;
 }
 
 enum ElementKind {
