@@ -146,41 +146,67 @@ func TestWithDraftRejectsStructurallyInvalidDocuments(t *testing.T) {
 		return domain.Edge{ID: id, SourceNodeID: source, TargetNodeID: target, Direction: domain.EdgeDirectionOneWay}
 	}
 
+	type violation struct {
+		Kind        domain.ViolationKind
+		ElementKind domain.ElementKind
+		ElementID   string
+		RelatedIDs  []string
+	}
+
+	node, group, edgeKind := domain.ElementKindNode, domain.ElementKindGroup, domain.ElementKindEdge
+
 	for _, tc := range []struct {
 		name     string
 		document domain.GraphDocument
+		want     []violation
 	}{
-		{"duplicate node ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("a")}}},
-		{"duplicate group ID", domain.GraphDocument{Groups: []domain.Group{{ID: "g"}, {ID: "g"}}}},
-		{"duplicate edge ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("e", "b", "a")}}},
-		{"unspecified node type", domain.GraphDocument{Nodes: []domain.Node{{ID: "a"}}}},
-		{"unspecified edge direction", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{{ID: "e", SourceNodeID: "a", TargetNodeID: "b"}}}},
-		{"dangling edge source", domain.GraphDocument{Nodes: []domain.Node{goal("b")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"dangling edge target", domain.GraphDocument{Nodes: []domain.Node{goal("a")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"node in missing group", domain.GraphDocument{Nodes: []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, GroupID: "g"}}}},
-		{"missing parent group", domain.GraphDocument{Groups: []domain.Group{{ID: "g", ParentGroupID: "missing"}}}},
-		{"group is its own parent", domain.GraphDocument{Groups: []domain.Group{{ID: "g", ParentGroupID: "g"}}}},
-		{"group parent cycle", domain.GraphDocument{Groups: []domain.Group{{ID: "a", ParentGroupID: "b"}, {ID: "b", ParentGroupID: "c"}, {ID: "c", ParentGroupID: "a"}}}},
-		{"cycle above a valid group", domain.GraphDocument{Groups: []domain.Group{{ID: "leaf", ParentGroupID: "a"}, {ID: "a", ParentGroupID: "b"}, {ID: "b", ParentGroupID: "a"}}}},
-		{"external node in a group", domain.GraphDocument{Nodes: []domain.Node{{ID: "x", Type: domain.NodeTypeExternal, GroupID: "g"}}, Groups: []domain.Group{{ID: "g"}}}},
-		{"non-finite node layout", domain.GraphDocument{Nodes: []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, Layout: domain.Layout{X: math.Inf(1)}}}}},
-		{"non-finite group minimum size", domain.GraphDocument{Groups: []domain.Group{{ID: "g", MinWidth: ptr(math.NaN())}}}},
-		{"edge between external nodes", domain.GraphDocument{Nodes: []domain.Node{external("x"), external("y")}, Edges: []domain.Edge{edge("e", "x", "y")}}},
-		{"empty node ID", domain.GraphDocument{Nodes: []domain.Node{goal(""), goal("b")}, Edges: []domain.Edge{edge("e", "", "b")}}},
-		{"empty group ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: ""}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"empty edge ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("", "a", "b")}}},
-		{"self-loop edge", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("loop", "a", "a")}}},
-		{"isolated point", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"point linked only to an external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("in", "x", "c")}}},
-		{"unconnected external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"empty group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "g"}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
-		{"group containing only an empty child group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "outer"}, {ID: "inner", ParentGroupID: "outer"}}, Edges: []domain.Edge{edge("e", "a", "b")}}},
+		{"collects violations of nodes, groups and edges", domain.GraphDocument{Nodes: []domain.Node{goal("a"), external("x")}, Groups: []domain.Group{{ID: "g"}}, Edges: []domain.Edge{edge("loop", "a", "a")}}, []violation{{domain.ViolationKindSelfLoopEdge, edgeKind, "loop", []string{"a"}}, {domain.ViolationKindExternalNodeWithoutEdge, node, "x", nil}, {domain.ViolationKindGroupWithoutMembers, group, "g", nil}}},
+		{"duplicate node ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("a")}}, []violation{{domain.ViolationKindDuplicateNodeID, node, "a", nil}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}}},
+		{"duplicate group ID", domain.GraphDocument{Groups: []domain.Group{{ID: "g"}, {ID: "g"}}}, []violation{{domain.ViolationKindDuplicateGroupID, group, "g", nil}, {domain.ViolationKindGroupWithoutMembers, group, "g", nil}}},
+		{"duplicate edge ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("e", "b", "a")}}, []violation{{domain.ViolationKindDuplicateEdgeID, edgeKind, "e", nil}}},
+		{"unspecified node type", domain.GraphDocument{Nodes: []domain.Node{{ID: "a"}}}, []violation{{domain.ViolationKindNodeWithoutType, node, "a", nil}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}}},
+		{"unspecified edge direction", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{{ID: "e", SourceNodeID: "a", TargetNodeID: "b"}}}, []violation{{domain.ViolationKindEdgeWithoutDirection, edgeKind, "e", nil}}},
+		{"dangling edge source", domain.GraphDocument{Nodes: []domain.Node{goal("b")}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindMissingNode, edgeKind, "e", []string{"a"}}, {domain.ViolationKindNodeWithoutRoute, node, "b", nil}}},
+		{"dangling edge target", domain.GraphDocument{Nodes: []domain.Node{goal("a")}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindMissingNode, edgeKind, "e", []string{"b"}}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}}},
+		{"node in missing group", domain.GraphDocument{Nodes: []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, GroupID: "g"}}}, []violation{{domain.ViolationKindMissingGroup, node, "a", []string{"g"}}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}}},
+		{"missing parent group", domain.GraphDocument{Groups: []domain.Group{{ID: "g", ParentGroupID: "missing"}}}, []violation{{domain.ViolationKindMissingParentGroup, group, "g", []string{"missing"}}, {domain.ViolationKindGroupWithoutMembers, group, "g", nil}}},
+		{"group is its own parent", domain.GraphDocument{Groups: []domain.Group{{ID: "g", ParentGroupID: "g"}}}, []violation{{domain.ViolationKindGroupCycle, group, "g", nil}}},
+		{"group parent cycle", domain.GraphDocument{Groups: []domain.Group{{ID: "a", ParentGroupID: "b"}, {ID: "b", ParentGroupID: "c"}, {ID: "c", ParentGroupID: "a"}}}, []violation{{domain.ViolationKindGroupCycle, group, "a", nil}, {domain.ViolationKindGroupCycle, group, "b", nil}, {domain.ViolationKindGroupCycle, group, "c", nil}}},
+		{"cycle above a valid group", domain.GraphDocument{Groups: []domain.Group{{ID: "leaf", ParentGroupID: "a"}, {ID: "a", ParentGroupID: "b"}, {ID: "b", ParentGroupID: "a"}}}, []violation{{domain.ViolationKindGroupCycle, group, "leaf", nil}, {domain.ViolationKindGroupCycle, group, "a", nil}, {domain.ViolationKindGroupCycle, group, "b", nil}, {domain.ViolationKindGroupWithoutMembers, group, "leaf", nil}}},
+		{"external node in a group", domain.GraphDocument{Nodes: []domain.Node{{ID: "x", Type: domain.NodeTypeExternal, GroupID: "g"}}, Groups: []domain.Group{{ID: "g"}}}, []violation{{domain.ViolationKindExternalNodeInGroup, node, "x", []string{"g"}}, {domain.ViolationKindExternalNodeWithoutEdge, node, "x", nil}}},
+		{"non-finite node layout", domain.GraphDocument{Nodes: []domain.Node{{ID: "a", Type: domain.NodeTypeGoal, Layout: domain.Layout{X: math.Inf(1)}}}}, []violation{{domain.ViolationKindNonFiniteNodeLayout, node, "a", nil}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}}},
+		{"non-finite group minimum size", domain.GraphDocument{Groups: []domain.Group{{ID: "g", MinWidth: ptr(math.NaN())}}}, []violation{{domain.ViolationKindNonFiniteGroupLayout, group, "g", nil}, {domain.ViolationKindGroupWithoutMembers, group, "g", nil}}},
+		{"edge between external nodes", domain.GraphDocument{Nodes: []domain.Node{external("x"), external("y")}, Edges: []domain.Edge{edge("e", "x", "y")}}, []violation{{domain.ViolationKindEdgeBetweenExternalNodes, edgeKind, "e", nil}}},
+		{"empty node ID", domain.GraphDocument{Nodes: []domain.Node{goal(""), goal("b")}, Edges: []domain.Edge{edge("e", "", "b")}}, []violation{{domain.ViolationKindEmptyNodeID, node, "", nil}, {domain.ViolationKindMissingNode, edgeKind, "e", []string{""}}, {domain.ViolationKindNodeWithoutRoute, node, "b", nil}}},
+		{"empty group ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: ""}}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindEmptyGroupID, group, "", nil}}},
+		{"empty edge ID", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("", "a", "b")}}, []violation{{domain.ViolationKindEmptyEdgeID, edgeKind, "", nil}, {domain.ViolationKindNodeWithoutRoute, node, "a", nil}, {domain.ViolationKindNodeWithoutRoute, node, "b", nil}}},
+		{"self-loop edge", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("loop", "a", "a")}}, []violation{{domain.ViolationKindSelfLoopEdge, edgeKind, "loop", []string{"a"}}}},
+		{"isolated point", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c")}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindNodeWithoutRoute, node, "c", nil}}},
+		{"point linked only to an external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), goal("c"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b"), edge("in", "x", "c")}}, []violation{{domain.ViolationKindNodeWithoutRoute, node, "c", nil}}},
+		{"unconnected external node", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b"), external("x")}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindExternalNodeWithoutEdge, node, "x", nil}}},
+		{"empty group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "g"}}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindGroupWithoutMembers, group, "g", nil}}},
+		{"group containing only an empty child group", domain.GraphDocument{Nodes: []domain.Node{goal("a"), goal("b")}, Groups: []domain.Group{{ID: "outer"}, {ID: "inner", ParentGroupID: "outer"}}, Edges: []domain.Edge{edge("e", "a", "b")}}, []violation{{domain.ViolationKindGroupWithoutMembers, group, "inner", nil}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := domain.NewGraph("a1b2c3d4e5f60718", "fedcba9876543210", tc.document); !errors.Is(err, domain.ErrInvalidGraphDocument) {
-				t.Errorf("NewGraph() error = %v, want %v", err, domain.ErrInvalidGraphDocument)
+			_, err := domain.NewGraph("a1b2c3d4e5f60718", "fedcba9876543210", tc.document)
+			if !errors.Is(err, domain.ErrInvalidGraphDocument) {
+				t.Fatalf("NewGraph() error = %v, want %v", err, domain.ErrInvalidGraphDocument)
+			}
+
+			var violations domain.GraphViolations
+			if !errors.As(err, &violations) {
+				t.Fatalf("NewGraph() error = %v, want domain.GraphViolations", err)
+			}
+
+			got := make([]violation, 0, len(violations))
+			for _, v := range violations {
+				got = append(got, violation{v.Kind, v.ElementKind, v.ElementID, v.RelatedIDs})
+			}
+
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("NewGraph() violations = %v, want %v", got, tc.want)
 			}
 		})
 	}
