@@ -28,6 +28,35 @@ var edgeDirections = map[graphv1.EdgeDirection]domain.EdgeDirection{
 	graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS: domain.EdgeDirectionBothWays,
 }
 
+var protoViolationKinds = map[domain.ViolationKind]graphv1.ViolationKind{
+	domain.ViolationKindEmptyNodeID:              graphv1.ViolationKind_VIOLATION_KIND_EMPTY_NODE_ID,
+	domain.ViolationKindDuplicateNodeID:          graphv1.ViolationKind_VIOLATION_KIND_DUPLICATE_NODE_ID,
+	domain.ViolationKindNodeWithoutType:          graphv1.ViolationKind_VIOLATION_KIND_NODE_WITHOUT_TYPE,
+	domain.ViolationKindNonFiniteNodeLayout:      graphv1.ViolationKind_VIOLATION_KIND_NON_FINITE_NODE_LAYOUT,
+	domain.ViolationKindEmptyGroupID:             graphv1.ViolationKind_VIOLATION_KIND_EMPTY_GROUP_ID,
+	domain.ViolationKindDuplicateGroupID:         graphv1.ViolationKind_VIOLATION_KIND_DUPLICATE_GROUP_ID,
+	domain.ViolationKindNonFiniteGroupLayout:     graphv1.ViolationKind_VIOLATION_KIND_NON_FINITE_GROUP_LAYOUT,
+	domain.ViolationKindExternalNodeInGroup:      graphv1.ViolationKind_VIOLATION_KIND_EXTERNAL_NODE_IN_GROUP,
+	domain.ViolationKindMissingGroup:             graphv1.ViolationKind_VIOLATION_KIND_MISSING_GROUP,
+	domain.ViolationKindMissingParentGroup:       graphv1.ViolationKind_VIOLATION_KIND_MISSING_PARENT_GROUP,
+	domain.ViolationKindGroupCycle:               graphv1.ViolationKind_VIOLATION_KIND_GROUP_CYCLE,
+	domain.ViolationKindEmptyEdgeID:              graphv1.ViolationKind_VIOLATION_KIND_EMPTY_EDGE_ID,
+	domain.ViolationKindDuplicateEdgeID:          graphv1.ViolationKind_VIOLATION_KIND_DUPLICATE_EDGE_ID,
+	domain.ViolationKindEdgeWithoutDirection:     graphv1.ViolationKind_VIOLATION_KIND_EDGE_WITHOUT_DIRECTION,
+	domain.ViolationKindMissingNode:              graphv1.ViolationKind_VIOLATION_KIND_MISSING_NODE,
+	domain.ViolationKindEdgeBetweenExternalNodes: graphv1.ViolationKind_VIOLATION_KIND_EDGE_BETWEEN_EXTERNAL_NODES,
+	domain.ViolationKindSelfLoopEdge:             graphv1.ViolationKind_VIOLATION_KIND_SELF_LOOP_EDGE,
+	domain.ViolationKindExternalNodeWithoutEdge:  graphv1.ViolationKind_VIOLATION_KIND_EXTERNAL_NODE_WITHOUT_EDGE,
+	domain.ViolationKindNodeWithoutRoute:         graphv1.ViolationKind_VIOLATION_KIND_NODE_WITHOUT_ROUTE,
+	domain.ViolationKindGroupWithoutMembers:      graphv1.ViolationKind_VIOLATION_KIND_GROUP_WITHOUT_MEMBERS,
+}
+
+var protoElementKinds = map[domain.ElementKind]graphv1.ElementKind{
+	domain.ElementKindNode:  graphv1.ElementKind_ELEMENT_KIND_NODE,
+	domain.ElementKindGroup: graphv1.ElementKind_ELEMENT_KIND_GROUP,
+	domain.ElementKindEdge:  graphv1.ElementKind_ELEMENT_KIND_EDGE,
+}
+
 var (
 	protoNodeTypes      = inverted(nodeTypes)
 	protoEdgeDirections = inverted(edgeDirections)
@@ -172,7 +201,7 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping),
 		errors.Is(err, domain.ErrInvalidQrLocation), errors.Is(err, application.ErrRevisionIDRequired),
 		errors.Is(err, application.ErrTenantIDRequired):
-		return connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
+		return invalidArgument(err)
 	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
 		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err)
 	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
@@ -188,6 +217,34 @@ func graphError(ctx context.Context, err error) *connectrpc.Error {
 	default:
 		return InternalError(ctx, err)
 	}
+}
+
+func invalidArgument(err error) *connectrpc.Error {
+	connectErr := connectrpc.NewError(connectrpc.CodeInvalidArgument, err)
+
+	var violations domain.GraphViolations
+	if !errors.As(err, &violations) {
+		return connectErr
+	}
+
+	protoViolations := make([]*graphv1.GraphViolation, 0, len(violations))
+	for _, violation := range violations {
+		protoViolations = append(protoViolations, &graphv1.GraphViolation{
+			Kind:        protoViolationKinds[violation.Kind],
+			ElementKind: protoElementKinds[violation.ElementKind],
+			ElementId:   violation.ElementID,
+			RelatedIds:  violation.RelatedIDs,
+		})
+	}
+
+	detail, detailErr := connectrpc.NewErrorDetail(&graphv1.GraphViolations{Violations: protoViolations})
+	if detailErr != nil {
+		return connectErr
+	}
+
+	connectErr.AddDetail(detail)
+
+	return connectErr
 }
 
 func graphDocumentFromProto(document *graphv1.GraphDocument) *domain.GraphDocument {

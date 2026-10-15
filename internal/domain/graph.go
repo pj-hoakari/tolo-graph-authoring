@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 )
 
 var ErrInvalidGraphDocument = errors.New("invalid graph document")
@@ -89,47 +90,63 @@ func sortedByID[T any](elements []T, id func(T) string) []T {
 }
 
 func (d GraphDocument) validate() error {
+	var violations GraphViolations
+
 	nodes := make(map[string]Node, len(d.Nodes))
+	checkedNodes := make([]Node, 0, len(d.Nodes))
+
 	for _, node := range d.Nodes {
 		if node.ID == "" {
-			return invalidDocument("node has an empty ID")
+			violations.add(ViolationKindEmptyNodeID, ElementKindNode, "", nil, "node has an empty ID")
+
+			continue
 		}
 
 		if _, ok := nodes[node.ID]; ok {
-			return invalidDocument("duplicate node ID %q", node.ID)
+			violations.add(ViolationKindDuplicateNodeID, ElementKindNode, node.ID, nil, "duplicate node ID %q", node.ID)
+
+			continue
 		}
 
 		if node.Type == NodeTypeUnspecified {
-			return invalidDocument("node %q has no type", node.ID)
+			violations.add(ViolationKindNodeWithoutType, ElementKindNode, node.ID, nil, "node %q has no type", node.ID)
 		}
 
 		if !node.Layout.finite() {
-			return invalidDocument("node %q has a non-finite layout", node.ID)
+			violations.add(ViolationKindNonFiniteNodeLayout, ElementKindNode, node.ID, nil, "node %q has a non-finite layout", node.ID)
 		}
 
 		nodes[node.ID] = node
+		checkedNodes = append(checkedNodes, node)
 	}
 
 	groups := make(map[string]Group, len(d.Groups))
+	checkedGroups := make([]Group, 0, len(d.Groups))
+
 	for _, group := range d.Groups {
 		if group.ID == "" {
-			return invalidDocument("group has an empty ID")
+			violations.add(ViolationKindEmptyGroupID, ElementKindGroup, "", nil, "group has an empty ID")
+
+			continue
 		}
 
 		if _, ok := groups[group.ID]; ok {
-			return invalidDocument("duplicate group ID %q", group.ID)
+			violations.add(ViolationKindDuplicateGroupID, ElementKindGroup, group.ID, nil, "duplicate group ID %q", group.ID)
+
+			continue
 		}
 
 		if !group.Layout.finite() || !finite(group.MinWidth) || !finite(group.MinHeight) {
-			return invalidDocument("group %q has a non-finite layout", group.ID)
+			violations.add(ViolationKindNonFiniteGroupLayout, ElementKindGroup, group.ID, nil, "group %q has a non-finite layout", group.ID)
 		}
 
 		groups[group.ID] = group
+		checkedGroups = append(checkedGroups, group)
 	}
 
 	populated := make(map[string]bool, len(groups))
 
-	for _, node := range d.Nodes {
+	for _, node := range checkedNodes {
 		if node.GroupID == "" {
 			continue
 		}
@@ -137,26 +154,35 @@ func (d GraphDocument) validate() error {
 		populated[node.GroupID] = true
 
 		if node.Type == NodeTypeExternal {
-			return invalidDocument("external node %q belongs to group %q", node.ID, node.GroupID)
+			violations.add(ViolationKindExternalNodeInGroup, ElementKindNode, node.ID, []string{node.GroupID},
+				"external node %q belongs to group %q", node.ID, node.GroupID)
 		}
 
 		if _, ok := groups[node.GroupID]; !ok {
-			return invalidDocument("node %q refers to missing group %q", node.ID, node.GroupID)
+			violations.add(ViolationKindMissingGroup, ElementKindNode, node.ID, []string{node.GroupID},
+				"node %q refers to missing group %q", node.ID, node.GroupID)
 		}
 	}
 
-	for _, group := range d.Groups {
-		if group.ParentGroupID != "" {
-			populated[group.ParentGroupID] = true
+	for _, group := range checkedGroups {
+		if group.ParentGroupID == "" {
+			continue
+		}
+
+		populated[group.ParentGroupID] = true
+
+		if _, ok := groups[group.ParentGroupID]; !ok {
+			violations.add(ViolationKindMissingParentGroup, ElementKindGroup, group.ID, []string{group.ParentGroupID},
+				"group %q refers to missing parent group %q", group.ID, group.ParentGroupID)
+
+			continue
 		}
 
 		for depth, parentID := 0, group.ParentGroupID; parentID != ""; depth, parentID = depth+1, groups[parentID].ParentGroupID {
-			if _, ok := groups[parentID]; !ok {
-				return invalidDocument("group %q refers to missing parent group %q", group.ID, parentID)
-			}
-
 			if depth == len(groups) {
-				return invalidDocument("group %q is nested in a cycle", group.ID)
+				violations.add(ViolationKindGroupCycle, ElementKindGroup, group.ID, nil, "group %q is nested in a cycle", group.ID)
+
+				break
 			}
 		}
 	}
@@ -167,32 +193,48 @@ func (d GraphDocument) validate() error {
 	edges := make(map[string]bool, len(d.Edges))
 	for _, edge := range d.Edges {
 		if edge.ID == "" {
-			return invalidDocument("edge has an empty ID")
+			violations.add(ViolationKindEmptyEdgeID, ElementKindEdge, "", nil, "edge has an empty ID")
+
+			continue
 		}
 
 		if edges[edge.ID] {
-			return invalidDocument("duplicate edge ID %q", edge.ID)
+			violations.add(ViolationKindDuplicateEdgeID, ElementKindEdge, edge.ID, nil, "duplicate edge ID %q", edge.ID)
+
+			continue
 		}
 
 		edges[edge.ID] = true
 
 		if edge.Direction == EdgeDirectionUnspecified {
-			return invalidDocument("edge %q has no direction", edge.ID)
+			violations.add(ViolationKindEdgeWithoutDirection, ElementKindEdge, edge.ID, nil, "edge %q has no direction", edge.ID)
 		}
 
 		source, sourceFound := nodes[edge.SourceNodeID]
 		target, targetFound := nodes[edge.TargetNodeID]
 
 		if !sourceFound || !targetFound {
-			return invalidDocument("edge %q refers to a missing node", edge.ID)
+			var missing []string
+			if !sourceFound {
+				missing = append(missing, edge.SourceNodeID)
+			}
+
+			if !targetFound {
+				missing = append(missing, edge.TargetNodeID)
+			}
+
+			violations.add(ViolationKindMissingNode, ElementKindEdge, edge.ID, missing, "edge %q refers to a missing node", edge.ID)
+
+			continue
 		}
 
 		if source.Type == NodeTypeExternal && target.Type == NodeTypeExternal {
-			return invalidDocument("edge %q connects two external nodes", edge.ID)
+			violations.add(ViolationKindEdgeBetweenExternalNodes, ElementKindEdge, edge.ID, nil, "edge %q connects two external nodes", edge.ID)
 		}
 
 		if edge.SourceNodeID == edge.TargetNodeID {
-			return invalidDocument("edge %q connects node %q to itself", edge.ID, edge.SourceNodeID)
+			violations.add(ViolationKindSelfLoopEdge, ElementKindEdge, edge.ID, []string{edge.SourceNodeID},
+				"edge %q connects node %q to itself", edge.ID, edge.SourceNodeID)
 		}
 
 		if source.Type == NodeTypeExternal || target.Type == NodeTypeExternal {
@@ -204,20 +246,24 @@ func (d GraphDocument) validate() error {
 		routed[edge.SourceNodeID], routed[edge.TargetNodeID] = true, true
 	}
 
-	for _, node := range d.Nodes {
+	for _, node := range checkedNodes {
 		if node.Type == NodeTypeExternal && !linked[node.ID] {
-			return invalidDocument("external node %q has no edge", node.ID)
+			violations.add(ViolationKindExternalNodeWithoutEdge, ElementKindNode, node.ID, nil, "external node %q has no edge", node.ID)
 		}
 
 		if node.Type != NodeTypeExternal && !routed[node.ID] {
-			return invalidDocument("point %q has no route", node.ID)
+			violations.add(ViolationKindNodeWithoutRoute, ElementKindNode, node.ID, nil, "point %q has no route", node.ID)
 		}
 	}
 
-	for _, group := range d.Groups {
+	for _, group := range checkedGroups {
 		if !populated[group.ID] {
-			return invalidDocument("group %q has no members", group.ID)
+			violations.add(ViolationKindGroupWithoutMembers, ElementKindGroup, group.ID, nil, "group %q has no members", group.ID)
 		}
+	}
+
+	if len(violations) > 0 {
+		return violations
 	}
 
 	return nil
@@ -231,9 +277,65 @@ func finite(value *float64) bool {
 	return value == nil || !math.IsNaN(*value) && !math.IsInf(*value, 0)
 }
 
-func invalidDocument(format string, args ...any) error {
-	return fmt.Errorf("%w: %s", ErrInvalidGraphDocument, fmt.Sprintf(format, args...))
+type ViolationKind int
+
+const (
+	ViolationKindUnspecified ViolationKind = iota
+	ViolationKindEmptyNodeID
+	ViolationKindDuplicateNodeID
+	ViolationKindNodeWithoutType
+	ViolationKindNonFiniteNodeLayout
+	ViolationKindEmptyGroupID
+	ViolationKindDuplicateGroupID
+	ViolationKindNonFiniteGroupLayout
+	ViolationKindExternalNodeInGroup
+	ViolationKindMissingGroup
+	ViolationKindMissingParentGroup
+	ViolationKindGroupCycle
+	ViolationKindEmptyEdgeID
+	ViolationKindDuplicateEdgeID
+	ViolationKindEdgeWithoutDirection
+	ViolationKindMissingNode
+	ViolationKindEdgeBetweenExternalNodes
+	ViolationKindSelfLoopEdge
+	ViolationKindExternalNodeWithoutEdge
+	ViolationKindNodeWithoutRoute
+	ViolationKindGroupWithoutMembers
+)
+
+type ElementKind int
+
+const (
+	ElementKindUnspecified ElementKind = iota
+	ElementKindNode
+	ElementKindGroup
+	ElementKindEdge
+)
+
+type GraphViolation struct {
+	Kind        ViolationKind
+	ElementKind ElementKind
+	ElementID   string
+	RelatedIDs  []string
+	message     string
 }
+
+type GraphViolations []GraphViolation
+
+func (v *GraphViolations) add(kind ViolationKind, element ElementKind, id string, related []string, format string, args ...any) {
+	*v = append(*v, GraphViolation{Kind: kind, ElementKind: element, ElementID: id, RelatedIDs: related, message: fmt.Sprintf(format, args...)})
+}
+
+func (v GraphViolations) Error() string {
+	messages := make([]string, len(v))
+	for i, violation := range v {
+		messages[i] = violation.message
+	}
+
+	return fmt.Sprintf("%v: %s", ErrInvalidGraphDocument, strings.Join(messages, "; "))
+}
+
+func (v GraphViolations) Unwrap() error { return ErrInvalidGraphDocument }
 
 type GraphRef struct {
 	TenantPublicID string

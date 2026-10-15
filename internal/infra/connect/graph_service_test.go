@@ -181,6 +181,33 @@ func TestSaveGraph(t *testing.T) {
 		if got, want := connectrpc.CodeOf(err), connectrpc.CodeInvalidArgument; got != want {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
+
+		var connectErr *connectrpc.Error
+		if !errors.As(err, &connectErr) || len(connectErr.Details()) != 1 {
+			t.Fatalf("SaveGraph() error = %v, want one error detail", err)
+		}
+
+		got, detailErr := connectErr.Details()[0].Value()
+		if detailErr != nil {
+			t.Fatalf("Details()[0].Value() error = %v", detailErr)
+		}
+
+		want := &graphv1.GraphViolations{Violations: []*graphv1.GraphViolation{
+			{
+				Kind:        graphv1.ViolationKind_VIOLATION_KIND_EXTERNAL_NODE_IN_GROUP,
+				ElementKind: graphv1.ElementKind_ELEMENT_KIND_NODE,
+				ElementId:   "outside",
+				RelatedIds:  []string{"floor"},
+			},
+			{
+				Kind:        graphv1.ViolationKind_VIOLATION_KIND_EXTERNAL_NODE_WITHOUT_EDGE,
+				ElementKind: graphv1.ElementKind_ELEMENT_KIND_NODE,
+				ElementId:   "outside",
+			},
+		}}
+		if !proto.Equal(got, want) {
+			t.Errorf("SaveGraph() error detail = %v, want %v", got, want)
+		}
 	})
 }
 
