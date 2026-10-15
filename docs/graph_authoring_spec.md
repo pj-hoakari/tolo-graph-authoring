@@ -16,7 +16,7 @@ package: `tolo.graph.v1`
 - `GraphDocument` はエディタ実装（React Flow 等）の写しではなく、ドメインの語彙（ノード・グループ・エッジ・ラベル・レイアウト）で定義する。エディタ内部表現との相互変換と編集専用データの除去はフロントの責務であり、サーバはエディタ実装の知識を持たない
 - 文書スキーマの変更は proto の改版として明示的に行う。属性の追加は optional フィールドの追加（後方互換）、互換を壊す変更は package バージョンの改版で行う
 - サーバは文書の意味を変えずに保存し、`GetGraph` で構造的に同一の文書を返す（エディタはこれから編集状態を再構築する。バイト単位の同一性は要求しない。要素は種類ごとに ID 順に並べて返す）
-- サーバは保存時に構造検証を行い、公開時に共有カーネルの Graph へ導出する
+- サーバは保存時に構造検証を行い、公開時に公開の条件を検証して共有カーネルの Graph へ導出する
 
 供給（Supply）は、公開済みのグラフ版から消費者ごとに最適化した導出データを返す文脈。編集都合の情報（レイアウト・グループ・外部ポイント）は下流へ持ち込まず、各消費者が必要とする射影だけを渡す。観測経由で Flow／Line へ渡るグラフは共有カーネルの Graph（ポイント・ルートの関係と構造属性のみ。ラベル・レイアウトを持たない）であり、観測点の配置は紐づけの供給で渡す。ゲスト向け表示（ラベル）の供給は、言語を指定してラベル付きのデータを返す形か、言語ラベルのみを返す形かを含めて応答形が未確定であり、実装フェーズで確定する。共有カーネル Graph の供給を除き、後述の供給系の定義はこの方針での暫定形である。
 
@@ -30,7 +30,7 @@ package: `tolo.graph.v1`
 | MapObservationPoint | 観測点をグラフ要素（ポイント／ルート）に対応づける。本コンテキストが紐づけを所有。同一グラフ要素へカメラ方式と QR 方式を併存させない（QR 設置箇所が参照する要素への紐づけは `failed_precondition`）。紐づけは下書きの配置（観測点紐づけ・QR 設置箇所）を書き換え、公開までは下流に影響しない。応答は紐づけと更新後の `GraphMeta` を返す | 同上 | ObservationPointMappedToGraph |
 | AddQrLocation／UpdateQrLocation／RemoveQrLocation | QR 設置箇所（名称・種類・グラフ要素参照）の追加・編集・削除。掲示計画は会場設計の一部として本コンテキストが所有（URL の発行は Guest Service）。カメラ方式の観測点が紐づく要素への追加・付け替えは `failed_precondition`。下書きの配置を書き換え、公開までは下流に影響しない。応答は更新後の `GraphMeta` を含む | 同上 | QrLocationChanged |
 | GetGraph | 保存済みのグラフ文書と、下書きの観測点紐づけ・QR 設置箇所、版情報を返す。管理 UI の表示とエディタへの復元用。アーカイブ中のイベントでも読める。グラフを保存していないイベントは `not_found` | `event_access` + events.read | （参照のみ） |
-| PublishRevision | 保存済みのグラフ文書と下書きの配置をグラフ版として公開し、下流が消費可能にする | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
+| PublishRevision | 保存済みのグラフ文書と下書きの配置をグラフ版として公開し、下流が消費可能にする。公開の条件を満たさない下書きは `failed_precondition`（「公開時の検証」） | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
 
 ### 供給（下流向け）
 
@@ -108,6 +108,29 @@ ID が空か重複する要素は、以降の検査の対象にしない（重�
 | グループが所属するノードも子グループも持たない | `GROUP_WITHOUT_MEMBERS` | `GROUP` | グループ | なし |
 
 `kind` の列は `VIOLATION_KIND_`、`element_kind` の列は `ELEMENT_KIND_` を省いて書く。
+
+### 公開時の検証
+
+`PublishRevision` は、保存済みの下書きの文書が次の条件を満たすかを検証し、満たさない下書きは公開せずに `failed_precondition` で拒否する。下書きの文書は保存時の構造検証を通っているため、ここでは公開の条件だけを検査する。
+
+- ポイントを1件以上持つ。ポイントは、外部ポイント以外のノード（共有カーネルの Point へ導出するノード）を指す
+- 各ポイントの `labels` が、空文字列でない表示名を1つ以上持つ
+
+ポイントのない版を公開すると、下流はポイントもルートもない空のグラフを受け取る。エラーにはならず、推定の対象がない版が現在の版になる。どの言語にも表示名のないポイントは GetDisplayNames に含まれない。ゲスト向けの表示では、その地点の名前を出せず、表示名を持たないルートのうちそのポイントを端点に持つものの名前も合成できない。どちらも編集途中の下書きでは普通に起きる状態なので、保存時ではなく公開時に拒否する。
+
+次の状態は公開を拒否しない。
+
+- 特定の言語の表示名がないポイント
+- 観測点紐づけも QR 設置箇所もない版
+- 観測点紐づけも QR 設置箇所も持たないポイント・ルート
+- グループの `labels` とエッジの `label` が空であること
+
+検証は最初の違反で止めず、すべての違反を集める。`failed_precondition` のエラーには、集めた違反を `GraphViolations` として Connect のエラー詳細に載せる。並び順とメッセージ文の扱いは「検証エラーの詳細」と同じとする。
+
+| 検査 | `kind` | `element_kind` | `element_id` | `related_ids` |
+|---|---|---|---|---|
+| ポイントが1件もない | `GRAPH_WITHOUT_POINT` | `UNSPECIFIED` | 空文字列 | なし |
+| ポイントの `labels` に空文字列でない表示名がない | `POINT_WITHOUT_LABEL` | `NODE` | ポイント | なし |
 
 ## 共有カーネル Graph への導出
 
@@ -230,15 +253,15 @@ message SaveGraphRequest {
   GraphDocument document = 2;
 }
 
-// 構造検証の違反。invalid_argument のエラー詳細に GraphViolations として載せる
+// グラフ文書の検証違反。保存時は invalid_argument、公開時は failed_precondition のエラー詳細に GraphViolations として載せる
 message GraphViolations {
   repeated GraphViolation violations = 1;  // 検出したすべての違反
 }
 
 message GraphViolation {
   ViolationKind kind = 1;
-  ElementKind element_kind = 2;   // 違反した要素の種類
-  string element_id = 3;          // 違反した要素の ID（ID が空の違反では空文字列）
+  ElementKind element_kind = 2;   // 違反した要素の種類（要素に結びつかない違反では UNSPECIFIED）
+  string element_id = 3;          // 違反した要素の ID（ID が空の違反と要素に結びつかない違反では空文字列）
   repeated string related_ids = 4;  // 違反に関わる他の要素の ID（対応は「検証エラーの詳細」の表）
 }
 
@@ -265,6 +288,8 @@ enum ViolationKind {
   VIOLATION_KIND_EXTERNAL_NODE_WITHOUT_EDGE = 18;
   VIOLATION_KIND_NODE_WITHOUT_ROUTE = 19;
   VIOLATION_KIND_GROUP_WITHOUT_MEMBERS = 20;
+  VIOLATION_KIND_GRAPH_WITHOUT_POINT = 21;
+  VIOLATION_KIND_POINT_WITHOUT_LABEL = 22;
 }
 
 enum ElementKind {
