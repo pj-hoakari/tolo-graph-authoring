@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 
 	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
 	"github.com/pj-hoakari/internal-jwt-handling/jwks"
@@ -149,25 +150,27 @@ func mintJWT(t *testing.T, config jwtgen.Config) (string, internaljwt.JWKS) {
 	return "Bearer " + output.Token, output.JWKS
 }
 
-func saveGraphThrough(t *testing.T, handler http.Handler, authorization string) (*connectrpc.Response[graphv1.GraphMeta], error) {
+func saveGraphThrough(t *testing.T, handler http.Handler, authorization string) (*graphv1.GraphMeta, error) {
 	t.Helper()
 
 	httpServer := httptest.NewServer(handler)
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
-	req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+	req := &graphv1.SaveGraphRequest{
 		EventId: "fedcba9876543210",
 		Document: &graphv1.GraphDocument{
 			Nodes: []*graphv1.GraphNode{{NodeId: "n1", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}, {NodeId: "n2", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}},
 			Edges: []*graphv1.GraphEdge{{EdgeId: "e1", SourceNodeId: "n1", TargetNodeId: "n2", Direction: graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS}},
 		},
-	})
-	if authorization != "" {
-		req.Header().Set("Authorization", authorization)
 	}
 
-	return client.SaveGraph(context.Background(), req)
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	if authorization != "" {
+		info.RequestHeader().Set("Authorization", authorization)
+	}
+
+	return client.SaveGraph(ctx, req)
 }
 
 func TestRoutesWithJWTSettings(t *testing.T) {

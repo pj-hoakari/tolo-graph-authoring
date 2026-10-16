@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"google.golang.org/protobuf/proto"
 
 	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
@@ -43,14 +44,15 @@ func newSupplyClient(t *testing.T, keys internaljwt.JWKS, graphs application.Gra
 	httpServer := httptest.NewServer(mux)
 	t.Cleanup(httpServer.Close)
 
-	return graphv1connect.NewGraphSupplyServiceClient(httpServer.Client(), httpServer.URL)
+	return graphv1connect.NewGraphSupplyServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 }
 
-func getCurrentRevision(client graphv1connect.GraphSupplyServiceClient, authorization string) (*connectrpc.Response[kernelv1.Graph], error) {
-	req := connectrpc.NewRequest(&graphv1.GetCurrentRevisionRequest{EventId: "fedcba9876543210"})
-	req.Header().Set("Authorization", authorization)
+func getCurrentRevision(client graphv1connect.GraphSupplyServiceClient, authorization string) (*kernelv1.Graph, error) {
+	req := &graphv1.GetCurrentRevisionRequest{EventId: "fedcba9876543210"}
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", authorization)
 
-	return client.GetCurrentRevision(context.Background(), req)
+	return client.GetCurrentRevision(ctx, req)
 }
 
 func TestGetCurrentRevisionServesKernelGraphToServiceToken(t *testing.T) {
@@ -97,8 +99,8 @@ func TestGetCurrentRevisionServesKernelGraphToServiceToken(t *testing.T) {
 		},
 	}
 
-	if !proto.Equal(res.Msg, want) {
-		t.Errorf("GetCurrentRevision() = %v, want %v", res.Msg, want)
+	if !proto.Equal(res, want) {
+		t.Errorf("GetCurrentRevision() = %v, want %v", res, want)
 	}
 }
 
@@ -156,11 +158,12 @@ func TestGetObservationPointMappingsServesMappingsOfTheRequestedRevisionToServic
 		},
 	}, inlineTransactor{}, callerTenantEvents{}))
 
-	getMappings := func(revisionID string) (*connectrpc.Response[graphv1.GetMappingsResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.GetMappingsRequest{EventId: "fedcba9876543210", RevisionId: revisionID})
-		req.Header().Set("Authorization", authorization)
+	getMappings := func(revisionID string) (*graphv1.GetMappingsResponse, error) {
+		req := &graphv1.GetMappingsRequest{EventId: "fedcba9876543210", RevisionId: revisionID}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.GetObservationPointMappings(context.Background(), req)
+		return client.GetObservationPointMappings(ctx, req)
 	}
 
 	res, err := getMappings("0123456789abcdef")
@@ -176,8 +179,8 @@ func TestGetObservationPointMappingsServesMappingsOfTheRequestedRevisionToServic
 		},
 	}
 
-	if !proto.Equal(res.Msg, want) {
-		t.Errorf("GetObservationPointMappings() = %v, want %v", res.Msg, want)
+	if !proto.Equal(res, want) {
+		t.Errorf("GetObservationPointMappings() = %v, want %v", res, want)
 	}
 
 	for _, tc := range []struct {

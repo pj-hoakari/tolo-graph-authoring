@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 
 	tenantv1 "github.com/pj-hoakari/tolo-tenant-management/gen/tolo/tenant/v1"
 	"github.com/pj-hoakari/tolo-tenant-management/gen/tolo/tenant/v1/tenantv1connect"
@@ -23,25 +24,28 @@ type fakeTenantService struct {
 	authorizations chan string
 }
 
-func (s *fakeTenantService) GetEvent(_ context.Context, req *connectrpc.Request[tenantv1.GetEventRequest]) (*connectrpc.Response[tenantv1.GetEventResponse], error) {
-	s.authorizations <- req.Header().Get("Authorization")
+func (s *fakeTenantService) GetEvent(ctx context.Context, req *tenantv1.GetEventRequest) (*tenantv1.GetEventResponse, error) {
+	info, _ := connectrpc.CallInfoForServerContext(ctx)
+	s.authorizations <- info.RequestHeader().Get("Authorization")
 
 	if s.err != nil {
 		return nil, s.err
 	}
 
-	if s.event == nil || s.event.GetEventId() != req.Msg.GetEventId() {
-		return nil, connectrpc.NewError(connectrpc.CodeNotFound, errors.New("event not found"))
+	if s.event == nil || s.event.GetEventId() != req.GetEventId() {
+		return nil, connectrpc.NewError(connectrpc.CodeNotFound, "event not found")
 	}
 
-	return connectrpc.NewResponse(&tenantv1.GetEventResponse{Event: s.event}), nil
+	return &tenantv1.GetEventResponse{Event: s.event}, nil
 }
 
 func newTenantServer(t *testing.T, service *fakeTenantService) *httptest.Server {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	mux.Handle(tenantv1connect.NewTenantServiceHandler(service))
+	srv := connectrpc.NewServer()
+	tenantv1connect.RegisterTenantServiceHandler(srv, service)
+	connecthttp.Mount(mux, srv)
 
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

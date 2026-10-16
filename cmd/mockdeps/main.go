@@ -8,7 +8,8 @@ import (
 	"os"
 	"time"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/pj-hoakari/internal-jwt-handling/jwtgen"
 
 	tenantv1 "github.com/pj-hoakari/tolo-tenant-management/gen/tolo/tenant/v1"
@@ -52,9 +53,12 @@ func newMux(generator *jwtgen.Generator) (*http.ServeMux, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle(tenantv1connect.NewTenantServiceHandler(tenantService{
+	server := connectrpc.NewServer()
+	tenantv1connect.RegisterTenantServiceHandler(server, tenantService{
 		UnimplementedTenantServiceHandler: tenantv1connect.UnimplementedTenantServiceHandler{},
-	}))
+	})
+	connecthttp.Mount(mux, server)
+
 	mux.HandleFunc("GET /.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, jwks)
 	})
@@ -131,17 +135,16 @@ type tenantService struct {
 }
 
 func (tenantService) GetEvent(
-	_ context.Context, req *connectrpc.Request[tenantv1.GetEventRequest],
-) (*connectrpc.Response[tenantv1.GetEventResponse], error) {
-	if req.Msg.GetEventId() != eventPublicID {
-		return nil, connectrpc.NewError(connectrpc.CodeNotFound, nil)
+	_ context.Context, req *tenantv1.GetEventRequest,
+) (*tenantv1.GetEventResponse, error) {
+	if req.GetEventId() != eventPublicID {
+		return nil, connectrpc.NewError(connectrpc.CodeNotFound, "")
 	}
 
-	return connectrpc.NewResponse(&tenantv1.GetEventResponse{Event: &tenantv1.Event{
+	return &tenantv1.GetEventResponse{Event: &tenantv1.Event{
 		EventId:  eventPublicID,
 		TenantId: tenantPublicID,
 		Name:     "Development Event",
-		Type:     tenantv1.EventType_EVENT_TYPE_SHORT_TERM,
 		Status:   tenantv1.EventStatus_EVENT_STATUS_OPEN,
-	}}), nil
+	}}, nil
 }

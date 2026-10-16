@@ -8,7 +8,9 @@ import (
 	"slices"
 	"testing"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectproto"
 	"google.golang.org/protobuf/proto"
 
 	internaljwt "github.com/pj-hoakari/internal-jwt-handling"
@@ -106,19 +108,20 @@ func TestSaveGraph(t *testing.T) {
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 	httpServer := httptest.NewServer(newTestHandler(t, keys, newTestGraphService()))
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
-	save := func(eventID string) (*connectrpc.Response[graphv1.GraphMeta], error) {
-		req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+	save := func(eventID string) (*graphv1.GraphMeta, error) {
+		req := &graphv1.SaveGraphRequest{
 			EventId: eventID,
 			Document: &graphv1.GraphDocument{
 				Nodes: []*graphv1.GraphNode{{NodeId: "n1", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}, {NodeId: "n2", NodeType: graphv1.NodeType_NODE_TYPE_GOAL}},
 				Edges: []*graphv1.GraphEdge{{EdgeId: "e1", SourceNodeId: "n1", TargetNodeId: "n2", Direction: graphv1.EdgeDirection_EDGE_DIRECTION_BOTH_WAYS}},
 			},
-		})
-		req.Header().Set("Authorization", authorization)
+		}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.SaveGraph(context.Background(), req)
+		return client.SaveGraph(ctx, req)
 	}
 
 	t.Run("saves the draft of the token's event", func(t *testing.T) {
@@ -129,11 +132,11 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error = %v", err)
 		}
 
-		if got, want := res.Msg.GetEventId(), "fedcba9876543210"; got != want {
+		if got, want := res.GetEventId(), "fedcba9876543210"; got != want {
 			t.Errorf("EventId = %q, want %q", got, want)
 		}
 
-		if res.Msg.GetDraftRevisionId() == "" {
+		if res.GetDraftRevisionId() == "" {
 			t.Error("DraftRevisionId is empty, want the new draft revision")
 		}
 	})
@@ -151,8 +154,8 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("second SaveGraph() error = %v", err)
 		}
 
-		if !proto.Equal(first.Msg, second.Msg) {
-			t.Errorf("second GraphMeta = %v, want %v", second.Msg, first.Msg)
+		if !proto.Equal(first, second) {
+			t.Errorf("second GraphMeta = %v, want %v", second, first)
 		}
 	})
 
@@ -168,16 +171,17 @@ func TestSaveGraph(t *testing.T) {
 	t.Run("rejects a structurally invalid document", func(t *testing.T) {
 		t.Parallel()
 
-		req := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+		req := &graphv1.SaveGraphRequest{
 			EventId: "fedcba9876543210",
 			Document: &graphv1.GraphDocument{
 				Nodes:  []*graphv1.GraphNode{{NodeId: "outside", NodeType: graphv1.NodeType_NODE_TYPE_EXTERNAL, GroupId: "floor"}},
 				Groups: []*graphv1.NodeGroup{{GroupId: "floor"}},
 			},
-		})
-		req.Header().Set("Authorization", authorization)
+		}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		_, err := client.SaveGraph(context.Background(), req)
+		_, err := client.SaveGraph(ctx, req)
 		if got, want := connectrpc.CodeOf(err), connectrpc.CodeInvalidArgument; got != want {
 			t.Fatalf("SaveGraph() error code = %v, want %v", got, want)
 		}
@@ -187,9 +191,9 @@ func TestSaveGraph(t *testing.T) {
 			t.Fatalf("SaveGraph() error = %v, want one error detail", err)
 		}
 
-		got, detailErr := connectErr.Details()[0].Value()
+		got, detailErr := connectproto.UnmarshalErrorDetail(connectErr.Details()[0])
 		if detailErr != nil {
-			t.Fatalf("Details()[0].Value() error = %v", detailErr)
+			t.Fatalf("UnmarshalErrorDetail() error = %v", detailErr)
 		}
 
 		want := &graphv1.GraphViolations{Violations: []*graphv1.GraphViolation{
@@ -250,12 +254,13 @@ func TestPublishRevisionAnswersMissingDraftWithNotFound(t *testing.T) {
 	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
 	httpServer := httptest.NewServer(newTestHandler(t, keys, newTestGraphService()))
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
-	req := connectrpc.NewRequest(&graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"})
-	req.Header().Set("Authorization", authorization)
+	req := &graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"}
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", authorization)
 
-	_, err := client.PublishRevision(context.Background(), req)
+	_, err := client.PublishRevision(ctx, req)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeNotFound; got != want {
 		t.Fatalf("PublishRevision() error code = %v, want %v", got, want)
 	}
@@ -282,7 +287,7 @@ func TestSaveGraphVerifiesEventWithTenantManagement(t *testing.T) {
 		{"open event", tenantEvent(tenantv1.EventStatus_EVENT_STATUS_OPEN), nil, 0},
 		{"unknown event", nil, nil, connectrpc.CodeFailedPrecondition},
 		{"archived event", tenantEvent(tenantv1.EventStatus_EVENT_STATUS_ARCHIVED), nil, connectrpc.CodeFailedPrecondition},
-		{"tenant management unavailable", nil, connectrpc.NewError(connectrpc.CodeUnavailable, errors.New("down")), connectrpc.CodeInternal},
+		{"tenant management unavailable", nil, connectrpc.NewError(connectrpc.CodeUnavailable, "down"), connectrpc.CodeInternal},
 	}
 
 	for _, tt := range tests {
@@ -337,13 +342,14 @@ func TestMapObservationPoint(t *testing.T) {
 	}, inlineTransactor{}, callerTenantEvents{})
 	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
-	mapPoint := func(mapping *graphv1.ObservationPointMapping) (*connectrpc.Response[graphv1.MapObservationPointResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.MapObservationPointRequest{EventId: "fedcba9876543210", Mapping: mapping})
-		req.Header().Set("Authorization", authorization)
+	mapPoint := func(mapping *graphv1.ObservationPointMapping) (*graphv1.MapObservationPointResponse, error) {
+		req := &graphv1.MapObservationPointRequest{EventId: "fedcba9876543210", Mapping: mapping}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.MapObservationPoint(context.Background(), req)
+		return client.MapObservationPoint(ctx, req)
 	}
 
 	t.Run("answers with the mapping onto a route", func(t *testing.T) {
@@ -359,11 +365,11 @@ func TestMapObservationPoint(t *testing.T) {
 			t.Fatalf("MapObservationPoint() error = %v", err)
 		}
 
-		if !proto.Equal(res.Msg.GetMapping(), mapping) {
-			t.Errorf("MapObservationPoint() mapping = %v, want %v", res.Msg.GetMapping(), mapping)
+		if !proto.Equal(res.GetMapping(), mapping) {
+			t.Errorf("MapObservationPoint() mapping = %v, want %v", res.GetMapping(), mapping)
 		}
 
-		if meta := res.Msg.GetMeta(); meta.GetEventId() != "fedcba9876543210" || len(meta.GetDraftRevisionId()) != 16 {
+		if meta := res.GetMeta(); meta.GetEventId() != "fedcba9876543210" || len(meta.GetDraftRevisionId()) != 16 {
 			t.Errorf("MapObservationPoint() meta = %v, want the event and its 16 character draft revision ID", meta)
 		}
 	})
@@ -438,13 +444,14 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 	})
 	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
-	getGraph := func() (*connectrpc.Response[graphv1.GetGraphResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.GetGraphRequest{EventId: "fedcba9876543210"})
-		req.Header().Set("Authorization", authorization)
+	getGraph := func() (*graphv1.GetGraphResponse, error) {
+		req := &graphv1.GetGraphRequest{EventId: "fedcba9876543210"}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.GetGraph(context.Background(), req)
+		return client.GetGraph(ctx, req)
 	}
 
 	if _, err := getGraph(); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
@@ -497,17 +504,18 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 		Label:        proto.String("通路"),
 	}
 
-	saveReq := connectrpc.NewRequest(&graphv1.SaveGraphRequest{
+	saveReq := &graphv1.SaveGraphRequest{
 		EventId: "fedcba9876543210",
 		Document: &graphv1.GraphDocument{
 			Nodes:  []*graphv1.GraphNode{outside, hall, gate},
 			Groups: []*graphv1.NodeGroup{outer, inner},
 			Edges:  []*graphv1.GraphEdge{toHall, fromOutside},
 		},
-	})
-	saveReq.Header().Set("Authorization", authorization)
+	}
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", authorization)
 
-	if _, err := client.SaveGraph(context.Background(), saveReq); err != nil {
+	if _, err := client.SaveGraph(ctx, saveReq); err != nil {
 		t.Fatalf("SaveGraph() error = %v", err)
 	}
 
@@ -546,8 +554,8 @@ func TestGetGraphRestoresTheSavedDocument(t *testing.T) {
 			Anchor:       &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}},
 		}},
 	}
-	if !proto.Equal(res.Msg, want) {
-		t.Errorf("GetGraph() = %v, want %v", res.Msg, want)
+	if !proto.Equal(res, want) {
+		t.Errorf("GetGraph() = %v, want %v", res, want)
 	}
 }
 
@@ -661,63 +669,69 @@ func TestQrLocations(t *testing.T) {
 	})
 	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
 	t.Cleanup(httpServer.Close)
-	client := graphv1connect.NewGraphAuthoringServiceClient(httpServer.Client(), httpServer.URL)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
 
 	serviceAuthorization, serviceKeys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
 	supplyClient := newSupplyClient(t, serviceKeys, graphs)
 
-	addQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.AddQrLocationResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.AddQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
-		req.Header().Set("Authorization", authorization)
+	addQrLocation := func(location *graphv1.QrLocation) (*graphv1.AddQrLocationResponse, error) {
+		req := &graphv1.AddQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.AddQrLocation(context.Background(), req)
+		return client.AddQrLocation(ctx, req)
 	}
-	updateQrLocation := func(location *graphv1.QrLocation) (*connectrpc.Response[graphv1.UpdateQrLocationResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.UpdateQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location})
-		req.Header().Set("Authorization", authorization)
+	updateQrLocation := func(location *graphv1.QrLocation) (*graphv1.UpdateQrLocationResponse, error) {
+		req := &graphv1.UpdateQrLocationRequest{EventId: "fedcba9876543210", QrLocation: location}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.UpdateQrLocation(context.Background(), req)
+		return client.UpdateQrLocation(ctx, req)
 	}
-	removeQrLocation := func(qrLocationID string) (*connectrpc.Response[graphv1.RemoveQrLocationResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.RemoveQrLocationRequest{EventId: "fedcba9876543210", QrLocationId: qrLocationID})
-		req.Header().Set("Authorization", authorization)
+	removeQrLocation := func(qrLocationID string) (*graphv1.RemoveQrLocationResponse, error) {
+		req := &graphv1.RemoveQrLocationRequest{EventId: "fedcba9876543210", QrLocationId: qrLocationID}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		return client.RemoveQrLocation(context.Background(), req)
+		return client.RemoveQrLocation(ctx, req)
 	}
 	publish := func() string {
 		t.Helper()
 
-		req := connectrpc.NewRequest(&graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"})
-		req.Header().Set("Authorization", authorization)
+		req := &graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		res, err := client.PublishRevision(context.Background(), req)
+		res, err := client.PublishRevision(ctx, req)
 		if err != nil {
 			t.Fatalf("PublishRevision() error = %v", err)
 		}
 
-		return res.Msg.GetRevisionId()
+		return res.GetRevisionId()
 	}
-	getQrLocationsOf := func(tenantID, revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
-		req := connectrpc.NewRequest(&graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210", RevisionId: revisionID, TenantId: tenantID})
-		req.Header().Set("Authorization", serviceAuthorization)
+	getQrLocationsOf := func(tenantID, revisionID string) (*graphv1.GetQrLocationsResponse, error) {
+		req := &graphv1.GetQrLocationsRequest{EventId: "fedcba9876543210", RevisionId: revisionID, TenantId: tenantID}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", serviceAuthorization)
 
-		return supplyClient.GetQrLocations(context.Background(), req)
+		return supplyClient.GetQrLocations(ctx, req)
 	}
-	getQrLocations := func(revisionID string) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+	getQrLocations := func(revisionID string) (*graphv1.GetQrLocationsResponse, error) {
 		return getQrLocationsOf("a1b2c3d4e5f60718", revisionID)
 	}
 	getGraph := func() *graphv1.GetGraphResponse {
 		t.Helper()
 
-		req := connectrpc.NewRequest(&graphv1.GetGraphRequest{EventId: "fedcba9876543210"})
-		req.Header().Set("Authorization", authorization)
+		req := &graphv1.GetGraphRequest{EventId: "fedcba9876543210"}
+		ctx, info := connectrpc.NewClientContext(context.Background())
+		info.RequestHeader().Set("Authorization", authorization)
 
-		res, err := client.GetGraph(context.Background(), req)
+		res, err := client.GetGraph(ctx, req)
 		if err != nil {
 			t.Fatalf("GetGraph() error = %v", err)
 		}
 
-		return res.Msg
+		return res
 	}
 	equalLocations := func(got, want []*graphv1.QrLocation) bool {
 		return slices.EqualFunc(got, want, func(a, b *graphv1.QrLocation) bool { return proto.Equal(a, b) })
@@ -742,8 +756,8 @@ func TestQrLocations(t *testing.T) {
 			t.Fatalf("GetQrLocations(%q) error = %v", revisionID, err)
 		}
 
-		if !equalLocations(res.Msg.GetQrLocations(), want) || res.Msg.GetRevisionId() != revisionID {
-			t.Errorf("GetQrLocations(%q) = %v, want revision %q with %v", revisionID, res.Msg, revisionID, want)
+		if !equalLocations(res.GetQrLocations(), want) || res.GetRevisionId() != revisionID {
+			t.Errorf("GetQrLocations(%q) = %v, want revision %q with %v", revisionID, res, revisionID, want)
 		}
 	}
 
@@ -758,24 +772,24 @@ func TestQrLocations(t *testing.T) {
 		t.Fatalf("AddQrLocation() error = %v", err)
 	}
 
-	location := added.Msg.GetQrLocation()
+	location := added.GetQrLocation()
 	if location.GetQrLocationId() == "" {
-		t.Fatalf("AddQrLocation() = %v, want an assigned qr_location_id", added.Msg)
+		t.Fatalf("AddQrLocation() = %v, want an assigned qr_location_id", added)
 	}
 
-	if added.Msg.GetMeta().GetDraftRevisionId() == initial.GetDraftRevisionId() {
-		t.Errorf("AddQrLocation() draft revision = %q, want it to differ from %q", added.Msg.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
+	if added.GetMeta().GetDraftRevisionId() == initial.GetDraftRevisionId() {
+		t.Errorf("AddQrLocation() draft revision = %q, want it to differ from %q", added.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
 	}
 
-	assertDraft(added.Msg.GetMeta(), location)
+	assertDraft(added.GetMeta(), location)
 
-	if _, err := getQrLocations(added.Msg.GetMeta().GetDraftRevisionId()); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
+	if _, err := getQrLocations(added.GetMeta().GetDraftRevisionId()); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
 		t.Errorf("GetQrLocations() of the unpublished draft error = %v, want code %v", err, connectrpc.CodeNotFound)
 	}
 
 	first := publish()
-	if first != added.Msg.GetMeta().GetDraftRevisionId() {
-		t.Errorf("PublishRevision() revision = %q, want the draft revision %q", first, added.Msg.GetMeta().GetDraftRevisionId())
+	if first != added.GetMeta().GetDraftRevisionId() {
+		t.Errorf("PublishRevision() revision = %q, want the draft revision %q", first, added.GetMeta().GetDraftRevisionId())
 	}
 
 	assertPublished(first, location)
@@ -792,15 +806,15 @@ func TestQrLocations(t *testing.T) {
 		t.Fatalf("UpdateQrLocation() error = %v", err)
 	}
 
-	if !proto.Equal(updated.Msg.GetQrLocation(), moved) {
-		t.Errorf("UpdateQrLocation() = %v, want %v", updated.Msg.GetQrLocation(), moved)
+	if !proto.Equal(updated.GetQrLocation(), moved) {
+		t.Errorf("UpdateQrLocation() = %v, want %v", updated.GetQrLocation(), moved)
 	}
 
-	if meta := updated.Msg.GetMeta(); meta.GetRevisionId() != first || meta.GetDraftRevisionId() == first {
+	if meta := updated.GetMeta(); meta.GetRevisionId() != first || meta.GetDraftRevisionId() == first {
 		t.Errorf("UpdateQrLocation() meta = %v, want published revision %q and a new draft revision", meta, first)
 	}
 
-	assertDraft(updated.Msg.GetMeta(), moved)
+	assertDraft(updated.GetMeta(), moved)
 	assertPublished(first, location)
 
 	second := publish()
@@ -816,12 +830,12 @@ func TestQrLocations(t *testing.T) {
 		t.Fatalf("RemoveQrLocation() error = %v", err)
 	}
 
-	if removed.Msg.GetMeta().GetDraftRevisionId() != initial.GetDraftRevisionId() {
+	if removed.GetMeta().GetDraftRevisionId() != initial.GetDraftRevisionId() {
 		t.Errorf("RemoveQrLocation() draft revision = %q, want the revision before the QR location was added %q",
-			removed.Msg.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
+			removed.GetMeta().GetDraftRevisionId(), initial.GetDraftRevisionId())
 	}
 
-	assertDraft(removed.Msg.GetMeta())
+	assertDraft(removed.GetMeta())
 	assertPublished(second, moved)
 
 	onGate := &kernelv1.GraphAnchor{Target: &kernelv1.GraphAnchor_PointId{PointId: "gate"}}
@@ -913,5 +927,5 @@ func TestQrLocations(t *testing.T) {
 		}
 	}
 
-	assertDraft(removed.Msg.GetMeta())
+	assertDraft(removed.GetMeta())
 }
