@@ -5,21 +5,12 @@
 package graphv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	v11 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// GraphAuthoringServiceName is the fully-qualified name of the GraphAuthoringService service.
@@ -28,449 +19,525 @@ const (
 	GraphSupplyServiceName = "tolo.graph.v1.GraphSupplyService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// GraphAuthoringServiceSaveGraphProcedure is the fully-qualified name of the
-	// GraphAuthoringService's SaveGraph RPC.
+	// GraphAuthoringServiceSaveGraphProcedure is the procedure name of the GraphAuthoringService's
+	// SaveGraph RPC.
 	GraphAuthoringServiceSaveGraphProcedure = "/tolo.graph.v1.GraphAuthoringService/SaveGraph"
-	// GraphAuthoringServiceMapObservationPointProcedure is the fully-qualified name of the
+	// GraphAuthoringServiceMapObservationPointProcedure is the procedure name of the
 	// GraphAuthoringService's MapObservationPoint RPC.
 	GraphAuthoringServiceMapObservationPointProcedure = "/tolo.graph.v1.GraphAuthoringService/MapObservationPoint"
-	// GraphAuthoringServiceAddQrLocationProcedure is the fully-qualified name of the
-	// GraphAuthoringService's AddQrLocation RPC.
+	// GraphAuthoringServiceAddQrLocationProcedure is the procedure name of the GraphAuthoringService's
+	// AddQrLocation RPC.
 	GraphAuthoringServiceAddQrLocationProcedure = "/tolo.graph.v1.GraphAuthoringService/AddQrLocation"
-	// GraphAuthoringServiceUpdateQrLocationProcedure is the fully-qualified name of the
+	// GraphAuthoringServiceUpdateQrLocationProcedure is the procedure name of the
 	// GraphAuthoringService's UpdateQrLocation RPC.
 	GraphAuthoringServiceUpdateQrLocationProcedure = "/tolo.graph.v1.GraphAuthoringService/UpdateQrLocation"
-	// GraphAuthoringServiceRemoveQrLocationProcedure is the fully-qualified name of the
+	// GraphAuthoringServiceRemoveQrLocationProcedure is the procedure name of the
 	// GraphAuthoringService's RemoveQrLocation RPC.
 	GraphAuthoringServiceRemoveQrLocationProcedure = "/tolo.graph.v1.GraphAuthoringService/RemoveQrLocation"
-	// GraphAuthoringServiceGetGraphProcedure is the fully-qualified name of the GraphAuthoringService's
+	// GraphAuthoringServiceGetGraphProcedure is the procedure name of the GraphAuthoringService's
 	// GetGraph RPC.
 	GraphAuthoringServiceGetGraphProcedure = "/tolo.graph.v1.GraphAuthoringService/GetGraph"
-	// GraphAuthoringServicePublishRevisionProcedure is the fully-qualified name of the
+	// GraphAuthoringServicePublishRevisionProcedure is the procedure name of the
 	// GraphAuthoringService's PublishRevision RPC.
 	GraphAuthoringServicePublishRevisionProcedure = "/tolo.graph.v1.GraphAuthoringService/PublishRevision"
-	// GraphSupplyServiceGetCurrentRevisionProcedure is the fully-qualified name of the
-	// GraphSupplyService's GetCurrentRevision RPC.
+	// GraphSupplyServiceGetCurrentRevisionProcedure is the procedure name of the GraphSupplyService's
+	// GetCurrentRevision RPC.
 	GraphSupplyServiceGetCurrentRevisionProcedure = "/tolo.graph.v1.GraphSupplyService/GetCurrentRevision"
-	// GraphSupplyServiceGetObservationPointMappingsProcedure is the fully-qualified name of the
+	// GraphSupplyServiceGetObservationPointMappingsProcedure is the procedure name of the
 	// GraphSupplyService's GetObservationPointMappings RPC.
 	GraphSupplyServiceGetObservationPointMappingsProcedure = "/tolo.graph.v1.GraphSupplyService/GetObservationPointMappings"
-	// GraphSupplyServiceGetDisplayNamesProcedure is the fully-qualified name of the
-	// GraphSupplyService's GetDisplayNames RPC.
+	// GraphSupplyServiceGetDisplayNamesProcedure is the procedure name of the GraphSupplyService's
+	// GetDisplayNames RPC.
 	GraphSupplyServiceGetDisplayNamesProcedure = "/tolo.graph.v1.GraphSupplyService/GetDisplayNames"
-	// GraphSupplyServiceGetGatePointsProcedure is the fully-qualified name of the GraphSupplyService's
+	// GraphSupplyServiceGetGatePointsProcedure is the procedure name of the GraphSupplyService's
 	// GetGatePoints RPC.
 	GraphSupplyServiceGetGatePointsProcedure = "/tolo.graph.v1.GraphSupplyService/GetGatePoints"
-	// GraphSupplyServiceGetQrLocationsProcedure is the fully-qualified name of the GraphSupplyService's
+	// GraphSupplyServiceGetQrLocationsProcedure is the procedure name of the GraphSupplyService's
 	// GetQrLocations RPC.
 	GraphSupplyServiceGetQrLocationsProcedure = "/tolo.graph.v1.GraphSupplyService/GetQrLocations"
 )
 
+var (
+	graphAuthoringServiceSaveGraphSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("SaveGraph"),
+			Procedure:  GraphAuthoringServiceSaveGraphProcedure,
+		}
+	})
+	graphAuthoringServiceMapObservationPointSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("MapObservationPoint"),
+			Procedure:  GraphAuthoringServiceMapObservationPointProcedure,
+		}
+	})
+	graphAuthoringServiceAddQrLocationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("AddQrLocation"),
+			Procedure:  GraphAuthoringServiceAddQrLocationProcedure,
+		}
+	})
+	graphAuthoringServiceUpdateQrLocationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("UpdateQrLocation"),
+			Procedure:  GraphAuthoringServiceUpdateQrLocationProcedure,
+		}
+	})
+	graphAuthoringServiceRemoveQrLocationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("RemoveQrLocation"),
+			Procedure:  GraphAuthoringServiceRemoveQrLocationProcedure,
+		}
+	})
+	graphAuthoringServiceGetGraphSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("GetGraph"),
+			Procedure:  GraphAuthoringServiceGetGraphProcedure,
+		}
+	})
+	graphAuthoringServicePublishRevisionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("PublishRevision"),
+			Procedure:  GraphAuthoringServicePublishRevisionProcedure,
+		}
+	})
+)
+
 // GraphAuthoringServiceClient is a client for the tolo.graph.v1.GraphAuthoringService service.
 type GraphAuthoringServiceClient interface {
-	SaveGraph(context.Context, *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error)
-	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error)
-	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error)
-	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error)
-	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error)
-	GetGraph(context.Context, *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error)
-	PublishRevision(context.Context, *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error)
+	SaveGraph(context.Context, *v1.SaveGraphRequest) (*v1.GraphMeta, error)
+	MapObservationPoint(context.Context, *v1.MapObservationPointRequest) (*v1.MapObservationPointResponse, error)
+	AddQrLocation(context.Context, *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error)
+	UpdateQrLocation(context.Context, *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error)
+	RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error)
+	GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error)
+	PublishRevision(context.Context, *v1.PublishRevisionRequest) (*v1.GraphMeta, error)
 }
 
 // NewGraphAuthoringServiceClient constructs a client for the tolo.graph.v1.GraphAuthoringService
-// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
-// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
-// the connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewGraphAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) GraphAuthoringServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	graphAuthoringServiceMethods := v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods()
-	return &graphAuthoringServiceClient{
-		saveGraph: connect.NewClient[v1.SaveGraphRequest, v1.GraphMeta](
-			httpClient,
-			baseURL+GraphAuthoringServiceSaveGraphProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("SaveGraph")),
-			connect.WithClientOptions(opts...),
-		),
-		mapObservationPoint: connect.NewClient[v1.MapObservationPointRequest, v1.MapObservationPointResponse](
-			httpClient,
-			baseURL+GraphAuthoringServiceMapObservationPointProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("MapObservationPoint")),
-			connect.WithClientOptions(opts...),
-		),
-		addQrLocation: connect.NewClient[v1.AddQrLocationRequest, v1.AddQrLocationResponse](
-			httpClient,
-			baseURL+GraphAuthoringServiceAddQrLocationProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("AddQrLocation")),
-			connect.WithClientOptions(opts...),
-		),
-		updateQrLocation: connect.NewClient[v1.UpdateQrLocationRequest, v1.UpdateQrLocationResponse](
-			httpClient,
-			baseURL+GraphAuthoringServiceUpdateQrLocationProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("UpdateQrLocation")),
-			connect.WithClientOptions(opts...),
-		),
-		removeQrLocation: connect.NewClient[v1.RemoveQrLocationRequest, v1.RemoveQrLocationResponse](
-			httpClient,
-			baseURL+GraphAuthoringServiceRemoveQrLocationProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("RemoveQrLocation")),
-			connect.WithClientOptions(opts...),
-		),
-		getGraph: connect.NewClient[v1.GetGraphRequest, v1.GetGraphResponse](
-			httpClient,
-			baseURL+GraphAuthoringServiceGetGraphProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("GetGraph")),
-			connect.WithClientOptions(opts...),
-		),
-		publishRevision: connect.NewClient[v1.PublishRevisionRequest, v1.GraphMeta](
-			httpClient,
-			baseURL+GraphAuthoringServicePublishRevisionProcedure,
-			connect.WithSchema(graphAuthoringServiceMethods.ByName("PublishRevision")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// graphAuthoringServiceClient implements GraphAuthoringServiceClient.
-type graphAuthoringServiceClient struct {
-	saveGraph           *connect.Client[v1.SaveGraphRequest, v1.GraphMeta]
-	mapObservationPoint *connect.Client[v1.MapObservationPointRequest, v1.MapObservationPointResponse]
-	addQrLocation       *connect.Client[v1.AddQrLocationRequest, v1.AddQrLocationResponse]
-	updateQrLocation    *connect.Client[v1.UpdateQrLocationRequest, v1.UpdateQrLocationResponse]
-	removeQrLocation    *connect.Client[v1.RemoveQrLocationRequest, v1.RemoveQrLocationResponse]
-	getGraph            *connect.Client[v1.GetGraphRequest, v1.GetGraphResponse]
-	publishRevision     *connect.Client[v1.PublishRevisionRequest, v1.GraphMeta]
-}
-
-// SaveGraph calls tolo.graph.v1.GraphAuthoringService.SaveGraph.
-func (c *graphAuthoringServiceClient) SaveGraph(ctx context.Context, req *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error) {
-	return c.saveGraph.CallUnary(ctx, req)
-}
-
-// MapObservationPoint calls tolo.graph.v1.GraphAuthoringService.MapObservationPoint.
-func (c *graphAuthoringServiceClient) MapObservationPoint(ctx context.Context, req *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error) {
-	return c.mapObservationPoint.CallUnary(ctx, req)
-}
-
-// AddQrLocation calls tolo.graph.v1.GraphAuthoringService.AddQrLocation.
-func (c *graphAuthoringServiceClient) AddQrLocation(ctx context.Context, req *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error) {
-	return c.addQrLocation.CallUnary(ctx, req)
-}
-
-// UpdateQrLocation calls tolo.graph.v1.GraphAuthoringService.UpdateQrLocation.
-func (c *graphAuthoringServiceClient) UpdateQrLocation(ctx context.Context, req *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error) {
-	return c.updateQrLocation.CallUnary(ctx, req)
-}
-
-// RemoveQrLocation calls tolo.graph.v1.GraphAuthoringService.RemoveQrLocation.
-func (c *graphAuthoringServiceClient) RemoveQrLocation(ctx context.Context, req *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error) {
-	return c.removeQrLocation.CallUnary(ctx, req)
-}
-
-// GetGraph calls tolo.graph.v1.GraphAuthoringService.GetGraph.
-func (c *graphAuthoringServiceClient) GetGraph(ctx context.Context, req *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error) {
-	return c.getGraph.CallUnary(ctx, req)
-}
-
-// PublishRevision calls tolo.graph.v1.GraphAuthoringService.PublishRevision.
-func (c *graphAuthoringServiceClient) PublishRevision(ctx context.Context, req *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error) {
-	return c.publishRevision.CallUnary(ctx, req)
+// service. Multiple service clients may share a single connect.Client.
+func NewGraphAuthoringServiceClient(client *connect.Client) GraphAuthoringServiceClient {
+	return &graphAuthoringServiceClient{client: client}
 }
 
 // GraphAuthoringServiceHandler is an implementation of the tolo.graph.v1.GraphAuthoringService
 // service.
 type GraphAuthoringServiceHandler interface {
-	SaveGraph(context.Context, *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error)
-	MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error)
-	AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error)
-	UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error)
-	RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error)
-	GetGraph(context.Context, *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error)
-	PublishRevision(context.Context, *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error)
+	SaveGraph(context.Context, *v1.SaveGraphRequest) (*v1.GraphMeta, error)
+	MapObservationPoint(context.Context, *v1.MapObservationPointRequest) (*v1.MapObservationPointResponse, error)
+	AddQrLocation(context.Context, *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error)
+	UpdateQrLocation(context.Context, *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error)
+	RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error)
+	GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error)
+	PublishRevision(context.Context, *v1.PublishRevisionRequest) (*v1.GraphMeta, error)
 }
 
-// NewGraphAuthoringServiceHandler builds an HTTP handler from the service implementation. It
-// returns the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewGraphAuthoringServiceHandler(svc GraphAuthoringServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	graphAuthoringServiceMethods := v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods()
-	graphAuthoringServiceSaveGraphHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceSaveGraphProcedure,
-		svc.SaveGraph,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("SaveGraph")),
-		connect.WithHandlerOptions(opts...),
+// RegisterGraphAuthoringServiceHandler registers svc as the tolo.graph.v1.GraphAuthoringService
+// implementation on server.
+func RegisterGraphAuthoringServiceHandler(server *connect.Server, svc GraphAuthoringServiceHandler) {
+	adapter := graphAuthoringServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: graphAuthoringServiceSaveGraphSpec(), Handler: adapter.saveGraph},
+		connect.Method{Spec: graphAuthoringServiceMapObservationPointSpec(), Handler: adapter.mapObservationPoint},
+		connect.Method{Spec: graphAuthoringServiceAddQrLocationSpec(), Handler: adapter.addQrLocation},
+		connect.Method{Spec: graphAuthoringServiceUpdateQrLocationSpec(), Handler: adapter.updateQrLocation},
+		connect.Method{Spec: graphAuthoringServiceRemoveQrLocationSpec(), Handler: adapter.removeQrLocation},
+		connect.Method{Spec: graphAuthoringServiceGetGraphSpec(), Handler: adapter.getGraph},
+		connect.Method{Spec: graphAuthoringServicePublishRevisionSpec(), Handler: adapter.publishRevision},
 	)
-	graphAuthoringServiceMapObservationPointHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceMapObservationPointProcedure,
-		svc.MapObservationPoint,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("MapObservationPoint")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphAuthoringServiceAddQrLocationHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceAddQrLocationProcedure,
-		svc.AddQrLocation,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("AddQrLocation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphAuthoringServiceUpdateQrLocationHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceUpdateQrLocationProcedure,
-		svc.UpdateQrLocation,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("UpdateQrLocation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphAuthoringServiceRemoveQrLocationHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceRemoveQrLocationProcedure,
-		svc.RemoveQrLocation,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("RemoveQrLocation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphAuthoringServiceGetGraphHandler := connect.NewUnaryHandler(
-		GraphAuthoringServiceGetGraphProcedure,
-		svc.GetGraph,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("GetGraph")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphAuthoringServicePublishRevisionHandler := connect.NewUnaryHandler(
-		GraphAuthoringServicePublishRevisionProcedure,
-		svc.PublishRevision,
-		connect.WithSchema(graphAuthoringServiceMethods.ByName("PublishRevision")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/tolo.graph.v1.GraphAuthoringService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case GraphAuthoringServiceSaveGraphProcedure:
-			graphAuthoringServiceSaveGraphHandler.ServeHTTP(w, r)
-		case GraphAuthoringServiceMapObservationPointProcedure:
-			graphAuthoringServiceMapObservationPointHandler.ServeHTTP(w, r)
-		case GraphAuthoringServiceAddQrLocationProcedure:
-			graphAuthoringServiceAddQrLocationHandler.ServeHTTP(w, r)
-		case GraphAuthoringServiceUpdateQrLocationProcedure:
-			graphAuthoringServiceUpdateQrLocationHandler.ServeHTTP(w, r)
-		case GraphAuthoringServiceRemoveQrLocationProcedure:
-			graphAuthoringServiceRemoveQrLocationHandler.ServeHTTP(w, r)
-		case GraphAuthoringServiceGetGraphProcedure:
-			graphAuthoringServiceGetGraphHandler.ServeHTTP(w, r)
-		case GraphAuthoringServicePublishRevisionProcedure:
-			graphAuthoringServicePublishRevisionHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedGraphAuthoringServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGraphAuthoringServiceHandler struct{}
 
-func (UnimplementedGraphAuthoringServiceHandler) SaveGraph(context.Context, *connect.Request[v1.SaveGraphRequest]) (*connect.Response[v1.GraphMeta], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.SaveGraph is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) SaveGraph(context.Context, *v1.SaveGraphRequest) (*v1.GraphMeta, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.SaveGraph is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) MapObservationPoint(context.Context, *connect.Request[v1.MapObservationPointRequest]) (*connect.Response[v1.MapObservationPointResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.MapObservationPoint is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) MapObservationPoint(context.Context, *v1.MapObservationPointRequest) (*v1.MapObservationPointResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.MapObservationPoint is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) AddQrLocation(context.Context, *connect.Request[v1.AddQrLocationRequest]) (*connect.Response[v1.AddQrLocationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.AddQrLocation is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) AddQrLocation(context.Context, *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.AddQrLocation is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) UpdateQrLocation(context.Context, *connect.Request[v1.UpdateQrLocationRequest]) (*connect.Response[v1.UpdateQrLocationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.UpdateQrLocation is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) UpdateQrLocation(context.Context, *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.UpdateQrLocation is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) RemoveQrLocation(context.Context, *connect.Request[v1.RemoveQrLocationRequest]) (*connect.Response[v1.RemoveQrLocationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.RemoveQrLocation is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.RemoveQrLocation is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) GetGraph(context.Context, *connect.Request[v1.GetGraphRequest]) (*connect.Response[v1.GetGraphResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.GetGraph is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.GetGraph is not implemented")
 }
 
-func (UnimplementedGraphAuthoringServiceHandler) PublishRevision(context.Context, *connect.Request[v1.PublishRevisionRequest]) (*connect.Response[v1.GraphMeta], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphAuthoringService.PublishRevision is not implemented"))
+func (UnimplementedGraphAuthoringServiceHandler) PublishRevision(context.Context, *v1.PublishRevisionRequest) (*v1.GraphMeta, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.PublishRevision is not implemented")
 }
+
+type graphAuthoringServiceClient struct {
+	client *connect.Client
+}
+
+func (c *graphAuthoringServiceClient) SaveGraph(ctx context.Context, req *v1.SaveGraphRequest) (*v1.GraphMeta, error) {
+	var res v1.GraphMeta
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceSaveGraphSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) MapObservationPoint(ctx context.Context, req *v1.MapObservationPointRequest) (*v1.MapObservationPointResponse, error) {
+	var res v1.MapObservationPointResponse
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceMapObservationPointSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) AddQrLocation(ctx context.Context, req *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error) {
+	var res v1.AddQrLocationResponse
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceAddQrLocationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) UpdateQrLocation(ctx context.Context, req *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error) {
+	var res v1.UpdateQrLocationResponse
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceUpdateQrLocationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) RemoveQrLocation(ctx context.Context, req *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error) {
+	var res v1.RemoveQrLocationResponse
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceRemoveQrLocationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) GetGraph(ctx context.Context, req *v1.GetGraphRequest) (*v1.GetGraphResponse, error) {
+	var res v1.GetGraphResponse
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceGetGraphSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) PublishRevision(ctx context.Context, req *v1.PublishRevisionRequest) (*v1.GraphMeta, error) {
+	var res v1.GraphMeta
+	if err := c.client.CallUnary(ctx, graphAuthoringServicePublishRevisionSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type graphAuthoringServiceHandler struct{ svc GraphAuthoringServiceHandler }
+
+func (h graphAuthoringServiceHandler) saveGraph(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SaveGraphRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SaveGraph(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) mapObservationPoint(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.MapObservationPointRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.MapObservationPoint(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) addQrLocation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.AddQrLocationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.AddQrLocation(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) updateQrLocation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateQrLocationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateQrLocation(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) removeQrLocation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RemoveQrLocationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RemoveQrLocation(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) getGraph(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetGraphRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetGraph(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphAuthoringServiceHandler) publishRevision(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.PublishRevisionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.PublishRevision(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+var (
+	graphSupplyServiceGetCurrentRevisionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetCurrentRevision"),
+			Procedure:  GraphSupplyServiceGetCurrentRevisionProcedure,
+		}
+	})
+	graphSupplyServiceGetObservationPointMappingsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetObservationPointMappings"),
+			Procedure:  GraphSupplyServiceGetObservationPointMappingsProcedure,
+		}
+	})
+	graphSupplyServiceGetDisplayNamesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetDisplayNames"),
+			Procedure:  GraphSupplyServiceGetDisplayNamesProcedure,
+		}
+	})
+	graphSupplyServiceGetGatePointsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetGatePoints"),
+			Procedure:  GraphSupplyServiceGetGatePointsProcedure,
+		}
+	})
+	graphSupplyServiceGetQrLocationsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetQrLocations"),
+			Procedure:  GraphSupplyServiceGetQrLocationsProcedure,
+		}
+	})
+)
 
 // GraphSupplyServiceClient is a client for the tolo.graph.v1.GraphSupplyService service.
 type GraphSupplyServiceClient interface {
-	GetCurrentRevision(context.Context, *connect.Request[v1.GetCurrentRevisionRequest]) (*connect.Response[v11.Graph], error)
-	GetObservationPointMappings(context.Context, *connect.Request[v1.GetMappingsRequest]) (*connect.Response[v1.GetMappingsResponse], error)
-	GetDisplayNames(context.Context, *connect.Request[v1.GetDisplayNamesRequest]) (*connect.Response[v1.GetDisplayNamesResponse], error)
-	GetGatePoints(context.Context, *connect.Request[v1.GetGatePointsRequest]) (*connect.Response[v1.GetGatePointsResponse], error)
-	GetQrLocations(context.Context, *connect.Request[v1.GetQrLocationsRequest]) (*connect.Response[v1.GetQrLocationsResponse], error)
+	GetCurrentRevision(context.Context, *v1.GetCurrentRevisionRequest) (*v11.Graph, error)
+	GetObservationPointMappings(context.Context, *v1.GetMappingsRequest) (*v1.GetMappingsResponse, error)
+	GetDisplayNames(context.Context, *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error)
+	GetGatePoints(context.Context, *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error)
+	GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error)
 }
 
 // NewGraphSupplyServiceClient constructs a client for the tolo.graph.v1.GraphSupplyService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewGraphSupplyServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) GraphSupplyServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	graphSupplyServiceMethods := v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods()
-	return &graphSupplyServiceClient{
-		getCurrentRevision: connect.NewClient[v1.GetCurrentRevisionRequest, v11.Graph](
-			httpClient,
-			baseURL+GraphSupplyServiceGetCurrentRevisionProcedure,
-			connect.WithSchema(graphSupplyServiceMethods.ByName("GetCurrentRevision")),
-			connect.WithClientOptions(opts...),
-		),
-		getObservationPointMappings: connect.NewClient[v1.GetMappingsRequest, v1.GetMappingsResponse](
-			httpClient,
-			baseURL+GraphSupplyServiceGetObservationPointMappingsProcedure,
-			connect.WithSchema(graphSupplyServiceMethods.ByName("GetObservationPointMappings")),
-			connect.WithClientOptions(opts...),
-		),
-		getDisplayNames: connect.NewClient[v1.GetDisplayNamesRequest, v1.GetDisplayNamesResponse](
-			httpClient,
-			baseURL+GraphSupplyServiceGetDisplayNamesProcedure,
-			connect.WithSchema(graphSupplyServiceMethods.ByName("GetDisplayNames")),
-			connect.WithClientOptions(opts...),
-		),
-		getGatePoints: connect.NewClient[v1.GetGatePointsRequest, v1.GetGatePointsResponse](
-			httpClient,
-			baseURL+GraphSupplyServiceGetGatePointsProcedure,
-			connect.WithSchema(graphSupplyServiceMethods.ByName("GetGatePoints")),
-			connect.WithClientOptions(opts...),
-		),
-		getQrLocations: connect.NewClient[v1.GetQrLocationsRequest, v1.GetQrLocationsResponse](
-			httpClient,
-			baseURL+GraphSupplyServiceGetQrLocationsProcedure,
-			connect.WithSchema(graphSupplyServiceMethods.ByName("GetQrLocations")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// graphSupplyServiceClient implements GraphSupplyServiceClient.
-type graphSupplyServiceClient struct {
-	getCurrentRevision          *connect.Client[v1.GetCurrentRevisionRequest, v11.Graph]
-	getObservationPointMappings *connect.Client[v1.GetMappingsRequest, v1.GetMappingsResponse]
-	getDisplayNames             *connect.Client[v1.GetDisplayNamesRequest, v1.GetDisplayNamesResponse]
-	getGatePoints               *connect.Client[v1.GetGatePointsRequest, v1.GetGatePointsResponse]
-	getQrLocations              *connect.Client[v1.GetQrLocationsRequest, v1.GetQrLocationsResponse]
-}
-
-// GetCurrentRevision calls tolo.graph.v1.GraphSupplyService.GetCurrentRevision.
-func (c *graphSupplyServiceClient) GetCurrentRevision(ctx context.Context, req *connect.Request[v1.GetCurrentRevisionRequest]) (*connect.Response[v11.Graph], error) {
-	return c.getCurrentRevision.CallUnary(ctx, req)
-}
-
-// GetObservationPointMappings calls tolo.graph.v1.GraphSupplyService.GetObservationPointMappings.
-func (c *graphSupplyServiceClient) GetObservationPointMappings(ctx context.Context, req *connect.Request[v1.GetMappingsRequest]) (*connect.Response[v1.GetMappingsResponse], error) {
-	return c.getObservationPointMappings.CallUnary(ctx, req)
-}
-
-// GetDisplayNames calls tolo.graph.v1.GraphSupplyService.GetDisplayNames.
-func (c *graphSupplyServiceClient) GetDisplayNames(ctx context.Context, req *connect.Request[v1.GetDisplayNamesRequest]) (*connect.Response[v1.GetDisplayNamesResponse], error) {
-	return c.getDisplayNames.CallUnary(ctx, req)
-}
-
-// GetGatePoints calls tolo.graph.v1.GraphSupplyService.GetGatePoints.
-func (c *graphSupplyServiceClient) GetGatePoints(ctx context.Context, req *connect.Request[v1.GetGatePointsRequest]) (*connect.Response[v1.GetGatePointsResponse], error) {
-	return c.getGatePoints.CallUnary(ctx, req)
-}
-
-// GetQrLocations calls tolo.graph.v1.GraphSupplyService.GetQrLocations.
-func (c *graphSupplyServiceClient) GetQrLocations(ctx context.Context, req *connect.Request[v1.GetQrLocationsRequest]) (*connect.Response[v1.GetQrLocationsResponse], error) {
-	return c.getQrLocations.CallUnary(ctx, req)
+// Multiple service clients may share a single connect.Client.
+func NewGraphSupplyServiceClient(client *connect.Client) GraphSupplyServiceClient {
+	return &graphSupplyServiceClient{client: client}
 }
 
 // GraphSupplyServiceHandler is an implementation of the tolo.graph.v1.GraphSupplyService service.
 type GraphSupplyServiceHandler interface {
-	GetCurrentRevision(context.Context, *connect.Request[v1.GetCurrentRevisionRequest]) (*connect.Response[v11.Graph], error)
-	GetObservationPointMappings(context.Context, *connect.Request[v1.GetMappingsRequest]) (*connect.Response[v1.GetMappingsResponse], error)
-	GetDisplayNames(context.Context, *connect.Request[v1.GetDisplayNamesRequest]) (*connect.Response[v1.GetDisplayNamesResponse], error)
-	GetGatePoints(context.Context, *connect.Request[v1.GetGatePointsRequest]) (*connect.Response[v1.GetGatePointsResponse], error)
-	GetQrLocations(context.Context, *connect.Request[v1.GetQrLocationsRequest]) (*connect.Response[v1.GetQrLocationsResponse], error)
+	GetCurrentRevision(context.Context, *v1.GetCurrentRevisionRequest) (*v11.Graph, error)
+	GetObservationPointMappings(context.Context, *v1.GetMappingsRequest) (*v1.GetMappingsResponse, error)
+	GetDisplayNames(context.Context, *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error)
+	GetGatePoints(context.Context, *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error)
+	GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error)
 }
 
-// NewGraphSupplyServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewGraphSupplyServiceHandler(svc GraphSupplyServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	graphSupplyServiceMethods := v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods()
-	graphSupplyServiceGetCurrentRevisionHandler := connect.NewUnaryHandler(
-		GraphSupplyServiceGetCurrentRevisionProcedure,
-		svc.GetCurrentRevision,
-		connect.WithSchema(graphSupplyServiceMethods.ByName("GetCurrentRevision")),
-		connect.WithHandlerOptions(opts...),
+// RegisterGraphSupplyServiceHandler registers svc as the tolo.graph.v1.GraphSupplyService
+// implementation on server.
+func RegisterGraphSupplyServiceHandler(server *connect.Server, svc GraphSupplyServiceHandler) {
+	adapter := graphSupplyServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: graphSupplyServiceGetCurrentRevisionSpec(), Handler: adapter.getCurrentRevision},
+		connect.Method{Spec: graphSupplyServiceGetObservationPointMappingsSpec(), Handler: adapter.getObservationPointMappings},
+		connect.Method{Spec: graphSupplyServiceGetDisplayNamesSpec(), Handler: adapter.getDisplayNames},
+		connect.Method{Spec: graphSupplyServiceGetGatePointsSpec(), Handler: adapter.getGatePoints},
+		connect.Method{Spec: graphSupplyServiceGetQrLocationsSpec(), Handler: adapter.getQrLocations},
 	)
-	graphSupplyServiceGetObservationPointMappingsHandler := connect.NewUnaryHandler(
-		GraphSupplyServiceGetObservationPointMappingsProcedure,
-		svc.GetObservationPointMappings,
-		connect.WithSchema(graphSupplyServiceMethods.ByName("GetObservationPointMappings")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphSupplyServiceGetDisplayNamesHandler := connect.NewUnaryHandler(
-		GraphSupplyServiceGetDisplayNamesProcedure,
-		svc.GetDisplayNames,
-		connect.WithSchema(graphSupplyServiceMethods.ByName("GetDisplayNames")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphSupplyServiceGetGatePointsHandler := connect.NewUnaryHandler(
-		GraphSupplyServiceGetGatePointsProcedure,
-		svc.GetGatePoints,
-		connect.WithSchema(graphSupplyServiceMethods.ByName("GetGatePoints")),
-		connect.WithHandlerOptions(opts...),
-	)
-	graphSupplyServiceGetQrLocationsHandler := connect.NewUnaryHandler(
-		GraphSupplyServiceGetQrLocationsProcedure,
-		svc.GetQrLocations,
-		connect.WithSchema(graphSupplyServiceMethods.ByName("GetQrLocations")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/tolo.graph.v1.GraphSupplyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case GraphSupplyServiceGetCurrentRevisionProcedure:
-			graphSupplyServiceGetCurrentRevisionHandler.ServeHTTP(w, r)
-		case GraphSupplyServiceGetObservationPointMappingsProcedure:
-			graphSupplyServiceGetObservationPointMappingsHandler.ServeHTTP(w, r)
-		case GraphSupplyServiceGetDisplayNamesProcedure:
-			graphSupplyServiceGetDisplayNamesHandler.ServeHTTP(w, r)
-		case GraphSupplyServiceGetGatePointsProcedure:
-			graphSupplyServiceGetGatePointsHandler.ServeHTTP(w, r)
-		case GraphSupplyServiceGetQrLocationsProcedure:
-			graphSupplyServiceGetQrLocationsHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedGraphSupplyServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGraphSupplyServiceHandler struct{}
 
-func (UnimplementedGraphSupplyServiceHandler) GetCurrentRevision(context.Context, *connect.Request[v1.GetCurrentRevisionRequest]) (*connect.Response[v11.Graph], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphSupplyService.GetCurrentRevision is not implemented"))
+func (UnimplementedGraphSupplyServiceHandler) GetCurrentRevision(context.Context, *v1.GetCurrentRevisionRequest) (*v11.Graph, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetCurrentRevision is not implemented")
 }
 
-func (UnimplementedGraphSupplyServiceHandler) GetObservationPointMappings(context.Context, *connect.Request[v1.GetMappingsRequest]) (*connect.Response[v1.GetMappingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphSupplyService.GetObservationPointMappings is not implemented"))
+func (UnimplementedGraphSupplyServiceHandler) GetObservationPointMappings(context.Context, *v1.GetMappingsRequest) (*v1.GetMappingsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetObservationPointMappings is not implemented")
 }
 
-func (UnimplementedGraphSupplyServiceHandler) GetDisplayNames(context.Context, *connect.Request[v1.GetDisplayNamesRequest]) (*connect.Response[v1.GetDisplayNamesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphSupplyService.GetDisplayNames is not implemented"))
+func (UnimplementedGraphSupplyServiceHandler) GetDisplayNames(context.Context, *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetDisplayNames is not implemented")
 }
 
-func (UnimplementedGraphSupplyServiceHandler) GetGatePoints(context.Context, *connect.Request[v1.GetGatePointsRequest]) (*connect.Response[v1.GetGatePointsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphSupplyService.GetGatePoints is not implemented"))
+func (UnimplementedGraphSupplyServiceHandler) GetGatePoints(context.Context, *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetGatePoints is not implemented")
 }
 
-func (UnimplementedGraphSupplyServiceHandler) GetQrLocations(context.Context, *connect.Request[v1.GetQrLocationsRequest]) (*connect.Response[v1.GetQrLocationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tolo.graph.v1.GraphSupplyService.GetQrLocations is not implemented"))
+func (UnimplementedGraphSupplyServiceHandler) GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetQrLocations is not implemented")
+}
+
+type graphSupplyServiceClient struct {
+	client *connect.Client
+}
+
+func (c *graphSupplyServiceClient) GetCurrentRevision(ctx context.Context, req *v1.GetCurrentRevisionRequest) (*v11.Graph, error) {
+	var res v11.Graph
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetCurrentRevisionSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphSupplyServiceClient) GetObservationPointMappings(ctx context.Context, req *v1.GetMappingsRequest) (*v1.GetMappingsResponse, error) {
+	var res v1.GetMappingsResponse
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetObservationPointMappingsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphSupplyServiceClient) GetDisplayNames(ctx context.Context, req *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error) {
+	var res v1.GetDisplayNamesResponse
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetDisplayNamesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphSupplyServiceClient) GetGatePoints(ctx context.Context, req *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error) {
+	var res v1.GetGatePointsResponse
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetGatePointsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphSupplyServiceClient) GetQrLocations(ctx context.Context, req *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error) {
+	var res v1.GetQrLocationsResponse
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetQrLocationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type graphSupplyServiceHandler struct{ svc GraphSupplyServiceHandler }
+
+func (h graphSupplyServiceHandler) getCurrentRevision(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetCurrentRevisionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetCurrentRevision(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphSupplyServiceHandler) getObservationPointMappings(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetMappingsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetObservationPointMappings(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphSupplyServiceHandler) getDisplayNames(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetDisplayNamesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetDisplayNames(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphSupplyServiceHandler) getGatePoints(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetGatePointsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetGatePoints(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphSupplyServiceHandler) getQrLocations(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetQrLocationsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetQrLocations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

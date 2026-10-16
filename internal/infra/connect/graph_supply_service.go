@@ -3,8 +3,6 @@ package connect
 import (
 	"context"
 
-	connectrpc "connectrpc.com/connect"
-
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
@@ -41,42 +39,42 @@ func NewGraphSupplyService(graphService application.GraphSupplyUseCases) *GraphS
 	}
 }
 
-func (s *GraphSupplyService) GetCurrentRevision(ctx context.Context, req *connectrpc.Request[graphv1.GetCurrentRevisionRequest]) (*connectrpc.Response[kernelv1.Graph], error) {
-	graph, err := s.graphService.GetCurrentRevision(ctx, application.GetCurrentRevisionInput{EventPublicID: req.Msg.GetEventId()})
+func (s *GraphSupplyService) GetCurrentRevision(ctx context.Context, req *graphv1.GetCurrentRevisionRequest) (*kernelv1.Graph, error) {
+	graph, err := s.graphService.GetCurrentRevision(ctx, application.GetCurrentRevisionInput{EventPublicID: req.GetEventId()})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(kernelGraphToProto(graph)), nil
+	return kernelGraphToProto(graph), nil
 }
 
 func (s *GraphSupplyService) GetObservationPointMappings(
-	ctx context.Context, req *connectrpc.Request[graphv1.GetMappingsRequest],
-) (*connectrpc.Response[graphv1.GetMappingsResponse], error) {
+	ctx context.Context, req *graphv1.GetMappingsRequest,
+) (*graphv1.GetMappingsResponse, error) {
 	result, err := s.graphService.GetObservationPointMappings(ctx, application.GetObservationPointMappingsInput{
-		EventPublicID: req.Msg.GetEventId(),
-		RevisionID:    req.Msg.GetRevisionId(),
+		EventPublicID: req.GetEventId(),
+		RevisionID:    req.GetRevisionId(),
 	})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(&graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: observationPointMappingsToProto(result.Mappings)}), nil
+	return &graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: observationPointMappingsToProto(result.Mappings)}, nil
 }
 
 func (s *GraphSupplyService) GetQrLocations(
-	ctx context.Context, req *connectrpc.Request[graphv1.GetQrLocationsRequest],
-) (*connectrpc.Response[graphv1.GetQrLocationsResponse], error) {
+	ctx context.Context, req *graphv1.GetQrLocationsRequest,
+) (*graphv1.GetQrLocationsResponse, error) {
 	result, err := s.graphService.GetQrLocations(ctx, application.GetQrLocationsInput{
-		EventPublicID:  req.Msg.GetEventId(),
-		RevisionID:     req.Msg.GetRevisionId(),
-		TenantPublicID: req.Msg.GetTenantId(),
+		EventPublicID:  req.GetEventId(),
+		RevisionID:     req.GetRevisionId(),
+		TenantPublicID: req.GetTenantId(),
 	})
 	if err != nil {
 		return nil, graphError(ctx, err)
 	}
 
-	return connectrpc.NewResponse(&graphv1.GetQrLocationsResponse{RevisionId: result.RevisionID, QrLocations: qrLocationsToProto(result.QrLocations)}), nil
+	return &graphv1.GetQrLocationsResponse{RevisionId: result.RevisionID, QrLocations: qrLocationsToProto(result.QrLocations)}, nil
 }
 
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {

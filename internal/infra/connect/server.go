@@ -7,7 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	connectrpc "connectrpc.com/connect"
+	connectrpc "connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/otelconnect"
 
 	"github.com/pj-hoakari/internal-jwt-handling/interceptor"
@@ -82,7 +83,7 @@ func RoutesWithVerifier(
 ) (func(mux *http.ServeMux), error) {
 	// The caller sits behind the Service Gateway, so an incoming trace context is
 	// trusted and continued instead of being demoted to a span link.
-	tracing, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote())
+	tracing, err := otelconnect.NewServerInterceptor(otelconnect.WithTrustRemote())
 	if err != nil {
 		return nil, fmt.Errorf("create tracing interceptor: %w", err)
 	}
@@ -98,10 +99,8 @@ func RoutesWithVerifier(
 
 	// Tracing runs before authentication, so a rejected call is still recorded
 	// on the trace it belongs to.
-	graphPath, graphHandler := graphv1connect.NewGraphAuthoringServiceHandler(
-		NewGraphService(graphService),
-		connectrpc.WithInterceptors(tracing, graphAuth, forwardAuthorization()),
-	)
+	graphServer := connectrpc.NewServer(tracing, graphAuth)
+	graphv1connect.RegisterGraphAuthoringServiceHandler(graphServer, NewGraphService(graphService))
 
 	supplyAuth, err := interceptor.New(
 		tokenVerifier,
@@ -112,14 +111,12 @@ func RoutesWithVerifier(
 		return nil, fmt.Errorf("create GraphSupplyService authentication interceptor: %w", err)
 	}
 
-	supplyPath, supplyHandler := graphv1connect.NewGraphSupplyServiceHandler(
-		NewGraphSupplyService(graphService),
-		connectrpc.WithInterceptors(tracing, supplyAuth),
-	)
+	supplyServer := connectrpc.NewServer(tracing, supplyAuth)
+	graphv1connect.RegisterGraphSupplyServiceHandler(supplyServer, NewGraphSupplyService(graphService))
 
 	return func(mux *http.ServeMux) {
-		mux.Handle(graphPath, graphHandler)
-		mux.Handle(supplyPath, supplyHandler)
+		connecthttp.Mount(mux, graphServer)
+		connecthttp.Mount(mux, supplyServer)
 	}, nil
 }
 
