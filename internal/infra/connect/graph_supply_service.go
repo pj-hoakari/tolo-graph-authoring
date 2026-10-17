@@ -42,7 +42,7 @@ func NewGraphSupplyService(graphService application.GraphSupplyUseCases) *GraphS
 func (s *GraphSupplyService) GetCurrentRevision(ctx context.Context, req *graphv1.GetCurrentRevisionRequest) (*kernelv1.Graph, error) {
 	graph, err := s.graphService.GetCurrentRevision(ctx, application.GetCurrentRevisionInput{EventPublicID: req.GetEventId()})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return kernelGraphToProto(graph), nil
@@ -56,7 +56,7 @@ func (s *GraphSupplyService) GetObservationPointMappings(
 		RevisionID:    req.GetRevisionId(),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: observationPointMappingsToProto(result.Mappings)}, nil
@@ -71,7 +71,7 @@ func (s *GraphSupplyService) GetQrLocations(
 		TenantPublicID: req.GetTenantId(),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.GetQrLocationsResponse{RevisionId: result.RevisionID, QrLocations: qrLocationsToProto(result.QrLocations)}, nil

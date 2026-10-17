@@ -30,6 +30,8 @@ linters:
                 # cause is logged server-side and never reaches the client.
                 - pattern: '^connectrpc\.CodeInternal$'
                   msg: "build internal errors with InternalError(ctx, err) instead of connectrpc.CodeInternal"
+                - pattern: '^connectrpc\.NewError$'
+                  msg: "answer errors through connectError(ctx, err) so the message comes from its table"
                 # Logging goes through log/slog, so that every record comes out
                 # in the structure Cloud Logging parses and carries the trace of
                 # its request context.
@@ -57,3 +59,11 @@ linters:
                   - staticcheck
                   - fatcontext
                   - containedctx
+            - path: internal/infra/connect/errors\.go
+              linters:
+                  - forbidigo
+              text: connectrpc\.NewError
+            - path: cmd/mockdeps/main\.go
+              linters:
+                  - forbidigo
+              text: connectrpc\.NewError

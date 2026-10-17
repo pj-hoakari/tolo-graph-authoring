@@ -5,14 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
 
 	connectrpc "connectrpc.com/connect/v2"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
+	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/logging"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 )
 
 // TestInternalErrorHidesDetail keeps the cause of an internal failure out of
@@ -72,6 +77,76 @@ func TestCanceledRequestIsNotLogged(t *testing.T) {
 
 	if logs.Len() != 0 {
 		t.Errorf("log = %q, want nothing logged", logs.String())
+	}
+}
+
+func TestConnectErrorAnswersWithFixedMessages(t *testing.T) {
+	t.Parallel()
+
+	_, violations := domain.NewGraph("tenant", "fedcba9876543210", domain.GraphDocument{
+		Nodes: []domain.Node{{ID: "outside", Type: domain.NodeTypeExternal}},
+	})
+
+	tests := []struct {
+		name        string
+		err         error
+		wantCode    connectrpc.Code
+		wantMessage string
+	}{
+		{
+			"wrapped sentinel",
+			fmt.Errorf("find graph: %w", repository.ErrGraphNotFound),
+			connectrpc.CodeNotFound,
+			"graph not found",
+		},
+		{
+			"sentinel wrapped with a request ID",
+			fmt.Errorf("%w: observation point %q", domain.ErrAnchorTargetNotFound, "cam-1"),
+			connectrpc.CodeFailedPrecondition,
+			"anchor target is not in the graph",
+		},
+		{
+			"aborted transaction joined to the database error",
+			errors.Join(
+				fmt.Errorf("save graph: %w", &pgconn.PgError{Code: "40P01", Message: "deadlock detected"}),
+				dbinfra.ErrTransactionAborted,
+			),
+			connectrpc.CodeAborted,
+			"transaction aborted; retry the request",
+		},
+		{
+			"wrapped cancellation",
+			fmt.Errorf("find graph: %w", context.Canceled),
+			connectrpc.CodeCanceled,
+			"canceled",
+		},
+		{
+			"wrapped deadline",
+			fmt.Errorf("find graph: %w", context.DeadlineExceeded),
+			connectrpc.CodeDeadlineExceeded,
+			"deadline exceeded",
+		},
+		{
+			"wrapped graph violations",
+			fmt.Errorf("save graph: %w", violations),
+			connectrpc.CodeInvalidArgument,
+			`invalid graph document: external node "outside" has no edge`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := connectError(context.Background(), tt.err)
+			if got := err.Code(); got != tt.wantCode {
+				t.Errorf("connectError() code = %v, want %v", got, tt.wantCode)
+			}
+
+			if got := err.Message(); got != tt.wantMessage {
+				t.Errorf("connectError() message = %q, want %q", got, tt.wantMessage)
+			}
+		})
 	}
 }
 

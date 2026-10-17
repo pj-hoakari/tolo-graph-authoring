@@ -4,8 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 )
 
 type jsonColumn[T any] struct {
@@ -15,7 +13,7 @@ type jsonColumn[T any] struct {
 func (c jsonColumn[T]) Value() (driver.Value, error) {
 	encoded, err := json.Marshal(c.value)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", domain.ErrInvalidGraphDocument, err)
+		return nil, err
 	}
 
 	return string(encoded), nil

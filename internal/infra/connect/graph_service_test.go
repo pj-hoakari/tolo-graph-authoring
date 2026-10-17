@@ -22,7 +22,6 @@ import (
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
-	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
@@ -263,15 +262,6 @@ func TestPublishRevisionAnswersMissingDraftWithNotFound(t *testing.T) {
 	_, err := client.PublishRevision(ctx, req)
 	if got, want := connectrpc.CodeOf(err), connectrpc.CodeNotFound; got != want {
 		t.Fatalf("PublishRevision() error code = %v, want %v", got, want)
-	}
-}
-
-func TestGraphErrorAnswersAbortedTransactionWithAborted(t *testing.T) {
-	t.Parallel()
-
-	err := errors.Join(errors.New("deadlock detected"), dbinfra.ErrTransactionAborted)
-	if got, want := graphError(context.Background(), err).Code(), connectrpc.CodeAborted; got != want {
-		t.Errorf("graphError() code = %v, want %v", got, want)
 	}
 }
 

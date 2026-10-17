@@ -2,18 +2,11 @@ package connect
 
 import (
 	"context"
-	"errors"
-
-	connectrpc "connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 
 	graphv1 "github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1"
 	"github.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1/graphv1connect"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
-	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/repository"
-	"github.com/pj-hoakari/tolo-graph-authoring/internal/tenantctx"
 	kernelv1 "github.com/pj-hoakari/tolo-kernel-proto/gen/tolo/kernel/v1"
 )
 
@@ -90,7 +83,7 @@ func (s *GraphService) SaveGraph(ctx context.Context, req *graphv1.SaveGraphRequ
 		Document:      graphDocumentFromProto(req.GetDocument()),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return graphMetaToProto(graph.Meta()), nil
@@ -104,7 +97,7 @@ func (s *GraphService) MapObservationPoint(
 		Mapping:       observationPointMappingFromProto(req.GetMapping()),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.MapObservationPointResponse{
@@ -121,7 +114,7 @@ func (s *GraphService) AddQrLocation(
 		QrLocation:    qrLocationFromProto(req.GetQrLocation()),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.AddQrLocationResponse{
@@ -138,7 +131,7 @@ func (s *GraphService) UpdateQrLocation(
 		QrLocation:    qrLocationFromProto(req.GetQrLocation()),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.UpdateQrLocationResponse{
@@ -155,7 +148,7 @@ func (s *GraphService) RemoveQrLocation(
 		QrLocationID:  req.GetQrLocationId(),
 	})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.RemoveQrLocationResponse{Meta: graphMetaToProto(meta)}, nil
@@ -164,7 +157,7 @@ func (s *GraphService) RemoveQrLocation(
 func (s *GraphService) PublishRevision(ctx context.Context, req *graphv1.PublishRevisionRequest) (*graphv1.GraphMeta, error) {
 	published, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.GetEventId()})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.GraphMeta{
@@ -177,7 +170,7 @@ func (s *GraphService) PublishRevision(ctx context.Context, req *graphv1.Publish
 func (s *GraphService) GetGraph(ctx context.Context, req *graphv1.GetGraphRequest) (*graphv1.GetGraphResponse, error) {
 	graph, err := s.graphService.GetGraph(ctx, application.GetGraphInput{EventPublicID: req.GetEventId()})
 	if err != nil {
-		return nil, graphError(ctx, err)
+		return nil, connectError(ctx, err)
 	}
 
 	return &graphv1.GetGraphResponse{
@@ -194,56 +187,6 @@ func graphMetaToProto(meta domain.GraphMeta) *graphv1.GraphMeta {
 		RevisionId:      meta.RevisionID,
 		DraftRevisionId: meta.DraftRevisionID,
 	}
-}
-
-func graphError(ctx context.Context, err error) *connectrpc.Error {
-	switch {
-	case errors.Is(err, application.ErrEventIDRequired), errors.Is(err, application.ErrGraphDocumentRequired),
-		errors.Is(err, domain.ErrInvalidGraphDocument), errors.Is(err, domain.ErrInvalidObservationPointMapping),
-		errors.Is(err, domain.ErrInvalidQrLocation), errors.Is(err, application.ErrRevisionIDRequired),
-		errors.Is(err, application.ErrTenantIDRequired):
-		return invalidArgument(err)
-	case errors.Is(err, tenantctx.ErrMissing), errors.Is(err, tenantctx.ErrEventMissing):
-		return connectrpc.NewError(connectrpc.CodeUnauthenticated, err.Error()).WithCause(err)
-	case errors.Is(err, tenantctx.ErrMismatch), errors.Is(err, tenantctx.ErrEventMismatch):
-		return connectrpc.NewError(connectrpc.CodePermissionDenied, err.Error()).WithCause(err)
-	case errors.Is(err, application.ErrEventNotFound), errors.Is(err, application.ErrEventArchived),
-		errors.Is(err, domain.ErrAnchorTargetNotFound), errors.Is(err, domain.ErrPlacementConflict):
-		return connectrpc.NewError(connectrpc.CodeFailedPrecondition, err.Error()).WithCause(err)
-	case errors.Is(err, repository.ErrGraphNotFound), errors.Is(err, repository.ErrQrLocationNotFound),
-		errors.Is(err, repository.ErrRevisionNotFound):
-		return connectrpc.NewError(connectrpc.CodeNotFound, err.Error()).WithCause(err)
-	case errors.Is(err, dbinfra.ErrTransactionAborted):
-		return connectrpc.NewError(connectrpc.CodeAborted, err.Error()).WithCause(err)
-	default:
-		return InternalError(ctx, err)
-	}
-}
-
-func invalidArgument(err error) *connectrpc.Error {
-	connectErr := connectrpc.NewError(connectrpc.CodeInvalidArgument, err.Error()).WithCause(err)
-
-	var violations domain.GraphViolations
-	if !errors.As(err, &violations) {
-		return connectErr
-	}
-
-	protoViolations := make([]*graphv1.GraphViolation, 0, len(violations))
-	for _, violation := range violations {
-		protoViolations = append(protoViolations, &graphv1.GraphViolation{
-			Kind:        protoViolationKinds[violation.Kind],
-			ElementKind: protoElementKinds[violation.ElementKind],
-			ElementId:   violation.ElementID,
-			RelatedIds:  violation.RelatedIDs,
-		})
-	}
-
-	detail, detailErr := connectproto.NewErrorDetail(&graphv1.GraphViolations{Violations: protoViolations})
-	if detailErr != nil {
-		return connectErr
-	}
-
-	return connectErr.WithDetail(detail)
 }
 
 func graphDocumentFromProto(document *graphv1.GraphDocument) *domain.GraphDocument {
