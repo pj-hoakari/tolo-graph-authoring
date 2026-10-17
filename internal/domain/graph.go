@@ -337,6 +337,8 @@ func (v GraphViolations) Error() string {
 
 func (v GraphViolations) Unwrap() error { return ErrInvalidGraphDocument }
 
+func (v GraphViolation) Message() string { return v.message }
+
 type GraphRef struct {
 	TenantPublicID string
 	EventPublicID  string
@@ -455,7 +457,7 @@ func RevisionID(documentHash string, placements Placements) (string, error) {
 func hashJSON(value any) (string, error) {
 	encoded, err := json.Marshal(value)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrInvalidGraphDocument, err)
+		return "", err
 	}
 
 	sum := sha256.Sum256(encoded)
