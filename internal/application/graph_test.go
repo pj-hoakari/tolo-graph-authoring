@@ -642,6 +642,95 @@ func TestGetCurrentRevisionPropagatesUnpublishedEvent(t *testing.T) {
 	}
 }
 
+func TestGetDisplayNamesServesNonEmptyNamesAndAllRouteEndpointsOfCurrentRevision(t *testing.T) {
+	t.Parallel()
+
+	parts := domain.GraphDocument{
+		Nodes: []domain.Node{
+			{ID: "gate", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": "正門", "en": ""}},
+			{ID: "hall", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": ""}},
+			{ID: "shop", Type: domain.NodeTypeGoal, Labels: nil},
+		},
+		Edges: []domain.Edge{
+			{ID: "r1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays, Label: new("連絡通路")},
+			{ID: "r2", SourceNodeID: "hall", TargetNodeID: "shop", Direction: domain.EdgeDirectionOneWay, Label: new("")},
+			{ID: "r3", SourceNodeID: "shop", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay, Label: nil},
+		},
+	}.Parts()
+	revision := publishedRevision(tenantID)
+	revision.Kernel, revision.Labels = parts.Kernel, parts.Labels
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(revision, nil)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetDisplayNames(serviceContext("", ""), application.GetDisplayNamesInput{EventPublicID: eventID})
+	if err != nil {
+		t.Fatalf("GetDisplayNames() error = %v", err)
+	}
+
+	want := domain.DisplayNames{
+		RevisionID: revision.RevisionID,
+		Points:     map[string]map[string]string{"gate": {"ja": "正門"}},
+		Routes:     map[string]string{"r1": "連絡通路"},
+		RouteEndpoints: map[string]domain.RouteEndpoints{
+			"r1": {FromPointID: "gate", ToPointID: "hall"},
+			"r2": {FromPointID: "hall", ToPointID: "shop"},
+			"r3": {FromPointID: "shop", ToPointID: "gate"},
+		},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("GetDisplayNames() = %+v, want %+v", got, want)
+	}
+}
+
+func TestGetGatePointsServesEmptyListOfCurrentRevision(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(publishedRevision(tenantID), nil)
+
+	got, err := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t}).GetGatePoints(serviceContext("", ""), application.GetGatePointsInput{EventPublicID: eventID})
+	if err != nil {
+		t.Fatalf("GetGatePoints() error = %v", err)
+	}
+
+	if want := (application.GatePoints{RevisionID: "0123456789abcdef", PointIDs: []string{}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("GetGatePoints() = %#v, want %#v", got, want)
+	}
+}
+
+func TestGetDisplayNamesAndGatePointsRejectUnservableRevision(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		revision domain.PublishedRevision
+		err      error
+		want     error
+	}{
+		{"unpublished event", domain.PublishedRevision{}, repository.ErrGraphNotFound, repository.ErrGraphNotFound},
+		{"revision of another tenant", publishedRevision("ffffffffffffffff"), nil, tenantctx.ErrMismatch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graphs := NewMockGraphRepository(gomock.NewController(t))
+			graphs.EXPECT().FindCurrentRevision(gomock.Any(), eventID).Return(tc.revision, tc.err).Times(2)
+
+			service := application.NewGraphService(graphs, fakeTransactor{}, unconsultedEvents{t})
+			ctx := serviceContext(tenantID, eventID)
+
+			if _, err := service.GetDisplayNames(ctx, application.GetDisplayNamesInput{EventPublicID: eventID}); !errors.Is(err, tc.want) {
+				t.Errorf("GetDisplayNames() error = %v, want %v", err, tc.want)
+			}
+
+			if _, err := service.GetGatePoints(ctx, application.GetGatePointsInput{EventPublicID: eventID}); !errors.Is(err, tc.want) {
+				t.Errorf("GetGatePoints() error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
 func pointMapping(nodeID string) domain.ObservationPointMapping {
 	return domain.ObservationPointMapping{
 		ObservationPointID: "cam-1",

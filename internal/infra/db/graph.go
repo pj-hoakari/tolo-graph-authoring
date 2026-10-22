@@ -224,7 +224,7 @@ func (r *PostgresGraphRepository) FindCurrentRevision(ctx context.Context, event
 	var revision graphRevision
 
 	err := sqlx.GetContext(ctx, Executor(ctx, r.db), &revision, `
-		SELECT event_public_id, tenant_public_id, revision_id, kernel
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels
 		FROM graph_revisions
 		WHERE event_public_id = $1
 		ORDER BY last_published_at DESC

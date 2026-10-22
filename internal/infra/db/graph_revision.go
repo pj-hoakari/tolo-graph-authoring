@@ -7,6 +7,7 @@ type graphRevision struct {
 	TenantPublicID string                         `db:"tenant_public_id"`
 	RevisionID     string                         `db:"revision_id"`
 	Kernel         jsonColumn[domain.GraphKernel] `db:"kernel"`
+	Labels         jsonColumn[domain.GraphLabels] `db:"labels"`
 	Placements     jsonColumn[domain.Placements]  `db:"placements"`
 }
 
@@ -16,6 +17,7 @@ func (r graphRevision) publishedRevision() domain.PublishedRevision {
 		EventPublicID:  r.EventPublicID,
 		RevisionID:     r.RevisionID,
 		Kernel:         r.Kernel.value,
+		Labels:         r.Labels.value,
 		Placements:     r.Placements.value,
 	}
 }

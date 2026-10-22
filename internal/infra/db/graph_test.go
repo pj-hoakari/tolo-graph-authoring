@@ -557,6 +557,7 @@ func TestPostgresGraphRepositoryFindCurrentRevisionOfEvent(t *testing.T) {
 				{ID: "e3", FromPointID: "n3", ToPointID: "n2", Direction: domain.DirectionAttributeOneWay},
 			},
 		},
+		Labels: richDocument().Parts().Labels,
 	}
 
 	if !reflect.DeepEqual(got, want) {

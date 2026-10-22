@@ -55,6 +55,7 @@ type PublishedRevision struct {
 	EventPublicID  string
 	RevisionID     string
 	Kernel         GraphKernel
+	Labels         GraphLabels
 	Placements     Placements
 }
 
@@ -65,4 +66,49 @@ func (r PublishedRevision) KernelGraph() KernelGraph {
 		Points:        r.Kernel.Points,
 		Routes:        r.Kernel.Routes,
 	}
+}
+
+type RouteEndpoints struct {
+	FromPointID string
+	ToPointID   string
+}
+
+type DisplayNames struct {
+	RevisionID     string
+	Points         map[string]map[string]string
+	Routes         map[string]string
+	RouteEndpoints map[string]RouteEndpoints
+}
+
+func (r PublishedRevision) DisplayNames() DisplayNames {
+	names := DisplayNames{
+		RevisionID:     r.RevisionID,
+		Points:         make(map[string]map[string]string),
+		Routes:         make(map[string]string),
+		RouteEndpoints: make(map[string]RouteEndpoints),
+	}
+
+	for _, point := range r.Kernel.Points {
+		texts := make(map[string]string)
+
+		for language, text := range r.Labels.Points[point.ID] {
+			if text != "" {
+				texts[language] = text
+			}
+		}
+
+		if len(texts) > 0 {
+			names.Points[point.ID] = texts
+		}
+	}
+
+	for _, route := range r.Kernel.Routes {
+		if label := r.Labels.Routes[route.ID]; label != nil && *label != "" {
+			names.Routes[route.ID] = *label
+		}
+
+		names.RouteEndpoints[route.ID] = RouteEndpoints{FromPointID: route.FromPointID, ToPointID: route.ToPointID}
+	}
+
+	return names
 }

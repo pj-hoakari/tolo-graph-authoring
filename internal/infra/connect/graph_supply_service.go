@@ -62,6 +62,28 @@ func (s *GraphSupplyService) GetObservationPointMappings(
 	return &graphv1.GetMappingsResponse{RevisionId: result.RevisionID, Mappings: observationPointMappingsToProto(result.Mappings)}, nil
 }
 
+func (s *GraphSupplyService) GetDisplayNames(
+	ctx context.Context, req *graphv1.GetDisplayNamesRequest,
+) (*graphv1.GetDisplayNamesResponse, error) {
+	names, err := s.graphService.GetDisplayNames(ctx, application.GetDisplayNamesInput{EventPublicID: req.GetEventId()})
+	if err != nil {
+		return nil, connectError(ctx, err)
+	}
+
+	return displayNamesToProto(names), nil
+}
+
+func (s *GraphSupplyService) GetGatePoints(
+	ctx context.Context, req *graphv1.GetGatePointsRequest,
+) (*graphv1.GetGatePointsResponse, error) {
+	result, err := s.graphService.GetGatePoints(ctx, application.GetGatePointsInput{EventPublicID: req.GetEventId()})
+	if err != nil {
+		return nil, connectError(ctx, err)
+	}
+
+	return &graphv1.GetGatePointsResponse{RevisionId: result.RevisionID, GatePointIds: result.PointIDs}, nil
+}
+
 func (s *GraphSupplyService) GetQrLocations(
 	ctx context.Context, req *graphv1.GetQrLocationsRequest,
 ) (*graphv1.GetQrLocationsResponse, error) {
@@ -111,5 +133,24 @@ func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {
 		RevisionId: graph.RevisionID,
 		Points:     points,
 		Routes:     routes,
+	}
+}
+
+func displayNamesToProto(names domain.DisplayNames) *graphv1.GetDisplayNamesResponse {
+	points := make(map[string]*graphv1.LocalizedText, len(names.Points))
+	for pointID, texts := range names.Points {
+		points[pointID] = &graphv1.LocalizedText{Texts: texts}
+	}
+
+	endpoints := make(map[string]*graphv1.RouteEndpoints, len(names.RouteEndpoints))
+	for routeID, route := range names.RouteEndpoints {
+		endpoints[routeID] = &graphv1.RouteEndpoints{FromPointId: route.FromPointID, ToPointId: route.ToPointID}
+	}
+
+	return &graphv1.GetDisplayNamesResponse{
+		RevisionId:        names.RevisionID,
+		DisplayNames:      points,
+		RouteDisplayNames: names.Routes,
+		RouteEndpoints:    endpoints,
 	}
 }
