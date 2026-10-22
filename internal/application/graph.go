@@ -130,9 +130,32 @@ type GetGraphUseCase interface {
 	GetGraph(context.Context, GetGraphInput) (domain.Graph, error)
 }
 
+type GetDisplayNamesInput struct {
+	EventPublicID string
+}
+
+type GetDisplayNamesUseCase interface {
+	GetDisplayNames(context.Context, GetDisplayNamesInput) (domain.DisplayNames, error)
+}
+
+type GetGatePointsInput struct {
+	EventPublicID string
+}
+
+type GatePoints struct {
+	RevisionID string
+	PointIDs   []string
+}
+
+type GetGatePointsUseCase interface {
+	GetGatePoints(context.Context, GetGatePointsInput) (GatePoints, error)
+}
+
 type GraphSupplyUseCases interface {
 	GetCurrentRevisionUseCase
 	GetObservationPointMappingsUseCase
+	GetDisplayNamesUseCase
+	GetGatePointsUseCase
 	GetQrLocationsUseCase
 }
 
@@ -316,6 +339,24 @@ func (s *GraphService) GetCurrentRevision(ctx context.Context, input GetCurrentR
 	}
 
 	return revision.KernelGraph(), nil
+}
+
+func (s *GraphService) GetDisplayNames(ctx context.Context, input GetDisplayNamesInput) (domain.DisplayNames, error) {
+	revision, err := s.currentRevision(ctx, input.EventPublicID)
+	if err != nil {
+		return domain.DisplayNames{}, err
+	}
+
+	return revision.DisplayNames(), nil
+}
+
+func (s *GraphService) GetGatePoints(ctx context.Context, input GetGatePointsInput) (GatePoints, error) {
+	revision, err := s.currentRevision(ctx, input.EventPublicID)
+	if err != nil {
+		return GatePoints{}, err
+	}
+
+	return GatePoints{RevisionID: revision.RevisionID, PointIDs: []string{}}, nil
 }
 
 func (s *GraphService) currentRevision(ctx context.Context, eventPublicID string) (domain.PublishedRevision, error) {

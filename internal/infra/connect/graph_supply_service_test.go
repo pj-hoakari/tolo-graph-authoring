@@ -126,6 +126,101 @@ func TestGetCurrentRevisionRejectsEventAccessToken(t *testing.T) {
 	}
 }
 
+func supplyContext(authorization string) context.Context {
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", authorization)
+
+	return ctx
+}
+
+func TestGetDisplayNamesServesLabelsOfCurrentRevisionToServiceToken(t *testing.T) {
+	t.Parallel()
+
+	parts := domain.GraphDocument{
+		Nodes: []domain.Node{
+			{ID: "gate", Type: domain.NodeTypeTransitOnly, Labels: map[string]string{"ja": "正門", "en": "Main gate"}},
+			{ID: "hall", Type: domain.NodeTypeGoalTransitMixed, Labels: map[string]string{"ja": "ホール"}},
+			{ID: "outside", Type: domain.NodeTypeExternal, Labels: map[string]string{"ja": "外"}},
+		},
+		Edges: []domain.Edge{
+			{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays, Label: new("連絡通路")},
+			{ID: "e2", SourceNodeID: "hall", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay, Label: nil},
+			{ID: "entry", SourceNodeID: "outside", TargetNodeID: "gate", Direction: domain.EdgeDirectionOneWay, Label: new("入場")},
+		},
+	}.Parts()
+	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
+	client := newSupplyClient(t, keys, application.NewGraphService(currentRevisionRepository{
+		nopGraphRepository: nopGraphRepository{},
+		revision: domain.PublishedRevision{
+			TenantPublicID: "a1b2c3d4e5f60718",
+			EventPublicID:  "fedcba9876543210",
+			RevisionID:     "0123456789abcdef",
+			Kernel:         parts.Kernel,
+			Labels:         parts.Labels,
+		},
+	}, inlineTransactor{}, callerTenantEvents{}))
+
+	res, err := client.GetDisplayNames(supplyContext(authorization), &graphv1.GetDisplayNamesRequest{EventId: "fedcba9876543210"})
+	if err != nil {
+		t.Fatalf("GetDisplayNames() error = %v", err)
+	}
+
+	want := &graphv1.GetDisplayNamesResponse{
+		RevisionId: "0123456789abcdef",
+		DisplayNames: map[string]*graphv1.LocalizedText{
+			"gate": {Texts: map[string]string{"ja": "正門", "en": "Main gate"}},
+			"hall": {Texts: map[string]string{"ja": "ホール"}},
+		},
+		RouteDisplayNames: map[string]string{"e1": "連絡通路"},
+		RouteEndpoints: map[string]*graphv1.RouteEndpoints{
+			"e1": {FromPointId: "gate", ToPointId: "hall"},
+			"e2": {FromPointId: "hall", ToPointId: "gate"},
+		},
+	}
+
+	if !proto.Equal(res, want) {
+		t.Errorf("GetDisplayNames() = %v, want %v", res, want)
+	}
+}
+
+func TestGetGatePointsServesEmptyListOfCurrentRevisionToServiceToken(t *testing.T) {
+	t.Parallel()
+
+	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
+	client := newSupplyClient(t, keys, application.NewGraphService(currentRevisionRepository{
+		nopGraphRepository: nopGraphRepository{},
+		revision: domain.PublishedRevision{
+			TenantPublicID: "a1b2c3d4e5f60718",
+			EventPublicID:  "fedcba9876543210",
+			RevisionID:     "0123456789abcdef",
+		},
+	}, inlineTransactor{}, callerTenantEvents{}))
+
+	res, err := client.GetGatePoints(supplyContext(authorization), &graphv1.GetGatePointsRequest{EventId: "fedcba9876543210"})
+	if err != nil {
+		t.Fatalf("GetGatePoints() error = %v", err)
+	}
+
+	if want := (&graphv1.GetGatePointsResponse{RevisionId: "0123456789abcdef"}); !proto.Equal(res, want) {
+		t.Errorf("GetGatePoints() = %v, want %v", res, want)
+	}
+}
+
+func TestGetDisplayNamesAndGatePointsAnswerUnpublishedEventWithNotFound(t *testing.T) {
+	t.Parallel()
+
+	authorization, keys := mintInternalJWT(t, internaljwt.TokenUseService, "", "")
+	client := newSupplyClient(t, keys, newTestGraphService())
+
+	if _, err := client.GetDisplayNames(supplyContext(authorization), &graphv1.GetDisplayNamesRequest{EventId: "fedcba9876543210"}); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
+		t.Errorf("GetDisplayNames() error = %v, want code %v", err, connectrpc.CodeNotFound)
+	}
+
+	if _, err := client.GetGatePoints(supplyContext(authorization), &graphv1.GetGatePointsRequest{EventId: "fedcba9876543210"}); connectrpc.CodeOf(err) != connectrpc.CodeNotFound {
+		t.Errorf("GetGatePoints() error = %v, want code %v", err, connectrpc.CodeNotFound)
+	}
+}
+
 type mappedRevisionRepository struct {
 	nopGraphRepository
 
