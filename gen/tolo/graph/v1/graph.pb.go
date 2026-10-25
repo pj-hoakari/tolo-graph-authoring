@@ -282,6 +282,162 @@ func (ElementKind) EnumDescriptor() ([]byte, []int) {
 	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{3}
 }
 
+type GuideMapPlaceShape int32
+
+const (
+	GuideMapPlaceShape_GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED GuideMapPlaceShape = 0
+	GuideMapPlaceShape_GUIDE_MAP_PLACE_SHAPE_PIN         GuideMapPlaceShape = 1
+	GuideMapPlaceShape_GUIDE_MAP_PLACE_SHAPE_RECT        GuideMapPlaceShape = 2
+	GuideMapPlaceShape_GUIDE_MAP_PLACE_SHAPE_CIRCLE      GuideMapPlaceShape = 3
+)
+
+// Enum value maps for GuideMapPlaceShape.
+var (
+	GuideMapPlaceShape_name = map[int32]string{
+		0: "GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED",
+		1: "GUIDE_MAP_PLACE_SHAPE_PIN",
+		2: "GUIDE_MAP_PLACE_SHAPE_RECT",
+		3: "GUIDE_MAP_PLACE_SHAPE_CIRCLE",
+	}
+	GuideMapPlaceShape_value = map[string]int32{
+		"GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED": 0,
+		"GUIDE_MAP_PLACE_SHAPE_PIN":         1,
+		"GUIDE_MAP_PLACE_SHAPE_RECT":        2,
+		"GUIDE_MAP_PLACE_SHAPE_CIRCLE":      3,
+	}
+)
+
+func (x GuideMapPlaceShape) Enum() *GuideMapPlaceShape {
+	p := new(GuideMapPlaceShape)
+	*p = x
+	return p
+}
+
+func (x GuideMapPlaceShape) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GuideMapPlaceShape) Descriptor() protoreflect.EnumDescriptor {
+	return file_tolo_graph_v1_graph_proto_enumTypes[4].Descriptor()
+}
+
+func (GuideMapPlaceShape) Type() protoreflect.EnumType {
+	return &file_tolo_graph_v1_graph_proto_enumTypes[4]
+}
+
+func (x GuideMapPlaceShape) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GuideMapPlaceShape.Descriptor instead.
+func (GuideMapPlaceShape) EnumDescriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{4}
+}
+
+type GuideMapConnectorType int32
+
+const (
+	GuideMapConnectorType_GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED GuideMapConnectorType = 0
+	GuideMapConnectorType_GUIDE_MAP_CONNECTOR_TYPE_STAIRS      GuideMapConnectorType = 1
+	GuideMapConnectorType_GUIDE_MAP_CONNECTOR_TYPE_ESCALATOR   GuideMapConnectorType = 2
+	GuideMapConnectorType_GUIDE_MAP_CONNECTOR_TYPE_ELEVATOR    GuideMapConnectorType = 3
+)
+
+// Enum value maps for GuideMapConnectorType.
+var (
+	GuideMapConnectorType_name = map[int32]string{
+		0: "GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED",
+		1: "GUIDE_MAP_CONNECTOR_TYPE_STAIRS",
+		2: "GUIDE_MAP_CONNECTOR_TYPE_ESCALATOR",
+		3: "GUIDE_MAP_CONNECTOR_TYPE_ELEVATOR",
+	}
+	GuideMapConnectorType_value = map[string]int32{
+		"GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED": 0,
+		"GUIDE_MAP_CONNECTOR_TYPE_STAIRS":      1,
+		"GUIDE_MAP_CONNECTOR_TYPE_ESCALATOR":   2,
+		"GUIDE_MAP_CONNECTOR_TYPE_ELEVATOR":    3,
+	}
+)
+
+func (x GuideMapConnectorType) Enum() *GuideMapConnectorType {
+	p := new(GuideMapConnectorType)
+	*p = x
+	return p
+}
+
+func (x GuideMapConnectorType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GuideMapConnectorType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tolo_graph_v1_graph_proto_enumTypes[5].Descriptor()
+}
+
+func (GuideMapConnectorType) Type() protoreflect.EnumType {
+	return &file_tolo_graph_v1_graph_proto_enumTypes[5]
+}
+
+func (x GuideMapConnectorType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GuideMapConnectorType.Descriptor instead.
+func (GuideMapConnectorType) EnumDescriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{5}
+}
+
+type GuideMapConnectorDirection int32
+
+const (
+	GuideMapConnectorDirection_GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED GuideMapConnectorDirection = 0
+	GuideMapConnectorDirection_GUIDE_MAP_CONNECTOR_DIRECTION_BOTH        GuideMapConnectorDirection = 1
+	GuideMapConnectorDirection_GUIDE_MAP_CONNECTOR_DIRECTION_UP          GuideMapConnectorDirection = 2
+	GuideMapConnectorDirection_GUIDE_MAP_CONNECTOR_DIRECTION_DOWN        GuideMapConnectorDirection = 3
+)
+
+// Enum value maps for GuideMapConnectorDirection.
+var (
+	GuideMapConnectorDirection_name = map[int32]string{
+		0: "GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED",
+		1: "GUIDE_MAP_CONNECTOR_DIRECTION_BOTH",
+		2: "GUIDE_MAP_CONNECTOR_DIRECTION_UP",
+		3: "GUIDE_MAP_CONNECTOR_DIRECTION_DOWN",
+	}
+	GuideMapConnectorDirection_value = map[string]int32{
+		"GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED": 0,
+		"GUIDE_MAP_CONNECTOR_DIRECTION_BOTH":        1,
+		"GUIDE_MAP_CONNECTOR_DIRECTION_UP":          2,
+		"GUIDE_MAP_CONNECTOR_DIRECTION_DOWN":        3,
+	}
+)
+
+func (x GuideMapConnectorDirection) Enum() *GuideMapConnectorDirection {
+	p := new(GuideMapConnectorDirection)
+	*p = x
+	return p
+}
+
+func (x GuideMapConnectorDirection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GuideMapConnectorDirection) Descriptor() protoreflect.EnumDescriptor {
+	return file_tolo_graph_v1_graph_proto_enumTypes[6].Descriptor()
+}
+
+func (GuideMapConnectorDirection) Type() protoreflect.EnumType {
+	return &file_tolo_graph_v1_graph_proto_enumTypes[6]
+}
+
+func (x GuideMapConnectorDirection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GuideMapConnectorDirection.Descriptor instead.
+func (GuideMapConnectorDirection) EnumDescriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{6}
+}
+
 type GraphMeta struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	EventId         string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -1560,6 +1716,7 @@ type GetGraphResponse struct {
 	Document                 *GraphDocument             `protobuf:"bytes,2,opt,name=document,proto3" json:"document,omitempty"`
 	ObservationPointMappings []*ObservationPointMapping `protobuf:"bytes,3,rep,name=observation_point_mappings,json=observationPointMappings,proto3" json:"observation_point_mappings,omitempty"`
 	QrLocations              []*QrLocation              `protobuf:"bytes,4,rep,name=qr_locations,json=qrLocations,proto3" json:"qr_locations,omitempty"`
+	GuideMapLayout           *GuideMapLayout            `protobuf:"bytes,5,opt,name=guide_map_layout,json=guideMapLayout,proto3" json:"guide_map_layout,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -1622,6 +1779,859 @@ func (x *GetGraphResponse) GetQrLocations() []*QrLocation {
 	return nil
 }
 
+func (x *GetGraphResponse) GetGuideMapLayout() *GuideMapLayout {
+	if x != nil {
+		return x.GuideMapLayout
+	}
+	return nil
+}
+
+type GuideMapLayout struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Groups        []*GuideMapGroup       `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	Objects       []*GuideMapObject      `protobuf:"bytes,2,rep,name=objects,proto3" json:"objects,omitempty"`
+	North         float64                `protobuf:"fixed64,3,opt,name=north,proto3" json:"north,omitempty"`
+	Scale         float64                `protobuf:"fixed64,4,opt,name=scale,proto3" json:"scale,omitempty"`
+	StartObjectId string                 `protobuf:"bytes,5,opt,name=start_object_id,json=startObjectId,proto3" json:"start_object_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapLayout) Reset() {
+	*x = GuideMapLayout{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapLayout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapLayout) ProtoMessage() {}
+
+func (x *GuideMapLayout) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapLayout.ProtoReflect.Descriptor instead.
+func (*GuideMapLayout) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GuideMapLayout) GetGroups() []*GuideMapGroup {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *GuideMapLayout) GetObjects() []*GuideMapObject {
+	if x != nil {
+		return x.Objects
+	}
+	return nil
+}
+
+func (x *GuideMapLayout) GetNorth() float64 {
+	if x != nil {
+		return x.North
+	}
+	return 0
+}
+
+func (x *GuideMapLayout) GetScale() float64 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
+func (x *GuideMapLayout) GetStartObjectId() string {
+	if x != nil {
+		return x.StartObjectId
+	}
+	return ""
+}
+
+type GuideMapGroup struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapGroup) Reset() {
+	*x = GuideMapGroup{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapGroup) ProtoMessage() {}
+
+func (x *GuideMapGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapGroup.ProtoReflect.Descriptor instead.
+func (*GuideMapGroup) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GuideMapGroup) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type GuideMapObject struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ObjectId    string                 `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	GroupId     string                 `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	Title       *LocalizedText         `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Description *LocalizedText         `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Color       string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`
+	Closed      bool                   `protobuf:"varint,6,opt,name=closed,proto3" json:"closed,omitempty"`
+	PointId     string                 `protobuf:"bytes,7,opt,name=point_id,json=pointId,proto3" json:"point_id,omitempty"`
+	RouteId     string                 `protobuf:"bytes,8,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*GuideMapObject_Place
+	//	*GuideMapObject_Line
+	//	*GuideMapObject_Area
+	//	*GuideMapObject_Text
+	Kind          isGuideMapObject_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapObject) Reset() {
+	*x = GuideMapObject{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapObject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapObject) ProtoMessage() {}
+
+func (x *GuideMapObject) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapObject.ProtoReflect.Descriptor instead.
+func (*GuideMapObject) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GuideMapObject) GetObjectId() string {
+	if x != nil {
+		return x.ObjectId
+	}
+	return ""
+}
+
+func (x *GuideMapObject) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *GuideMapObject) GetTitle() *LocalizedText {
+	if x != nil {
+		return x.Title
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetDescription() *LocalizedText {
+	if x != nil {
+		return x.Description
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *GuideMapObject) GetClosed() bool {
+	if x != nil {
+		return x.Closed
+	}
+	return false
+}
+
+func (x *GuideMapObject) GetPointId() string {
+	if x != nil {
+		return x.PointId
+	}
+	return ""
+}
+
+func (x *GuideMapObject) GetRouteId() string {
+	if x != nil {
+		return x.RouteId
+	}
+	return ""
+}
+
+func (x *GuideMapObject) GetKind() isGuideMapObject_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetPlace() *GuideMapPlace {
+	if x != nil {
+		if x, ok := x.Kind.(*GuideMapObject_Place); ok {
+			return x.Place
+		}
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetLine() *GuideMapLine {
+	if x != nil {
+		if x, ok := x.Kind.(*GuideMapObject_Line); ok {
+			return x.Line
+		}
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetArea() *GuideMapArea {
+	if x != nil {
+		if x, ok := x.Kind.(*GuideMapObject_Area); ok {
+			return x.Area
+		}
+	}
+	return nil
+}
+
+func (x *GuideMapObject) GetText() *GuideMapText {
+	if x != nil {
+		if x, ok := x.Kind.(*GuideMapObject_Text); ok {
+			return x.Text
+		}
+	}
+	return nil
+}
+
+type isGuideMapObject_Kind interface {
+	isGuideMapObject_Kind()
+}
+
+type GuideMapObject_Place struct {
+	Place *GuideMapPlace `protobuf:"bytes,9,opt,name=place,proto3,oneof"`
+}
+
+type GuideMapObject_Line struct {
+	Line *GuideMapLine `protobuf:"bytes,10,opt,name=line,proto3,oneof"`
+}
+
+type GuideMapObject_Area struct {
+	Area *GuideMapArea `protobuf:"bytes,11,opt,name=area,proto3,oneof"`
+}
+
+type GuideMapObject_Text struct {
+	Text *GuideMapText `protobuf:"bytes,12,opt,name=text,proto3,oneof"`
+}
+
+func (*GuideMapObject_Place) isGuideMapObject_Kind() {}
+
+func (*GuideMapObject_Line) isGuideMapObject_Kind() {}
+
+func (*GuideMapObject_Area) isGuideMapObject_Kind() {}
+
+func (*GuideMapObject_Text) isGuideMapObject_Kind() {}
+
+type GuideMapPosition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapPosition) Reset() {
+	*x = GuideMapPosition{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapPosition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapPosition) ProtoMessage() {}
+
+func (x *GuideMapPosition) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapPosition.ProtoReflect.Descriptor instead.
+func (*GuideMapPosition) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GuideMapPosition) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *GuideMapPosition) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+type GuideMapPlace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Center        *GuideMapPosition      `protobuf:"bytes,1,opt,name=center,proto3" json:"center,omitempty"`
+	Shape         GuideMapPlaceShape     `protobuf:"varint,2,opt,name=shape,proto3,enum=tolo.graph.v1.GuideMapPlaceShape" json:"shape,omitempty"`
+	Width         float64                `protobuf:"fixed64,3,opt,name=width,proto3" json:"width,omitempty"`
+	Height        float64                `protobuf:"fixed64,4,opt,name=height,proto3" json:"height,omitempty"`
+	Pin           bool                   `protobuf:"varint,5,opt,name=pin,proto3" json:"pin,omitempty"`
+	Connector     *GuideMapConnector     `protobuf:"bytes,6,opt,name=connector,proto3" json:"connector,omitempty"`
+	MarkWidth     *float64               `protobuf:"fixed64,7,opt,name=mark_width,json=markWidth,proto3,oneof" json:"mark_width,omitempty"`
+	MarkHeight    *float64               `protobuf:"fixed64,8,opt,name=mark_height,json=markHeight,proto3,oneof" json:"mark_height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapPlace) Reset() {
+	*x = GuideMapPlace{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapPlace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapPlace) ProtoMessage() {}
+
+func (x *GuideMapPlace) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapPlace.ProtoReflect.Descriptor instead.
+func (*GuideMapPlace) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GuideMapPlace) GetCenter() *GuideMapPosition {
+	if x != nil {
+		return x.Center
+	}
+	return nil
+}
+
+func (x *GuideMapPlace) GetShape() GuideMapPlaceShape {
+	if x != nil {
+		return x.Shape
+	}
+	return GuideMapPlaceShape_GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED
+}
+
+func (x *GuideMapPlace) GetWidth() float64 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *GuideMapPlace) GetHeight() float64 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *GuideMapPlace) GetPin() bool {
+	if x != nil {
+		return x.Pin
+	}
+	return false
+}
+
+func (x *GuideMapPlace) GetConnector() *GuideMapConnector {
+	if x != nil {
+		return x.Connector
+	}
+	return nil
+}
+
+func (x *GuideMapPlace) GetMarkWidth() float64 {
+	if x != nil && x.MarkWidth != nil {
+		return *x.MarkWidth
+	}
+	return 0
+}
+
+func (x *GuideMapPlace) GetMarkHeight() float64 {
+	if x != nil && x.MarkHeight != nil {
+		return *x.MarkHeight
+	}
+	return 0
+}
+
+type GuideMapConnector struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Type          GuideMapConnectorType      `protobuf:"varint,1,opt,name=type,proto3,enum=tolo.graph.v1.GuideMapConnectorType" json:"type,omitempty"`
+	Link          string                     `protobuf:"bytes,2,opt,name=link,proto3" json:"link,omitempty"`
+	Direction     GuideMapConnectorDirection `protobuf:"varint,3,opt,name=direction,proto3,enum=tolo.graph.v1.GuideMapConnectorDirection" json:"direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapConnector) Reset() {
+	*x = GuideMapConnector{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapConnector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapConnector) ProtoMessage() {}
+
+func (x *GuideMapConnector) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapConnector.ProtoReflect.Descriptor instead.
+func (*GuideMapConnector) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GuideMapConnector) GetType() GuideMapConnectorType {
+	if x != nil {
+		return x.Type
+	}
+	return GuideMapConnectorType_GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED
+}
+
+func (x *GuideMapConnector) GetLink() string {
+	if x != nil {
+		return x.Link
+	}
+	return ""
+}
+
+func (x *GuideMapConnector) GetDirection() GuideMapConnectorDirection {
+	if x != nil {
+		return x.Direction
+	}
+	return GuideMapConnectorDirection_GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED
+}
+
+type GuideMapLine struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Points        []*GuideMapPosition    `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
+	Width         float64                `protobuf:"fixed64,2,opt,name=width,proto3" json:"width,omitempty"`
+	Dash          bool                   `protobuf:"varint,3,opt,name=dash,proto3" json:"dash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapLine) Reset() {
+	*x = GuideMapLine{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapLine) ProtoMessage() {}
+
+func (x *GuideMapLine) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapLine.ProtoReflect.Descriptor instead.
+func (*GuideMapLine) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *GuideMapLine) GetPoints() []*GuideMapPosition {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+func (x *GuideMapLine) GetWidth() float64 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *GuideMapLine) GetDash() bool {
+	if x != nil {
+		return x.Dash
+	}
+	return false
+}
+
+type GuideMapArea struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Points        []*GuideMapPosition    `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapArea) Reset() {
+	*x = GuideMapArea{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapArea) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapArea) ProtoMessage() {}
+
+func (x *GuideMapArea) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapArea.ProtoReflect.Descriptor instead.
+func (*GuideMapArea) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GuideMapArea) GetPoints() []*GuideMapPosition {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+type GuideMapText struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Position      *GuideMapPosition      `protobuf:"bytes,1,opt,name=position,proto3" json:"position,omitempty"`
+	Size          float64                `protobuf:"fixed64,2,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuideMapText) Reset() {
+	*x = GuideMapText{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuideMapText) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuideMapText) ProtoMessage() {}
+
+func (x *GuideMapText) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuideMapText.ProtoReflect.Descriptor instead.
+func (*GuideMapText) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GuideMapText) GetPosition() *GuideMapPosition {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *GuideMapText) GetSize() float64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type SaveGuideMapLayoutRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	EventId        string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	GuideMapLayout *GuideMapLayout        `protobuf:"bytes,2,opt,name=guide_map_layout,json=guideMapLayout,proto3" json:"guide_map_layout,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SaveGuideMapLayoutRequest) Reset() {
+	*x = SaveGuideMapLayoutRequest{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveGuideMapLayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveGuideMapLayoutRequest) ProtoMessage() {}
+
+func (x *SaveGuideMapLayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveGuideMapLayoutRequest.ProtoReflect.Descriptor instead.
+func (*SaveGuideMapLayoutRequest) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *SaveGuideMapLayoutRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *SaveGuideMapLayoutRequest) GetGuideMapLayout() *GuideMapLayout {
+	if x != nil {
+		return x.GuideMapLayout
+	}
+	return nil
+}
+
+type GetGuideMapLayoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGuideMapLayoutRequest) Reset() {
+	*x = GetGuideMapLayoutRequest{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGuideMapLayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGuideMapLayoutRequest) ProtoMessage() {}
+
+func (x *GetGuideMapLayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGuideMapLayoutRequest.ProtoReflect.Descriptor instead.
+func (*GetGuideMapLayoutRequest) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetGuideMapLayoutRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *GetGuideMapLayoutRequest) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *GetGuideMapLayoutRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+type GetGuideMapLayoutResponse struct {
+	state          protoimpl.MessageState    `protogen:"open.v1"`
+	RevisionId     string                    `protobuf:"bytes,1,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	GuideMapLayout *GuideMapLayout           `protobuf:"bytes,2,opt,name=guide_map_layout,json=guideMapLayout,proto3" json:"guide_map_layout,omitempty"`
+	PointLabels    map[string]*LocalizedText `protobuf:"bytes,3,rep,name=point_labels,json=pointLabels,proto3" json:"point_labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	GroupLabels    map[string]*LocalizedText `protobuf:"bytes,4,rep,name=group_labels,json=groupLabels,proto3" json:"group_labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetGuideMapLayoutResponse) Reset() {
+	*x = GetGuideMapLayoutResponse{}
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGuideMapLayoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGuideMapLayoutResponse) ProtoMessage() {}
+
+func (x *GetGuideMapLayoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGuideMapLayoutResponse.ProtoReflect.Descriptor instead.
+func (*GetGuideMapLayoutResponse) Descriptor() ([]byte, []int) {
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetGuideMapLayoutResponse) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *GetGuideMapLayoutResponse) GetGuideMapLayout() *GuideMapLayout {
+	if x != nil {
+		return x.GuideMapLayout
+	}
+	return nil
+}
+
+func (x *GetGuideMapLayoutResponse) GetPointLabels() map[string]*LocalizedText {
+	if x != nil {
+		return x.PointLabels
+	}
+	return nil
+}
+
+func (x *GetGuideMapLayoutResponse) GetGroupLabels() map[string]*LocalizedText {
+	if x != nil {
+		return x.GroupLabels
+	}
+	return nil
+}
+
 type PublishRevisionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -1631,7 +2641,7 @@ type PublishRevisionRequest struct {
 
 func (x *PublishRevisionRequest) Reset() {
 	*x = PublishRevisionRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +2653,7 @@ func (x *PublishRevisionRequest) String() string {
 func (*PublishRevisionRequest) ProtoMessage() {}
 
 func (x *PublishRevisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[23]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +2666,7 @@ func (x *PublishRevisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishRevisionRequest.ProtoReflect.Descriptor instead.
 func (*PublishRevisionRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{23}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *PublishRevisionRequest) GetEventId() string {
@@ -1675,7 +2685,7 @@ type GetCurrentRevisionRequest struct {
 
 func (x *GetCurrentRevisionRequest) Reset() {
 	*x = GetCurrentRevisionRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1687,7 +2697,7 @@ func (x *GetCurrentRevisionRequest) String() string {
 func (*GetCurrentRevisionRequest) ProtoMessage() {}
 
 func (x *GetCurrentRevisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[24]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1700,7 +2710,7 @@ func (x *GetCurrentRevisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentRevisionRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentRevisionRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{24}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetCurrentRevisionRequest) GetEventId() string {
@@ -1720,7 +2730,7 @@ type GetMappingsRequest struct {
 
 func (x *GetMappingsRequest) Reset() {
 	*x = GetMappingsRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1732,7 +2742,7 @@ func (x *GetMappingsRequest) String() string {
 func (*GetMappingsRequest) ProtoMessage() {}
 
 func (x *GetMappingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[25]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1745,7 +2755,7 @@ func (x *GetMappingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMappingsRequest.ProtoReflect.Descriptor instead.
 func (*GetMappingsRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{25}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetMappingsRequest) GetEventId() string {
@@ -1772,7 +2782,7 @@ type GetMappingsResponse struct {
 
 func (x *GetMappingsResponse) Reset() {
 	*x = GetMappingsResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1784,7 +2794,7 @@ func (x *GetMappingsResponse) String() string {
 func (*GetMappingsResponse) ProtoMessage() {}
 
 func (x *GetMappingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[26]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1797,7 +2807,7 @@ func (x *GetMappingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMappingsResponse.ProtoReflect.Descriptor instead.
 func (*GetMappingsResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{26}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetMappingsResponse) GetRevisionId() string {
@@ -1823,7 +2833,7 @@ type GetDisplayNamesRequest struct {
 
 func (x *GetDisplayNamesRequest) Reset() {
 	*x = GetDisplayNamesRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1835,7 +2845,7 @@ func (x *GetDisplayNamesRequest) String() string {
 func (*GetDisplayNamesRequest) ProtoMessage() {}
 
 func (x *GetDisplayNamesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[27]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1848,7 +2858,7 @@ func (x *GetDisplayNamesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDisplayNamesRequest.ProtoReflect.Descriptor instead.
 func (*GetDisplayNamesRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{27}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetDisplayNamesRequest) GetEventId() string {
@@ -1870,7 +2880,7 @@ type GetDisplayNamesResponse struct {
 
 func (x *GetDisplayNamesResponse) Reset() {
 	*x = GetDisplayNamesResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1882,7 +2892,7 @@ func (x *GetDisplayNamesResponse) String() string {
 func (*GetDisplayNamesResponse) ProtoMessage() {}
 
 func (x *GetDisplayNamesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[28]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1895,7 +2905,7 @@ func (x *GetDisplayNamesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDisplayNamesResponse.ProtoReflect.Descriptor instead.
 func (*GetDisplayNamesResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{28}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GetDisplayNamesResponse) GetRevisionId() string {
@@ -1935,7 +2945,7 @@ type LocalizedText struct {
 
 func (x *LocalizedText) Reset() {
 	*x = LocalizedText{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1947,7 +2957,7 @@ func (x *LocalizedText) String() string {
 func (*LocalizedText) ProtoMessage() {}
 
 func (x *LocalizedText) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[29]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1960,7 +2970,7 @@ func (x *LocalizedText) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalizedText.ProtoReflect.Descriptor instead.
 func (*LocalizedText) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{29}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *LocalizedText) GetTexts() map[string]string {
@@ -1980,7 +2990,7 @@ type RouteEndpoints struct {
 
 func (x *RouteEndpoints) Reset() {
 	*x = RouteEndpoints{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1992,7 +3002,7 @@ func (x *RouteEndpoints) String() string {
 func (*RouteEndpoints) ProtoMessage() {}
 
 func (x *RouteEndpoints) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[30]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2005,7 +3015,7 @@ func (x *RouteEndpoints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteEndpoints.ProtoReflect.Descriptor instead.
 func (*RouteEndpoints) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{30}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RouteEndpoints) GetFromPointId() string {
@@ -2031,7 +3041,7 @@ type GetGatePointsRequest struct {
 
 func (x *GetGatePointsRequest) Reset() {
 	*x = GetGatePointsRequest{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[31]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2043,7 +3053,7 @@ func (x *GetGatePointsRequest) String() string {
 func (*GetGatePointsRequest) ProtoMessage() {}
 
 func (x *GetGatePointsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[31]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2056,7 +3066,7 @@ func (x *GetGatePointsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatePointsRequest.ProtoReflect.Descriptor instead.
 func (*GetGatePointsRequest) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{31}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetGatePointsRequest) GetEventId() string {
@@ -2076,7 +3086,7 @@ type GetGatePointsResponse struct {
 
 func (x *GetGatePointsResponse) Reset() {
 	*x = GetGatePointsResponse{}
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[32]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2088,7 +3098,7 @@ func (x *GetGatePointsResponse) String() string {
 func (*GetGatePointsResponse) ProtoMessage() {}
 
 func (x *GetGatePointsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tolo_graph_v1_graph_proto_msgTypes[32]
+	mi := &file_tolo_graph_v1_graph_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2101,7 +3111,7 @@ func (x *GetGatePointsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatePointsResponse.ProtoReflect.Descriptor instead.
 func (*GetGatePointsResponse) Descriptor() ([]byte, []int) {
-	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{32}
+	return file_tolo_graph_v1_graph_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetGatePointsResponse) GetRevisionId() string {
@@ -2229,12 +3239,85 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\vrevision_id\x18\x02 \x01(\tR\n" +
 	"revisionId\",\n" +
 	"\x0fGetGraphRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"\x9e\x02\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\"\xe7\x02\n" +
 	"\x10GetGraphResponse\x12,\n" +
 	"\x04meta\x18\x01 \x01(\v2\x18.tolo.graph.v1.GraphMetaR\x04meta\x128\n" +
 	"\bdocument\x18\x02 \x01(\v2\x1c.tolo.graph.v1.GraphDocumentR\bdocument\x12d\n" +
 	"\x1aobservation_point_mappings\x18\x03 \x03(\v2&.tolo.graph.v1.ObservationPointMappingR\x18observationPointMappings\x12<\n" +
-	"\fqr_locations\x18\x04 \x03(\v2\x19.tolo.graph.v1.QrLocationR\vqrLocations\"3\n" +
+	"\fqr_locations\x18\x04 \x03(\v2\x19.tolo.graph.v1.QrLocationR\vqrLocations\x12G\n" +
+	"\x10guide_map_layout\x18\x05 \x01(\v2\x1d.tolo.graph.v1.GuideMapLayoutR\x0eguideMapLayout\"\xd3\x01\n" +
+	"\x0eGuideMapLayout\x124\n" +
+	"\x06groups\x18\x01 \x03(\v2\x1c.tolo.graph.v1.GuideMapGroupR\x06groups\x127\n" +
+	"\aobjects\x18\x02 \x03(\v2\x1d.tolo.graph.v1.GuideMapObjectR\aobjects\x12\x14\n" +
+	"\x05north\x18\x03 \x01(\x01R\x05north\x12\x14\n" +
+	"\x05scale\x18\x04 \x01(\x01R\x05scale\x12&\n" +
+	"\x0fstart_object_id\x18\x05 \x01(\tR\rstartObjectId\"*\n" +
+	"\rGuideMapGroup\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\"\xf7\x03\n" +
+	"\x0eGuideMapObject\x12\x1b\n" +
+	"\tobject_id\x18\x01 \x01(\tR\bobjectId\x12\x19\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\agroupId\x122\n" +
+	"\x05title\x18\x03 \x01(\v2\x1c.tolo.graph.v1.LocalizedTextR\x05title\x12>\n" +
+	"\vdescription\x18\x04 \x01(\v2\x1c.tolo.graph.v1.LocalizedTextR\vdescription\x12\x14\n" +
+	"\x05color\x18\x05 \x01(\tR\x05color\x12\x16\n" +
+	"\x06closed\x18\x06 \x01(\bR\x06closed\x12\x19\n" +
+	"\bpoint_id\x18\a \x01(\tR\apointId\x12\x19\n" +
+	"\broute_id\x18\b \x01(\tR\arouteId\x124\n" +
+	"\x05place\x18\t \x01(\v2\x1c.tolo.graph.v1.GuideMapPlaceH\x00R\x05place\x121\n" +
+	"\x04line\x18\n" +
+	" \x01(\v2\x1b.tolo.graph.v1.GuideMapLineH\x00R\x04line\x121\n" +
+	"\x04area\x18\v \x01(\v2\x1b.tolo.graph.v1.GuideMapAreaH\x00R\x04area\x121\n" +
+	"\x04text\x18\f \x01(\v2\x1b.tolo.graph.v1.GuideMapTextH\x00R\x04textB\x06\n" +
+	"\x04kind\".\n" +
+	"\x10GuideMapPosition\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xea\x02\n" +
+	"\rGuideMapPlace\x127\n" +
+	"\x06center\x18\x01 \x01(\v2\x1f.tolo.graph.v1.GuideMapPositionR\x06center\x127\n" +
+	"\x05shape\x18\x02 \x01(\x0e2!.tolo.graph.v1.GuideMapPlaceShapeR\x05shape\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\x01R\x06height\x12\x10\n" +
+	"\x03pin\x18\x05 \x01(\bR\x03pin\x12>\n" +
+	"\tconnector\x18\x06 \x01(\v2 .tolo.graph.v1.GuideMapConnectorR\tconnector\x12\"\n" +
+	"\n" +
+	"mark_width\x18\a \x01(\x01H\x00R\tmarkWidth\x88\x01\x01\x12$\n" +
+	"\vmark_height\x18\b \x01(\x01H\x01R\n" +
+	"markHeight\x88\x01\x01B\r\n" +
+	"\v_mark_widthB\x0e\n" +
+	"\f_mark_height\"\xaa\x01\n" +
+	"\x11GuideMapConnector\x128\n" +
+	"\x04type\x18\x01 \x01(\x0e2$.tolo.graph.v1.GuideMapConnectorTypeR\x04type\x12\x12\n" +
+	"\x04link\x18\x02 \x01(\tR\x04link\x12G\n" +
+	"\tdirection\x18\x03 \x01(\x0e2).tolo.graph.v1.GuideMapConnectorDirectionR\tdirection\"q\n" +
+	"\fGuideMapLine\x127\n" +
+	"\x06points\x18\x01 \x03(\v2\x1f.tolo.graph.v1.GuideMapPositionR\x06points\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x01R\x05width\x12\x12\n" +
+	"\x04dash\x18\x03 \x01(\bR\x04dash\"G\n" +
+	"\fGuideMapArea\x127\n" +
+	"\x06points\x18\x01 \x03(\v2\x1f.tolo.graph.v1.GuideMapPositionR\x06points\"_\n" +
+	"\fGuideMapText\x12;\n" +
+	"\bposition\x18\x01 \x01(\v2\x1f.tolo.graph.v1.GuideMapPositionR\bposition\x12\x12\n" +
+	"\x04size\x18\x02 \x01(\x01R\x04size\"\x7f\n" +
+	"\x19SaveGuideMapLayoutRequest\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12G\n" +
+	"\x10guide_map_layout\x18\x02 \x01(\v2\x1d.tolo.graph.v1.GuideMapLayoutR\x0eguideMapLayout\"s\n" +
+	"\x18GetGuideMapLayoutRequest\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
+	"\vrevision_id\x18\x02 \x01(\tR\n" +
+	"revisionId\x12\x1b\n" +
+	"\ttenant_id\x18\x03 \x01(\tR\btenantId\"\xfd\x03\n" +
+	"\x19GetGuideMapLayoutResponse\x12\x1f\n" +
+	"\vrevision_id\x18\x01 \x01(\tR\n" +
+	"revisionId\x12G\n" +
+	"\x10guide_map_layout\x18\x02 \x01(\v2\x1d.tolo.graph.v1.GuideMapLayoutR\x0eguideMapLayout\x12\\\n" +
+	"\fpoint_labels\x18\x03 \x03(\v29.tolo.graph.v1.GetGuideMapLayoutResponse.PointLabelsEntryR\vpointLabels\x12\\\n" +
+	"\fgroup_labels\x18\x04 \x03(\v29.tolo.graph.v1.GetGuideMapLayoutResponse.GroupLabelsEntryR\vgroupLabels\x1a\\\n" +
+	"\x10PointLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x122\n" +
+	"\x05value\x18\x02 \x01(\v2\x1c.tolo.graph.v1.LocalizedTextR\x05value:\x028\x01\x1a\\\n" +
+	"\x10GroupLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x122\n" +
+	"\x05value\x18\x02 \x01(\v2\x1c.tolo.graph.v1.LocalizedTextR\x05value:\x028\x01\"3\n" +
 	"\x16PublishRevisionRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"6\n" +
 	"\x19GetCurrentRevisionRequest\x12\x19\n" +
@@ -2316,21 +3399,38 @@ const file_tolo_graph_v1_graph_proto_rawDesc = "" +
 	"\x18ELEMENT_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ELEMENT_KIND_NODE\x10\x01\x12\x16\n" +
 	"\x12ELEMENT_KIND_GROUP\x10\x02\x12\x15\n" +
-	"\x11ELEMENT_KIND_EDGE\x10\x032\x98\a\n" +
+	"\x11ELEMENT_KIND_EDGE\x10\x03*\x9c\x01\n" +
+	"\x12GuideMapPlaceShape\x12%\n" +
+	"!GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19GUIDE_MAP_PLACE_SHAPE_PIN\x10\x01\x12\x1e\n" +
+	"\x1aGUIDE_MAP_PLACE_SHAPE_RECT\x10\x02\x12 \n" +
+	"\x1cGUIDE_MAP_PLACE_SHAPE_CIRCLE\x10\x03*\xb5\x01\n" +
+	"\x15GuideMapConnectorType\x12(\n" +
+	"$GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fGUIDE_MAP_CONNECTOR_TYPE_STAIRS\x10\x01\x12&\n" +
+	"\"GUIDE_MAP_CONNECTOR_TYPE_ESCALATOR\x10\x02\x12%\n" +
+	"!GUIDE_MAP_CONNECTOR_TYPE_ELEVATOR\x10\x03*\xc1\x01\n" +
+	"\x1aGuideMapConnectorDirection\x12-\n" +
+	")GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"GUIDE_MAP_CONNECTOR_DIRECTION_BOTH\x10\x01\x12$\n" +
+	" GUIDE_MAP_CONNECTOR_DIRECTION_UP\x10\x02\x12&\n" +
+	"\"GUIDE_MAP_CONNECTOR_DIRECTION_DOWN\x10\x032\x97\b\n" +
 	"\x15GraphAuthoringService\x12k\n" +
 	"\tSaveGraph\x12\x1f.tolo.graph.v1.SaveGraphRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x91\x01\n" +
 	"\x13MapObservationPoint\x12).tolo.graph.v1.MapObservationPointRequest\x1a*.tolo.graph.v1.MapObservationPointResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x7f\n" +
 	"\rAddQrLocation\x12#.tolo.graph.v1.AddQrLocationRequest\x1a$.tolo.graph.v1.AddQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x88\x01\n" +
 	"\x10UpdateQrLocation\x12&.tolo.graph.v1.UpdateQrLocationRequest\x1a'.tolo.graph.v1.UpdateQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12\x88\x01\n" +
-	"\x10RemoveQrLocation\x12&.tolo.graph.v1.RemoveQrLocationRequest\x1a'.tolo.graph.v1.RemoveQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12n\n" +
+	"\x10RemoveQrLocation\x12&.tolo.graph.v1.RemoveQrLocationRequest\x1a'.tolo.graph.v1.RemoveQrLocationResponse\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12}\n" +
+	"\x12SaveGuideMapLayout\x12(.tolo.graph.v1.SaveGuideMapLayoutRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access\x12n\n" +
 	"\bGetGraph\x12\x1e.tolo.graph.v1.GetGraphRequest\x1a\x1f.tolo.graph.v1.GetGraphResponse\"!\x8a\xb5\x18\x1d\b\x02\x12\vevents.read\x1a\fevent_access\x12w\n" +
-	"\x0fPublishRevision\x12%.tolo.graph.v1.PublishRevisionRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access2\xf6\x03\n" +
+	"\x0fPublishRevision\x12%.tolo.graph.v1.PublishRevisionRequest\x1a\x18.tolo.graph.v1.GraphMeta\"#\x8a\xb5\x18\x1f\b\x02\x12\revents.manage\x1a\fevent_access2\xde\x04\n" +
 	"\x12GraphSupplyService\x12U\n" +
 	"\x12GetCurrentRevision\x12(.tolo.graph.v1.GetCurrentRevisionRequest\x1a\x15.tolo.kernel.v1.Graph\x12d\n" +
 	"\x1bGetObservationPointMappings\x12!.tolo.graph.v1.GetMappingsRequest\x1a\".tolo.graph.v1.GetMappingsResponse\x12`\n" +
 	"\x0fGetDisplayNames\x12%.tolo.graph.v1.GetDisplayNamesRequest\x1a&.tolo.graph.v1.GetDisplayNamesResponse\x12Z\n" +
 	"\rGetGatePoints\x12#.tolo.graph.v1.GetGatePointsRequest\x1a$.tolo.graph.v1.GetGatePointsResponse\x12]\n" +
-	"\x0eGetQrLocations\x12$.tolo.graph.v1.GetQrLocationsRequest\x1a%.tolo.graph.v1.GetQrLocationsResponse\x1a\x06\x8a\xb5\x18\x02\b\x03B\xbb\x01\n" +
+	"\x0eGetQrLocations\x12$.tolo.graph.v1.GetQrLocationsRequest\x1a%.tolo.graph.v1.GetQrLocationsResponse\x12f\n" +
+	"\x11GetGuideMapLayout\x12'.tolo.graph.v1.GetGuideMapLayoutRequest\x1a(.tolo.graph.v1.GetGuideMapLayoutResponse\x1a\x06\x8a\xb5\x18\x02\b\x03B\xbb\x01\n" +
 	"\x11com.tolo.graph.v1B\n" +
 	"GraphProtoP\x01ZDgithub.com/pj-hoakari/tolo-graph-authoring/gen/tolo/graph/v1;graphv1\xa2\x02\x03TGX\xaa\x02\rTolo.Graph.V1\xca\x02\rTolo\\Graph\\V1\xe2\x02\x19Tolo\\Graph\\V1\\GPBMetadata\xea\x02\x0fTolo::Graph::V1b\x06proto3"
 
@@ -2346,122 +3446,166 @@ func file_tolo_graph_v1_graph_proto_rawDescGZIP() []byte {
 	return file_tolo_graph_v1_graph_proto_rawDescData
 }
 
-var file_tolo_graph_v1_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_tolo_graph_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_tolo_graph_v1_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_tolo_graph_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_tolo_graph_v1_graph_proto_goTypes = []any{
 	(NodeType)(0),                       // 0: tolo.graph.v1.NodeType
 	(EdgeDirection)(0),                  // 1: tolo.graph.v1.EdgeDirection
 	(ViolationKind)(0),                  // 2: tolo.graph.v1.ViolationKind
 	(ElementKind)(0),                    // 3: tolo.graph.v1.ElementKind
-	(*GraphMeta)(nil),                   // 4: tolo.graph.v1.GraphMeta
-	(*GraphDocument)(nil),               // 5: tolo.graph.v1.GraphDocument
-	(*GraphNode)(nil),                   // 6: tolo.graph.v1.GraphNode
-	(*NodeGroup)(nil),                   // 7: tolo.graph.v1.NodeGroup
-	(*Layout)(nil),                      // 8: tolo.graph.v1.Layout
-	(*GraphEdge)(nil),                   // 9: tolo.graph.v1.GraphEdge
-	(*SaveGraphRequest)(nil),            // 10: tolo.graph.v1.SaveGraphRequest
-	(*GraphViolations)(nil),             // 11: tolo.graph.v1.GraphViolations
-	(*GraphViolation)(nil),              // 12: tolo.graph.v1.GraphViolation
-	(*ObservationPointMapping)(nil),     // 13: tolo.graph.v1.ObservationPointMapping
-	(*MapObservationPointRequest)(nil),  // 14: tolo.graph.v1.MapObservationPointRequest
-	(*MapObservationPointResponse)(nil), // 15: tolo.graph.v1.MapObservationPointResponse
-	(*QrLocation)(nil),                  // 16: tolo.graph.v1.QrLocation
-	(*AddQrLocationRequest)(nil),        // 17: tolo.graph.v1.AddQrLocationRequest
-	(*AddQrLocationResponse)(nil),       // 18: tolo.graph.v1.AddQrLocationResponse
-	(*UpdateQrLocationRequest)(nil),     // 19: tolo.graph.v1.UpdateQrLocationRequest
-	(*UpdateQrLocationResponse)(nil),    // 20: tolo.graph.v1.UpdateQrLocationResponse
-	(*RemoveQrLocationRequest)(nil),     // 21: tolo.graph.v1.RemoveQrLocationRequest
-	(*RemoveQrLocationResponse)(nil),    // 22: tolo.graph.v1.RemoveQrLocationResponse
-	(*GetQrLocationsRequest)(nil),       // 23: tolo.graph.v1.GetQrLocationsRequest
-	(*GetQrLocationsResponse)(nil),      // 24: tolo.graph.v1.GetQrLocationsResponse
-	(*GetGraphRequest)(nil),             // 25: tolo.graph.v1.GetGraphRequest
-	(*GetGraphResponse)(nil),            // 26: tolo.graph.v1.GetGraphResponse
-	(*PublishRevisionRequest)(nil),      // 27: tolo.graph.v1.PublishRevisionRequest
-	(*GetCurrentRevisionRequest)(nil),   // 28: tolo.graph.v1.GetCurrentRevisionRequest
-	(*GetMappingsRequest)(nil),          // 29: tolo.graph.v1.GetMappingsRequest
-	(*GetMappingsResponse)(nil),         // 30: tolo.graph.v1.GetMappingsResponse
-	(*GetDisplayNamesRequest)(nil),      // 31: tolo.graph.v1.GetDisplayNamesRequest
-	(*GetDisplayNamesResponse)(nil),     // 32: tolo.graph.v1.GetDisplayNamesResponse
-	(*LocalizedText)(nil),               // 33: tolo.graph.v1.LocalizedText
-	(*RouteEndpoints)(nil),              // 34: tolo.graph.v1.RouteEndpoints
-	(*GetGatePointsRequest)(nil),        // 35: tolo.graph.v1.GetGatePointsRequest
-	(*GetGatePointsResponse)(nil),       // 36: tolo.graph.v1.GetGatePointsResponse
-	nil,                                 // 37: tolo.graph.v1.GraphNode.LabelsEntry
-	nil,                                 // 38: tolo.graph.v1.NodeGroup.LabelsEntry
-	nil,                                 // 39: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
-	nil,                                 // 40: tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
-	nil,                                 // 41: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
-	nil,                                 // 42: tolo.graph.v1.LocalizedText.TextsEntry
-	(*v1.GraphAnchor)(nil),              // 43: tolo.kernel.v1.GraphAnchor
-	(*v1.Graph)(nil),                    // 44: tolo.kernel.v1.Graph
+	(GuideMapPlaceShape)(0),             // 4: tolo.graph.v1.GuideMapPlaceShape
+	(GuideMapConnectorType)(0),          // 5: tolo.graph.v1.GuideMapConnectorType
+	(GuideMapConnectorDirection)(0),     // 6: tolo.graph.v1.GuideMapConnectorDirection
+	(*GraphMeta)(nil),                   // 7: tolo.graph.v1.GraphMeta
+	(*GraphDocument)(nil),               // 8: tolo.graph.v1.GraphDocument
+	(*GraphNode)(nil),                   // 9: tolo.graph.v1.GraphNode
+	(*NodeGroup)(nil),                   // 10: tolo.graph.v1.NodeGroup
+	(*Layout)(nil),                      // 11: tolo.graph.v1.Layout
+	(*GraphEdge)(nil),                   // 12: tolo.graph.v1.GraphEdge
+	(*SaveGraphRequest)(nil),            // 13: tolo.graph.v1.SaveGraphRequest
+	(*GraphViolations)(nil),             // 14: tolo.graph.v1.GraphViolations
+	(*GraphViolation)(nil),              // 15: tolo.graph.v1.GraphViolation
+	(*ObservationPointMapping)(nil),     // 16: tolo.graph.v1.ObservationPointMapping
+	(*MapObservationPointRequest)(nil),  // 17: tolo.graph.v1.MapObservationPointRequest
+	(*MapObservationPointResponse)(nil), // 18: tolo.graph.v1.MapObservationPointResponse
+	(*QrLocation)(nil),                  // 19: tolo.graph.v1.QrLocation
+	(*AddQrLocationRequest)(nil),        // 20: tolo.graph.v1.AddQrLocationRequest
+	(*AddQrLocationResponse)(nil),       // 21: tolo.graph.v1.AddQrLocationResponse
+	(*UpdateQrLocationRequest)(nil),     // 22: tolo.graph.v1.UpdateQrLocationRequest
+	(*UpdateQrLocationResponse)(nil),    // 23: tolo.graph.v1.UpdateQrLocationResponse
+	(*RemoveQrLocationRequest)(nil),     // 24: tolo.graph.v1.RemoveQrLocationRequest
+	(*RemoveQrLocationResponse)(nil),    // 25: tolo.graph.v1.RemoveQrLocationResponse
+	(*GetQrLocationsRequest)(nil),       // 26: tolo.graph.v1.GetQrLocationsRequest
+	(*GetQrLocationsResponse)(nil),      // 27: tolo.graph.v1.GetQrLocationsResponse
+	(*GetGraphRequest)(nil),             // 28: tolo.graph.v1.GetGraphRequest
+	(*GetGraphResponse)(nil),            // 29: tolo.graph.v1.GetGraphResponse
+	(*GuideMapLayout)(nil),              // 30: tolo.graph.v1.GuideMapLayout
+	(*GuideMapGroup)(nil),               // 31: tolo.graph.v1.GuideMapGroup
+	(*GuideMapObject)(nil),              // 32: tolo.graph.v1.GuideMapObject
+	(*GuideMapPosition)(nil),            // 33: tolo.graph.v1.GuideMapPosition
+	(*GuideMapPlace)(nil),               // 34: tolo.graph.v1.GuideMapPlace
+	(*GuideMapConnector)(nil),           // 35: tolo.graph.v1.GuideMapConnector
+	(*GuideMapLine)(nil),                // 36: tolo.graph.v1.GuideMapLine
+	(*GuideMapArea)(nil),                // 37: tolo.graph.v1.GuideMapArea
+	(*GuideMapText)(nil),                // 38: tolo.graph.v1.GuideMapText
+	(*SaveGuideMapLayoutRequest)(nil),   // 39: tolo.graph.v1.SaveGuideMapLayoutRequest
+	(*GetGuideMapLayoutRequest)(nil),    // 40: tolo.graph.v1.GetGuideMapLayoutRequest
+	(*GetGuideMapLayoutResponse)(nil),   // 41: tolo.graph.v1.GetGuideMapLayoutResponse
+	(*PublishRevisionRequest)(nil),      // 42: tolo.graph.v1.PublishRevisionRequest
+	(*GetCurrentRevisionRequest)(nil),   // 43: tolo.graph.v1.GetCurrentRevisionRequest
+	(*GetMappingsRequest)(nil),          // 44: tolo.graph.v1.GetMappingsRequest
+	(*GetMappingsResponse)(nil),         // 45: tolo.graph.v1.GetMappingsResponse
+	(*GetDisplayNamesRequest)(nil),      // 46: tolo.graph.v1.GetDisplayNamesRequest
+	(*GetDisplayNamesResponse)(nil),     // 47: tolo.graph.v1.GetDisplayNamesResponse
+	(*LocalizedText)(nil),               // 48: tolo.graph.v1.LocalizedText
+	(*RouteEndpoints)(nil),              // 49: tolo.graph.v1.RouteEndpoints
+	(*GetGatePointsRequest)(nil),        // 50: tolo.graph.v1.GetGatePointsRequest
+	(*GetGatePointsResponse)(nil),       // 51: tolo.graph.v1.GetGatePointsResponse
+	nil,                                 // 52: tolo.graph.v1.GraphNode.LabelsEntry
+	nil,                                 // 53: tolo.graph.v1.NodeGroup.LabelsEntry
+	nil,                                 // 54: tolo.graph.v1.GetGuideMapLayoutResponse.PointLabelsEntry
+	nil,                                 // 55: tolo.graph.v1.GetGuideMapLayoutResponse.GroupLabelsEntry
+	nil,                                 // 56: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
+	nil,                                 // 57: tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
+	nil,                                 // 58: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
+	nil,                                 // 59: tolo.graph.v1.LocalizedText.TextsEntry
+	(*v1.GraphAnchor)(nil),              // 60: tolo.kernel.v1.GraphAnchor
+	(*v1.Graph)(nil),                    // 61: tolo.kernel.v1.Graph
 }
 var file_tolo_graph_v1_graph_proto_depIdxs = []int32{
-	6,  // 0: tolo.graph.v1.GraphDocument.nodes:type_name -> tolo.graph.v1.GraphNode
-	7,  // 1: tolo.graph.v1.GraphDocument.groups:type_name -> tolo.graph.v1.NodeGroup
-	9,  // 2: tolo.graph.v1.GraphDocument.edges:type_name -> tolo.graph.v1.GraphEdge
+	9,  // 0: tolo.graph.v1.GraphDocument.nodes:type_name -> tolo.graph.v1.GraphNode
+	10, // 1: tolo.graph.v1.GraphDocument.groups:type_name -> tolo.graph.v1.NodeGroup
+	12, // 2: tolo.graph.v1.GraphDocument.edges:type_name -> tolo.graph.v1.GraphEdge
 	0,  // 3: tolo.graph.v1.GraphNode.node_type:type_name -> tolo.graph.v1.NodeType
-	37, // 4: tolo.graph.v1.GraphNode.labels:type_name -> tolo.graph.v1.GraphNode.LabelsEntry
-	8,  // 5: tolo.graph.v1.GraphNode.layout:type_name -> tolo.graph.v1.Layout
-	38, // 6: tolo.graph.v1.NodeGroup.labels:type_name -> tolo.graph.v1.NodeGroup.LabelsEntry
-	8,  // 7: tolo.graph.v1.NodeGroup.layout:type_name -> tolo.graph.v1.Layout
+	52, // 4: tolo.graph.v1.GraphNode.labels:type_name -> tolo.graph.v1.GraphNode.LabelsEntry
+	11, // 5: tolo.graph.v1.GraphNode.layout:type_name -> tolo.graph.v1.Layout
+	53, // 6: tolo.graph.v1.NodeGroup.labels:type_name -> tolo.graph.v1.NodeGroup.LabelsEntry
+	11, // 7: tolo.graph.v1.NodeGroup.layout:type_name -> tolo.graph.v1.Layout
 	1,  // 8: tolo.graph.v1.GraphEdge.direction:type_name -> tolo.graph.v1.EdgeDirection
-	5,  // 9: tolo.graph.v1.SaveGraphRequest.document:type_name -> tolo.graph.v1.GraphDocument
-	12, // 10: tolo.graph.v1.GraphViolations.violations:type_name -> tolo.graph.v1.GraphViolation
+	8,  // 9: tolo.graph.v1.SaveGraphRequest.document:type_name -> tolo.graph.v1.GraphDocument
+	15, // 10: tolo.graph.v1.GraphViolations.violations:type_name -> tolo.graph.v1.GraphViolation
 	2,  // 11: tolo.graph.v1.GraphViolation.kind:type_name -> tolo.graph.v1.ViolationKind
 	3,  // 12: tolo.graph.v1.GraphViolation.element_kind:type_name -> tolo.graph.v1.ElementKind
-	43, // 13: tolo.graph.v1.ObservationPointMapping.anchor:type_name -> tolo.kernel.v1.GraphAnchor
-	13, // 14: tolo.graph.v1.MapObservationPointRequest.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
-	13, // 15: tolo.graph.v1.MapObservationPointResponse.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
-	4,  // 16: tolo.graph.v1.MapObservationPointResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	43, // 17: tolo.graph.v1.QrLocation.anchor:type_name -> tolo.kernel.v1.GraphAnchor
-	16, // 18: tolo.graph.v1.AddQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
-	16, // 19: tolo.graph.v1.AddQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
-	4,  // 20: tolo.graph.v1.AddQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	16, // 21: tolo.graph.v1.UpdateQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
-	16, // 22: tolo.graph.v1.UpdateQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
-	4,  // 23: tolo.graph.v1.UpdateQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	4,  // 24: tolo.graph.v1.RemoveQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	16, // 25: tolo.graph.v1.GetQrLocationsResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
-	4,  // 26: tolo.graph.v1.GetGraphResponse.meta:type_name -> tolo.graph.v1.GraphMeta
-	5,  // 27: tolo.graph.v1.GetGraphResponse.document:type_name -> tolo.graph.v1.GraphDocument
-	13, // 28: tolo.graph.v1.GetGraphResponse.observation_point_mappings:type_name -> tolo.graph.v1.ObservationPointMapping
-	16, // 29: tolo.graph.v1.GetGraphResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
-	13, // 30: tolo.graph.v1.GetMappingsResponse.mappings:type_name -> tolo.graph.v1.ObservationPointMapping
-	39, // 31: tolo.graph.v1.GetDisplayNamesResponse.display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
-	40, // 32: tolo.graph.v1.GetDisplayNamesResponse.route_display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
-	41, // 33: tolo.graph.v1.GetDisplayNamesResponse.route_endpoints:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
-	42, // 34: tolo.graph.v1.LocalizedText.texts:type_name -> tolo.graph.v1.LocalizedText.TextsEntry
-	33, // 35: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry.value:type_name -> tolo.graph.v1.LocalizedText
-	34, // 36: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry.value:type_name -> tolo.graph.v1.RouteEndpoints
-	10, // 37: tolo.graph.v1.GraphAuthoringService.SaveGraph:input_type -> tolo.graph.v1.SaveGraphRequest
-	14, // 38: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:input_type -> tolo.graph.v1.MapObservationPointRequest
-	17, // 39: tolo.graph.v1.GraphAuthoringService.AddQrLocation:input_type -> tolo.graph.v1.AddQrLocationRequest
-	19, // 40: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:input_type -> tolo.graph.v1.UpdateQrLocationRequest
-	21, // 41: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:input_type -> tolo.graph.v1.RemoveQrLocationRequest
-	25, // 42: tolo.graph.v1.GraphAuthoringService.GetGraph:input_type -> tolo.graph.v1.GetGraphRequest
-	27, // 43: tolo.graph.v1.GraphAuthoringService.PublishRevision:input_type -> tolo.graph.v1.PublishRevisionRequest
-	28, // 44: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:input_type -> tolo.graph.v1.GetCurrentRevisionRequest
-	29, // 45: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:input_type -> tolo.graph.v1.GetMappingsRequest
-	31, // 46: tolo.graph.v1.GraphSupplyService.GetDisplayNames:input_type -> tolo.graph.v1.GetDisplayNamesRequest
-	35, // 47: tolo.graph.v1.GraphSupplyService.GetGatePoints:input_type -> tolo.graph.v1.GetGatePointsRequest
-	23, // 48: tolo.graph.v1.GraphSupplyService.GetQrLocations:input_type -> tolo.graph.v1.GetQrLocationsRequest
-	4,  // 49: tolo.graph.v1.GraphAuthoringService.SaveGraph:output_type -> tolo.graph.v1.GraphMeta
-	15, // 50: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:output_type -> tolo.graph.v1.MapObservationPointResponse
-	18, // 51: tolo.graph.v1.GraphAuthoringService.AddQrLocation:output_type -> tolo.graph.v1.AddQrLocationResponse
-	20, // 52: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:output_type -> tolo.graph.v1.UpdateQrLocationResponse
-	22, // 53: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:output_type -> tolo.graph.v1.RemoveQrLocationResponse
-	26, // 54: tolo.graph.v1.GraphAuthoringService.GetGraph:output_type -> tolo.graph.v1.GetGraphResponse
-	4,  // 55: tolo.graph.v1.GraphAuthoringService.PublishRevision:output_type -> tolo.graph.v1.GraphMeta
-	44, // 56: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:output_type -> tolo.kernel.v1.Graph
-	30, // 57: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:output_type -> tolo.graph.v1.GetMappingsResponse
-	32, // 58: tolo.graph.v1.GraphSupplyService.GetDisplayNames:output_type -> tolo.graph.v1.GetDisplayNamesResponse
-	36, // 59: tolo.graph.v1.GraphSupplyService.GetGatePoints:output_type -> tolo.graph.v1.GetGatePointsResponse
-	24, // 60: tolo.graph.v1.GraphSupplyService.GetQrLocations:output_type -> tolo.graph.v1.GetQrLocationsResponse
-	49, // [49:61] is the sub-list for method output_type
-	37, // [37:49] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	60, // 13: tolo.graph.v1.ObservationPointMapping.anchor:type_name -> tolo.kernel.v1.GraphAnchor
+	16, // 14: tolo.graph.v1.MapObservationPointRequest.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
+	16, // 15: tolo.graph.v1.MapObservationPointResponse.mapping:type_name -> tolo.graph.v1.ObservationPointMapping
+	7,  // 16: tolo.graph.v1.MapObservationPointResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	60, // 17: tolo.graph.v1.QrLocation.anchor:type_name -> tolo.kernel.v1.GraphAnchor
+	19, // 18: tolo.graph.v1.AddQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
+	19, // 19: tolo.graph.v1.AddQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
+	7,  // 20: tolo.graph.v1.AddQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	19, // 21: tolo.graph.v1.UpdateQrLocationRequest.qr_location:type_name -> tolo.graph.v1.QrLocation
+	19, // 22: tolo.graph.v1.UpdateQrLocationResponse.qr_location:type_name -> tolo.graph.v1.QrLocation
+	7,  // 23: tolo.graph.v1.UpdateQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	7,  // 24: tolo.graph.v1.RemoveQrLocationResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	19, // 25: tolo.graph.v1.GetQrLocationsResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
+	7,  // 26: tolo.graph.v1.GetGraphResponse.meta:type_name -> tolo.graph.v1.GraphMeta
+	8,  // 27: tolo.graph.v1.GetGraphResponse.document:type_name -> tolo.graph.v1.GraphDocument
+	16, // 28: tolo.graph.v1.GetGraphResponse.observation_point_mappings:type_name -> tolo.graph.v1.ObservationPointMapping
+	19, // 29: tolo.graph.v1.GetGraphResponse.qr_locations:type_name -> tolo.graph.v1.QrLocation
+	30, // 30: tolo.graph.v1.GetGraphResponse.guide_map_layout:type_name -> tolo.graph.v1.GuideMapLayout
+	31, // 31: tolo.graph.v1.GuideMapLayout.groups:type_name -> tolo.graph.v1.GuideMapGroup
+	32, // 32: tolo.graph.v1.GuideMapLayout.objects:type_name -> tolo.graph.v1.GuideMapObject
+	48, // 33: tolo.graph.v1.GuideMapObject.title:type_name -> tolo.graph.v1.LocalizedText
+	48, // 34: tolo.graph.v1.GuideMapObject.description:type_name -> tolo.graph.v1.LocalizedText
+	34, // 35: tolo.graph.v1.GuideMapObject.place:type_name -> tolo.graph.v1.GuideMapPlace
+	36, // 36: tolo.graph.v1.GuideMapObject.line:type_name -> tolo.graph.v1.GuideMapLine
+	37, // 37: tolo.graph.v1.GuideMapObject.area:type_name -> tolo.graph.v1.GuideMapArea
+	38, // 38: tolo.graph.v1.GuideMapObject.text:type_name -> tolo.graph.v1.GuideMapText
+	33, // 39: tolo.graph.v1.GuideMapPlace.center:type_name -> tolo.graph.v1.GuideMapPosition
+	4,  // 40: tolo.graph.v1.GuideMapPlace.shape:type_name -> tolo.graph.v1.GuideMapPlaceShape
+	35, // 41: tolo.graph.v1.GuideMapPlace.connector:type_name -> tolo.graph.v1.GuideMapConnector
+	5,  // 42: tolo.graph.v1.GuideMapConnector.type:type_name -> tolo.graph.v1.GuideMapConnectorType
+	6,  // 43: tolo.graph.v1.GuideMapConnector.direction:type_name -> tolo.graph.v1.GuideMapConnectorDirection
+	33, // 44: tolo.graph.v1.GuideMapLine.points:type_name -> tolo.graph.v1.GuideMapPosition
+	33, // 45: tolo.graph.v1.GuideMapArea.points:type_name -> tolo.graph.v1.GuideMapPosition
+	33, // 46: tolo.graph.v1.GuideMapText.position:type_name -> tolo.graph.v1.GuideMapPosition
+	30, // 47: tolo.graph.v1.SaveGuideMapLayoutRequest.guide_map_layout:type_name -> tolo.graph.v1.GuideMapLayout
+	30, // 48: tolo.graph.v1.GetGuideMapLayoutResponse.guide_map_layout:type_name -> tolo.graph.v1.GuideMapLayout
+	54, // 49: tolo.graph.v1.GetGuideMapLayoutResponse.point_labels:type_name -> tolo.graph.v1.GetGuideMapLayoutResponse.PointLabelsEntry
+	55, // 50: tolo.graph.v1.GetGuideMapLayoutResponse.group_labels:type_name -> tolo.graph.v1.GetGuideMapLayoutResponse.GroupLabelsEntry
+	16, // 51: tolo.graph.v1.GetMappingsResponse.mappings:type_name -> tolo.graph.v1.ObservationPointMapping
+	56, // 52: tolo.graph.v1.GetDisplayNamesResponse.display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry
+	57, // 53: tolo.graph.v1.GetDisplayNamesResponse.route_display_names:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteDisplayNamesEntry
+	58, // 54: tolo.graph.v1.GetDisplayNamesResponse.route_endpoints:type_name -> tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry
+	59, // 55: tolo.graph.v1.LocalizedText.texts:type_name -> tolo.graph.v1.LocalizedText.TextsEntry
+	48, // 56: tolo.graph.v1.GetGuideMapLayoutResponse.PointLabelsEntry.value:type_name -> tolo.graph.v1.LocalizedText
+	48, // 57: tolo.graph.v1.GetGuideMapLayoutResponse.GroupLabelsEntry.value:type_name -> tolo.graph.v1.LocalizedText
+	48, // 58: tolo.graph.v1.GetDisplayNamesResponse.DisplayNamesEntry.value:type_name -> tolo.graph.v1.LocalizedText
+	49, // 59: tolo.graph.v1.GetDisplayNamesResponse.RouteEndpointsEntry.value:type_name -> tolo.graph.v1.RouteEndpoints
+	13, // 60: tolo.graph.v1.GraphAuthoringService.SaveGraph:input_type -> tolo.graph.v1.SaveGraphRequest
+	17, // 61: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:input_type -> tolo.graph.v1.MapObservationPointRequest
+	20, // 62: tolo.graph.v1.GraphAuthoringService.AddQrLocation:input_type -> tolo.graph.v1.AddQrLocationRequest
+	22, // 63: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:input_type -> tolo.graph.v1.UpdateQrLocationRequest
+	24, // 64: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:input_type -> tolo.graph.v1.RemoveQrLocationRequest
+	39, // 65: tolo.graph.v1.GraphAuthoringService.SaveGuideMapLayout:input_type -> tolo.graph.v1.SaveGuideMapLayoutRequest
+	28, // 66: tolo.graph.v1.GraphAuthoringService.GetGraph:input_type -> tolo.graph.v1.GetGraphRequest
+	42, // 67: tolo.graph.v1.GraphAuthoringService.PublishRevision:input_type -> tolo.graph.v1.PublishRevisionRequest
+	43, // 68: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:input_type -> tolo.graph.v1.GetCurrentRevisionRequest
+	44, // 69: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:input_type -> tolo.graph.v1.GetMappingsRequest
+	46, // 70: tolo.graph.v1.GraphSupplyService.GetDisplayNames:input_type -> tolo.graph.v1.GetDisplayNamesRequest
+	50, // 71: tolo.graph.v1.GraphSupplyService.GetGatePoints:input_type -> tolo.graph.v1.GetGatePointsRequest
+	26, // 72: tolo.graph.v1.GraphSupplyService.GetQrLocations:input_type -> tolo.graph.v1.GetQrLocationsRequest
+	40, // 73: tolo.graph.v1.GraphSupplyService.GetGuideMapLayout:input_type -> tolo.graph.v1.GetGuideMapLayoutRequest
+	7,  // 74: tolo.graph.v1.GraphAuthoringService.SaveGraph:output_type -> tolo.graph.v1.GraphMeta
+	18, // 75: tolo.graph.v1.GraphAuthoringService.MapObservationPoint:output_type -> tolo.graph.v1.MapObservationPointResponse
+	21, // 76: tolo.graph.v1.GraphAuthoringService.AddQrLocation:output_type -> tolo.graph.v1.AddQrLocationResponse
+	23, // 77: tolo.graph.v1.GraphAuthoringService.UpdateQrLocation:output_type -> tolo.graph.v1.UpdateQrLocationResponse
+	25, // 78: tolo.graph.v1.GraphAuthoringService.RemoveQrLocation:output_type -> tolo.graph.v1.RemoveQrLocationResponse
+	7,  // 79: tolo.graph.v1.GraphAuthoringService.SaveGuideMapLayout:output_type -> tolo.graph.v1.GraphMeta
+	29, // 80: tolo.graph.v1.GraphAuthoringService.GetGraph:output_type -> tolo.graph.v1.GetGraphResponse
+	7,  // 81: tolo.graph.v1.GraphAuthoringService.PublishRevision:output_type -> tolo.graph.v1.GraphMeta
+	61, // 82: tolo.graph.v1.GraphSupplyService.GetCurrentRevision:output_type -> tolo.kernel.v1.Graph
+	45, // 83: tolo.graph.v1.GraphSupplyService.GetObservationPointMappings:output_type -> tolo.graph.v1.GetMappingsResponse
+	47, // 84: tolo.graph.v1.GraphSupplyService.GetDisplayNames:output_type -> tolo.graph.v1.GetDisplayNamesResponse
+	51, // 85: tolo.graph.v1.GraphSupplyService.GetGatePoints:output_type -> tolo.graph.v1.GetGatePointsResponse
+	27, // 86: tolo.graph.v1.GraphSupplyService.GetQrLocations:output_type -> tolo.graph.v1.GetQrLocationsResponse
+	41, // 87: tolo.graph.v1.GraphSupplyService.GetGuideMapLayout:output_type -> tolo.graph.v1.GetGuideMapLayoutResponse
+	74, // [74:88] is the sub-list for method output_type
+	60, // [60:74] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_tolo_graph_v1_graph_proto_init() }
@@ -2472,13 +3616,20 @@ func file_tolo_graph_v1_graph_proto_init() {
 	file_tolo_graph_v1_graph_proto_msgTypes[3].OneofWrappers = []any{}
 	file_tolo_graph_v1_graph_proto_msgTypes[4].OneofWrappers = []any{}
 	file_tolo_graph_v1_graph_proto_msgTypes[5].OneofWrappers = []any{}
+	file_tolo_graph_v1_graph_proto_msgTypes[25].OneofWrappers = []any{
+		(*GuideMapObject_Place)(nil),
+		(*GuideMapObject_Line)(nil),
+		(*GuideMapObject_Area)(nil),
+		(*GuideMapObject_Text)(nil),
+	}
+	file_tolo_graph_v1_graph_proto_msgTypes[27].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tolo_graph_v1_graph_proto_rawDesc), len(file_tolo_graph_v1_graph_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   39,
+			NumEnums:      7,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

@@ -42,6 +42,9 @@ const (
 	// GraphAuthoringServiceRemoveQrLocationProcedure is the procedure name of the
 	// GraphAuthoringService's RemoveQrLocation RPC.
 	GraphAuthoringServiceRemoveQrLocationProcedure = "/tolo.graph.v1.GraphAuthoringService/RemoveQrLocation"
+	// GraphAuthoringServiceSaveGuideMapLayoutProcedure is the procedure name of the
+	// GraphAuthoringService's SaveGuideMapLayout RPC.
+	GraphAuthoringServiceSaveGuideMapLayoutProcedure = "/tolo.graph.v1.GraphAuthoringService/SaveGuideMapLayout"
 	// GraphAuthoringServiceGetGraphProcedure is the procedure name of the GraphAuthoringService's
 	// GetGraph RPC.
 	GraphAuthoringServiceGetGraphProcedure = "/tolo.graph.v1.GraphAuthoringService/GetGraph"
@@ -63,6 +66,9 @@ const (
 	// GraphSupplyServiceGetQrLocationsProcedure is the procedure name of the GraphSupplyService's
 	// GetQrLocations RPC.
 	GraphSupplyServiceGetQrLocationsProcedure = "/tolo.graph.v1.GraphSupplyService/GetQrLocations"
+	// GraphSupplyServiceGetGuideMapLayoutProcedure is the procedure name of the GraphSupplyService's
+	// GetGuideMapLayout RPC.
+	GraphSupplyServiceGetGuideMapLayoutProcedure = "/tolo.graph.v1.GraphSupplyService/GetGuideMapLayout"
 )
 
 var (
@@ -101,6 +107,13 @@ var (
 			Procedure:  GraphAuthoringServiceRemoveQrLocationProcedure,
 		}
 	})
+	graphAuthoringServiceSaveGuideMapLayoutSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphAuthoringService").Methods().ByName("SaveGuideMapLayout"),
+			Procedure:  GraphAuthoringServiceSaveGuideMapLayoutProcedure,
+		}
+	})
 	graphAuthoringServiceGetGraphSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -124,6 +137,7 @@ type GraphAuthoringServiceClient interface {
 	AddQrLocation(context.Context, *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error)
 	UpdateQrLocation(context.Context, *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error)
 	RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error)
+	SaveGuideMapLayout(context.Context, *v1.SaveGuideMapLayoutRequest) (*v1.GraphMeta, error)
 	GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error)
 	PublishRevision(context.Context, *v1.PublishRevisionRequest) (*v1.GraphMeta, error)
 }
@@ -142,6 +156,7 @@ type GraphAuthoringServiceHandler interface {
 	AddQrLocation(context.Context, *v1.AddQrLocationRequest) (*v1.AddQrLocationResponse, error)
 	UpdateQrLocation(context.Context, *v1.UpdateQrLocationRequest) (*v1.UpdateQrLocationResponse, error)
 	RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error)
+	SaveGuideMapLayout(context.Context, *v1.SaveGuideMapLayoutRequest) (*v1.GraphMeta, error)
 	GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error)
 	PublishRevision(context.Context, *v1.PublishRevisionRequest) (*v1.GraphMeta, error)
 }
@@ -156,6 +171,7 @@ func RegisterGraphAuthoringServiceHandler(server *connect.Server, svc GraphAutho
 		connect.Method{Spec: graphAuthoringServiceAddQrLocationSpec(), Handler: adapter.addQrLocation},
 		connect.Method{Spec: graphAuthoringServiceUpdateQrLocationSpec(), Handler: adapter.updateQrLocation},
 		connect.Method{Spec: graphAuthoringServiceRemoveQrLocationSpec(), Handler: adapter.removeQrLocation},
+		connect.Method{Spec: graphAuthoringServiceSaveGuideMapLayoutSpec(), Handler: adapter.saveGuideMapLayout},
 		connect.Method{Spec: graphAuthoringServiceGetGraphSpec(), Handler: adapter.getGraph},
 		connect.Method{Spec: graphAuthoringServicePublishRevisionSpec(), Handler: adapter.publishRevision},
 	)
@@ -182,6 +198,10 @@ func (UnimplementedGraphAuthoringServiceHandler) UpdateQrLocation(context.Contex
 
 func (UnimplementedGraphAuthoringServiceHandler) RemoveQrLocation(context.Context, *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.RemoveQrLocation is not implemented")
+}
+
+func (UnimplementedGraphAuthoringServiceHandler) SaveGuideMapLayout(context.Context, *v1.SaveGuideMapLayoutRequest) (*v1.GraphMeta, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphAuthoringService.SaveGuideMapLayout is not implemented")
 }
 
 func (UnimplementedGraphAuthoringServiceHandler) GetGraph(context.Context, *v1.GetGraphRequest) (*v1.GetGraphResponse, error) {
@@ -231,6 +251,14 @@ func (c *graphAuthoringServiceClient) UpdateQrLocation(ctx context.Context, req 
 func (c *graphAuthoringServiceClient) RemoveQrLocation(ctx context.Context, req *v1.RemoveQrLocationRequest) (*v1.RemoveQrLocationResponse, error) {
 	var res v1.RemoveQrLocationResponse
 	if err := c.client.CallUnary(ctx, graphAuthoringServiceRemoveQrLocationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphAuthoringServiceClient) SaveGuideMapLayout(ctx context.Context, req *v1.SaveGuideMapLayoutRequest) (*v1.GraphMeta, error) {
+	var res v1.GraphMeta
+	if err := c.client.CallUnary(ctx, graphAuthoringServiceSaveGuideMapLayoutSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -314,6 +342,18 @@ func (h graphAuthoringServiceHandler) removeQrLocation(ctx context.Context, _ co
 	return stream.Send(res)
 }
 
+func (h graphAuthoringServiceHandler) saveGuideMapLayout(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SaveGuideMapLayoutRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SaveGuideMapLayout(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 func (h graphAuthoringServiceHandler) getGraph(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.GetGraphRequest
 	if err := stream.Receive(&req); err != nil {
@@ -374,6 +414,13 @@ var (
 			Procedure:  GraphSupplyServiceGetQrLocationsProcedure,
 		}
 	})
+	graphSupplyServiceGetGuideMapLayoutSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_tolo_graph_v1_graph_proto.Services().ByName("GraphSupplyService").Methods().ByName("GetGuideMapLayout"),
+			Procedure:  GraphSupplyServiceGetGuideMapLayoutProcedure,
+		}
+	})
 )
 
 // GraphSupplyServiceClient is a client for the tolo.graph.v1.GraphSupplyService service.
@@ -383,6 +430,7 @@ type GraphSupplyServiceClient interface {
 	GetDisplayNames(context.Context, *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error)
 	GetGatePoints(context.Context, *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error)
 	GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error)
+	GetGuideMapLayout(context.Context, *v1.GetGuideMapLayoutRequest) (*v1.GetGuideMapLayoutResponse, error)
 }
 
 // NewGraphSupplyServiceClient constructs a client for the tolo.graph.v1.GraphSupplyService service.
@@ -398,6 +446,7 @@ type GraphSupplyServiceHandler interface {
 	GetDisplayNames(context.Context, *v1.GetDisplayNamesRequest) (*v1.GetDisplayNamesResponse, error)
 	GetGatePoints(context.Context, *v1.GetGatePointsRequest) (*v1.GetGatePointsResponse, error)
 	GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error)
+	GetGuideMapLayout(context.Context, *v1.GetGuideMapLayoutRequest) (*v1.GetGuideMapLayoutResponse, error)
 }
 
 // RegisterGraphSupplyServiceHandler registers svc as the tolo.graph.v1.GraphSupplyService
@@ -410,6 +459,7 @@ func RegisterGraphSupplyServiceHandler(server *connect.Server, svc GraphSupplySe
 		connect.Method{Spec: graphSupplyServiceGetDisplayNamesSpec(), Handler: adapter.getDisplayNames},
 		connect.Method{Spec: graphSupplyServiceGetGatePointsSpec(), Handler: adapter.getGatePoints},
 		connect.Method{Spec: graphSupplyServiceGetQrLocationsSpec(), Handler: adapter.getQrLocations},
+		connect.Method{Spec: graphSupplyServiceGetGuideMapLayoutSpec(), Handler: adapter.getGuideMapLayout},
 	)
 }
 
@@ -434,6 +484,10 @@ func (UnimplementedGraphSupplyServiceHandler) GetGatePoints(context.Context, *v1
 
 func (UnimplementedGraphSupplyServiceHandler) GetQrLocations(context.Context, *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetQrLocations is not implemented")
+}
+
+func (UnimplementedGraphSupplyServiceHandler) GetGuideMapLayout(context.Context, *v1.GetGuideMapLayoutRequest) (*v1.GetGuideMapLayoutResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "tolo.graph.v1.GraphSupplyService.GetGuideMapLayout is not implemented")
 }
 
 type graphSupplyServiceClient struct {
@@ -475,6 +529,14 @@ func (c *graphSupplyServiceClient) GetGatePoints(ctx context.Context, req *v1.Ge
 func (c *graphSupplyServiceClient) GetQrLocations(ctx context.Context, req *v1.GetQrLocationsRequest) (*v1.GetQrLocationsResponse, error) {
 	var res v1.GetQrLocationsResponse
 	if err := c.client.CallUnary(ctx, graphSupplyServiceGetQrLocationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *graphSupplyServiceClient) GetGuideMapLayout(ctx context.Context, req *v1.GetGuideMapLayoutRequest) (*v1.GetGuideMapLayoutResponse, error) {
+	var res v1.GetGuideMapLayoutResponse
+	if err := c.client.CallUnary(ctx, graphSupplyServiceGetGuideMapLayoutSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -536,6 +598,18 @@ func (h graphSupplyServiceHandler) getQrLocations(ctx context.Context, _ connect
 		return err
 	}
 	res, err := h.svc.GetQrLocations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h graphSupplyServiceHandler) getGuideMapLayout(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetGuideMapLayoutRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetGuideMapLayout(ctx, &req)
 	if err != nil {
 		return err
 	}

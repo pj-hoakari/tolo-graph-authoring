@@ -154,6 +154,18 @@ func (s *GraphService) RemoveQrLocation(
 	return &graphv1.RemoveQrLocationResponse{Meta: graphMetaToProto(meta)}, nil
 }
 
+func (s *GraphService) SaveGuideMapLayout(ctx context.Context, req *graphv1.SaveGuideMapLayoutRequest) (*graphv1.GraphMeta, error) {
+	meta, err := s.graphService.SaveGuideMapLayout(ctx, application.SaveGuideMapLayoutInput{
+		EventPublicID:  req.GetEventId(),
+		GuideMapLayout: guideMapLayoutFromProto(req.GetGuideMapLayout()),
+	})
+	if err != nil {
+		return nil, connectError(ctx, err)
+	}
+
+	return graphMetaToProto(meta), nil
+}
+
 func (s *GraphService) PublishRevision(ctx context.Context, req *graphv1.PublishRevisionRequest) (*graphv1.GraphMeta, error) {
 	published, err := s.graphService.PublishRevision(ctx, application.PublishRevisionInput{EventPublicID: req.GetEventId()})
 	if err != nil {
@@ -178,6 +190,7 @@ func (s *GraphService) GetGraph(ctx context.Context, req *graphv1.GetGraphReques
 		Document:                 graphDocumentToProto(graph.Draft()),
 		ObservationPointMappings: observationPointMappingsToProto(graph.Placements().Mappings),
 		QrLocations:              qrLocationsToProto(graph.Placements().QrLocations),
+		GuideMapLayout:           guideMapLayoutToProto(graph.Placements().GuideMap),
 	}, nil
 }
 

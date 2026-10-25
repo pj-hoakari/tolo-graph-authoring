@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -42,10 +43,26 @@ func (r *PostgresGraphRepository) FindPlacements(ctx context.Context, graph doma
 		return domain.Placements{}, fmt.Errorf("find QR locations: %w", err)
 	}
 
+	var guideMap jsonColumn[domain.GuideMapLayout]
+
+	err = sqlx.GetContext(ctx, r.executor(ctx), &guideMap, `
+		SELECT layout
+		FROM guide_map_layouts
+		WHERE event_public_id = $1 AND tenant_public_id = $2`,
+		graph.EventPublicID, graph.TenantPublicID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return domain.Placements{}, fmt.Errorf("find guide map layout: %w", err)
+	}
+
 	placements := domain.Placements{
 		Mappings:    make([]domain.ObservationPointMapping, 0, len(mappings)),
 		QrLocations: make([]domain.QrLocation, 0, len(locations)),
+		GuideMap:    nil,
 	}
+	if err == nil {
+		placements.GuideMap = &guideMap.value
+	}
+
 	for _, row := range mappings {
 		placements.Mappings = append(placements.Mappings, row.mapping())
 	}
@@ -99,6 +116,19 @@ func (r *PostgresGraphRepository) RemoveQrLocation(ctx context.Context, graph do
 		graph.EventPublicID, graph.TenantPublicID, qrLocationID)
 
 	return requireQrLocationFound(result, err, "remove QR location")
+}
+
+func (r *PostgresGraphRepository) SaveGuideMapLayout(ctx context.Context, graph domain.GraphRef, layout domain.GuideMapLayout) error {
+	result, err := r.executor(ctx).ExecContext(ctx, `
+		INSERT INTO guide_map_layouts (event_public_id, tenant_public_id, layout)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (event_public_id) DO UPDATE SET
+			layout = EXCLUDED.layout,
+			updated_at = now()
+		WHERE guide_map_layouts.tenant_public_id = EXCLUDED.tenant_public_id`,
+		graph.EventPublicID, graph.TenantPublicID, jsonColumn[domain.GuideMapLayout]{value: layout})
+
+	return requireRowWritten(result, err, "save guide map layout")
 }
 
 func requireQrLocationFound(result sql.Result, err error, operation string) error {

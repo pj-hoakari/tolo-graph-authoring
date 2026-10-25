@@ -45,12 +45,13 @@ func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
 		EventPublicID     string                         `db:"event_public_id"`
 		TenantPublicID    string                         `db:"tenant_public_id"`
 		Kernel            jsonColumn[domain.GraphKernel] `db:"kernel"`
+		Labels            jsonColumn[domain.GraphLabels] `db:"labels"`
 		DocumentHash      string                         `db:"doc_hash"`
 		CurrentRevisionID string                         `db:"current_revision_id"`
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.event_public_id, d.tenant_public_id, d.kernel, d.doc_hash,
+		SELECT d.event_public_id, d.tenant_public_id, d.kernel, d.labels, d.doc_hash,
 			`+currentRevisionIDColumn+`
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
@@ -68,6 +69,7 @@ func (r *PostgresGraphRepository) FindDraftKernelForUpdate(
 	return domain.DraftKernel{
 		GraphRef:     domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
 		Kernel:       row.Kernel.value,
+		Labels:       row.Labels.value,
 		DocumentHash: row.DocumentHash,
 		RevisionID:   row.CurrentRevisionID,
 	}, nil
@@ -245,7 +247,7 @@ func (r *PostgresGraphRepository) FindRevision(ctx context.Context, eventPublicI
 	var revision graphRevision
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &revision, `
-		SELECT event_public_id, tenant_public_id, revision_id, kernel, placements
+		SELECT event_public_id, tenant_public_id, revision_id, kernel, labels, placements
 		FROM graph_revisions
 		WHERE event_public_id = $1 AND revision_id = $2`,
 		eventPublicID, revisionID)

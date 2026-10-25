@@ -83,6 +83,10 @@ func (nopGraphRepository) RemoveQrLocation(context.Context, domain.GraphRef, str
 	return nil
 }
 
+func (nopGraphRepository) SaveGuideMapLayout(context.Context, domain.GraphRef, domain.GuideMapLayout) error {
+	return nil
+}
+
 type inlineTransactor struct{}
 
 func (inlineTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {

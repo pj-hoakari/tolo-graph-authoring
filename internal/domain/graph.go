@@ -402,7 +402,7 @@ func (g Graph) WithDraft(draft GraphDocument) (Graph, error) {
 
 	parts := draft.Parts()
 
-	if err := g.placements.verifyKept(parts.Kernel); err != nil {
+	if err := g.placements.verifyKept(parts); err != nil {
 		return Graph{}, err
 	}
 

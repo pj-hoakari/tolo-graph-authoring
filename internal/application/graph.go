@@ -16,10 +16,11 @@ import (
 )
 
 var (
-	ErrEventIDRequired       = errors.New("event_id is required")
-	ErrGraphDocumentRequired = errors.New("document is required")
-	ErrRevisionIDRequired    = errors.New("revision_id is required")
-	ErrTenantIDRequired      = errors.New("tenant_id is required")
+	ErrEventIDRequired        = errors.New("event_id is required")
+	ErrGraphDocumentRequired  = errors.New("document is required")
+	ErrRevisionIDRequired     = errors.New("revision_id is required")
+	ErrTenantIDRequired       = errors.New("tenant_id is required")
+	ErrGuideMapLayoutRequired = errors.New("guide_map_layout is required")
 )
 
 type SaveGraphInput struct {
@@ -122,6 +123,31 @@ type GetQrLocationsUseCase interface {
 	GetQrLocations(context.Context, GetQrLocationsInput) (QrLocations, error)
 }
 
+type SaveGuideMapLayoutInput struct {
+	EventPublicID  string
+	GuideMapLayout *domain.GuideMapLayout
+}
+
+type SaveGuideMapLayoutUseCase interface {
+	SaveGuideMapLayout(context.Context, SaveGuideMapLayoutInput) (domain.GraphMeta, error)
+}
+
+type GetGuideMapLayoutInput struct {
+	EventPublicID  string
+	RevisionID     string
+	TenantPublicID string
+}
+
+type GuideMapLayout struct {
+	RevisionID     string
+	GuideMapLayout *domain.GuideMapLayout
+	Labels         domain.GuideMapLabels
+}
+
+type GetGuideMapLayoutUseCase interface {
+	GetGuideMapLayout(context.Context, GetGuideMapLayoutInput) (GuideMapLayout, error)
+}
+
 type GetGraphInput struct {
 	EventPublicID string
 }
@@ -157,6 +183,7 @@ type GraphSupplyUseCases interface {
 	GetDisplayNamesUseCase
 	GetGatePointsUseCase
 	GetQrLocationsUseCase
+	GetGuideMapLayoutUseCase
 }
 
 type GraphUseCases interface {
@@ -165,6 +192,7 @@ type GraphUseCases interface {
 	AddQrLocationUseCase
 	UpdateQrLocationUseCase
 	RemoveQrLocationUseCase
+	SaveGuideMapLayoutUseCase
 	PublishRevisionUseCase
 	GetGraphUseCase
 	GraphSupplyUseCases
@@ -463,6 +491,20 @@ func (s *GraphService) RemoveQrLocation(ctx context.Context, input RemoveQrLocat
 	})
 }
 
+func (s *GraphService) SaveGuideMapLayout(ctx context.Context, input SaveGuideMapLayoutInput) (domain.GraphMeta, error) {
+	if input.GuideMapLayout == nil {
+		return domain.GraphMeta{}, ErrGuideMapLayoutRequired
+	}
+
+	return s.editGraph(ctx, input.EventPublicID, func(ctx context.Context, draft domain.DraftKernel) error {
+		if err := draft.VerifyGuideMapLayout(*input.GuideMapLayout); err != nil {
+			return err
+		}
+
+		return s.graphs.SaveGuideMapLayout(ctx, draft.GraphRef, *input.GuideMapLayout)
+	})
+}
+
 func (s *GraphService) verifyQrLocation(ctx context.Context, draft domain.DraftKernel, location domain.QrLocation) error {
 	if err := draft.VerifyQrLocation(location); err != nil {
 		return err
@@ -563,6 +605,28 @@ func (s *GraphService) GetQrLocations(ctx context.Context, input GetQrLocationsI
 	}
 
 	return QrLocations{RevisionID: revision.RevisionID, QrLocations: revision.Placements.QrLocations}, nil
+}
+
+func (s *GraphService) GetGuideMapLayout(ctx context.Context, input GetGuideMapLayoutInput) (GuideMapLayout, error) {
+	revision, err := s.revision(ctx, input.EventPublicID, input.RevisionID)
+	if err != nil {
+		return GuideMapLayout{}, err
+	}
+
+	if input.TenantPublicID == "" {
+		return GuideMapLayout{}, ErrTenantIDRequired
+	}
+
+	if input.TenantPublicID != revision.TenantPublicID {
+		return GuideMapLayout{}, fmt.Errorf("tenant_id of the request: %w", tenantctx.ErrMismatch)
+	}
+
+	result := GuideMapLayout{RevisionID: revision.RevisionID, GuideMapLayout: revision.Placements.GuideMap, Labels: domain.GuideMapLabels{Points: map[string]map[string]string{}, Groups: map[string]map[string]string{}}}
+	if layout := revision.Placements.GuideMap; layout != nil {
+		result.Labels = layout.Labels(revision.Labels)
+	}
+
+	return result, nil
 }
 
 func newQrLocationID() string {

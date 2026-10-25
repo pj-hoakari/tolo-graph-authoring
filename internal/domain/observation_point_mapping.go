@@ -46,12 +46,14 @@ type QrLocation struct {
 type Placements struct {
 	Mappings    []ObservationPointMapping `json:"mappings"`
 	QrLocations []QrLocation              `json:"qr_locations"`
+	GuideMap    *GuideMapLayout           `json:"guide_map_layout,omitempty"`
 }
 
 func (p Placements) canonical() Placements {
 	return Placements{
 		Mappings:    sortedByID(p.Mappings, func(mapping ObservationPointMapping) string { return mapping.ObservationPointID }),
 		QrLocations: sortedByID(p.QrLocations, func(location QrLocation) string { return location.ID }),
+		GuideMap:    p.GuideMap,
 	}
 }
 
@@ -59,6 +61,7 @@ type DraftKernel struct {
 	GraphRef
 
 	Kernel       GraphKernel
+	Labels       GraphLabels
 	DocumentHash string
 	RevisionID   string
 }
@@ -116,7 +119,9 @@ func (k GraphKernel) contains(anchor GraphAnchor) bool {
 	return false
 }
 
-func (p Placements) verifyKept(kernel GraphKernel) error {
+func (p Placements) verifyKept(parts GraphParts) error {
+	kernel := parts.Kernel
+
 	for _, mapping := range p.Mappings {
 		if !kernel.contains(mapping.Anchor) {
 			return fmt.Errorf("%w: observation point %q", ErrAnchorTargetNotFound, mapping.ObservationPointID)
@@ -127,6 +132,10 @@ func (p Placements) verifyKept(kernel GraphKernel) error {
 		if !kernel.contains(location.Anchor) {
 			return fmt.Errorf("%w: QR location %q", ErrAnchorTargetNotFound, location.ID)
 		}
+	}
+
+	if p.GuideMap != nil {
+		return p.GuideMap.verifyTargets(kernel, parts.Labels)
 	}
 
 	return nil
@@ -146,4 +155,12 @@ func (p Placements) VerifyQrPlaceable(anchor GraphAnchor) error {
 	}
 
 	return nil
+}
+
+func (k DraftKernel) VerifyGuideMapLayout(layout GuideMapLayout) error {
+	if err := layout.Validate(); err != nil {
+		return err
+	}
+
+	return layout.verifyTargets(k.Kernel, k.Labels)
 }

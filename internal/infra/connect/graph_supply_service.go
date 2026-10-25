@@ -99,6 +99,26 @@ func (s *GraphSupplyService) GetQrLocations(
 	return &graphv1.GetQrLocationsResponse{RevisionId: result.RevisionID, QrLocations: qrLocationsToProto(result.QrLocations)}, nil
 }
 
+func (s *GraphSupplyService) GetGuideMapLayout(
+	ctx context.Context, req *graphv1.GetGuideMapLayoutRequest,
+) (*graphv1.GetGuideMapLayoutResponse, error) {
+	result, err := s.graphService.GetGuideMapLayout(ctx, application.GetGuideMapLayoutInput{
+		EventPublicID:  req.GetEventId(),
+		RevisionID:     req.GetRevisionId(),
+		TenantPublicID: req.GetTenantId(),
+	})
+	if err != nil {
+		return nil, connectError(ctx, err)
+	}
+
+	return &graphv1.GetGuideMapLayoutResponse{
+		RevisionId:     result.RevisionID,
+		GuideMapLayout: guideMapLayoutToProto(result.GuideMapLayout),
+		PointLabels:    localizedTextsToProto(result.Labels.Points),
+		GroupLabels:    localizedTextsToProto(result.Labels.Groups),
+	}, nil
+}
+
 func kernelGraphToProto(graph domain.KernelGraph) *kernelv1.Graph {
 	points := make([]*kernelv1.Point, 0, len(graph.Points))
 	for _, point := range graph.Points {
