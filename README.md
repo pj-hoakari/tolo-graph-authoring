@@ -130,6 +130,17 @@ Compose を使わずにトークンを作る場合は、`internal-jwt-handling` 
 go tool jwtgen -audience tolo-graph-authoring -token-use event_access -tenant-public-id 0123456789abcdef -event-public-id fedcba9876543210 -scope events.manage -ttl 10m
 ```
 
+### 案内マップレイアウトの取り込み
+
+`cmd/importguidemap` は、tolo-web の fixture（`src/mocks/fixtures/guideMapLayout.json`）と同じ形式の JSON を読み、`SaveGuideMapLayout` で下書きに保存する（開発専用）  
+案内マップエディタはまだこのサービスにつながっていないので、通しで確かめるときの案内マップレイアウトはこれで入れる  
+名前と説明が文字列のときは `-lang`（既定 `ja`）の言語の表示名として保存する  
+参照するポイント、ルート、グループは、保存済みのグラフ文書にある必要がある
+
+```bash
+TOKEN=$TOKEN go run ./cmd/importguidemap -url http://localhost:8080 -event fedcba9876543210 -file guideMapLayout.json
+```
+
 ### connect-es の生成
 
 connect-es の生成（`task proto:gen:es`）はリリース時に CI で行う  
