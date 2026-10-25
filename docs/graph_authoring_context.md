@@ -12,6 +12,7 @@
 | GraphSaved | GraphAuthoringService.SaveGraph |
 | ObservationPointMappedToGraph | GraphAuthoringService.MapObservationPoint |
 | QrLocationChanged | GraphAuthoringService.AddQrLocation／UpdateQrLocation／RemoveQrLocation |
+| GuideMapLayoutSaved | GraphAuthoringService.SaveGuideMapLayout |
 | GraphRevisionPublished | GraphAuthoringService.PublishRevision |
 
 ## 他コンテキストとの接点
@@ -23,7 +24,9 @@
 | 表示名の供給（ゲスト向け表示の組み立て用） | GraphSupplyService.GetDisplayNames（Guest Service が消費。ゲストコンテキスト） |
 | 設計時ゲート指定の供給 | GraphSupplyService.GetGatePoints（観測が消費し GateState の初期構築に使用。局所行列誘導コンテキスト） |
 | QR 設置箇所の供給 | GraphSupplyService.GetQrLocations（指定した版の QR 設置箇所を返す。Guest Service が消費し発行 URL を生成。ゲストコンテキスト。観測も消費し QR 方式の観測点として読み替える。観測コンテキスト） |
-| 管理 UI とのグラフ文書の受け渡し | GraphAuthoringService.SaveGraph（一括登録）／GetGraph（グラフ文書・下書きの紐づけと QR 設置箇所・版情報） |
+| 案内マップレイアウトの供給（Guest Service が案内マップに使用） | GraphSupplyService.GetGuideMapLayout（指定した版の案内マップレイアウトと、参照するポイントとグループのラベルを返す） |
+| 管理 UI とのグラフ文書の受け渡し | GraphAuthoringService.SaveGraph（一括登録）／GetGraph（グラフ文書・下書きの紐づけと QR 設置箇所と案内マップレイアウト・版情報） |
+| 案内マップエディタとの案内マップレイアウトの受け渡し | GraphAuthoringService.SaveGuideMapLayout（保存）／GetGraph（下書きの復元） |
 | イベント識別子の参照整合 | TenantService.GetEvent（テナントコンテキスト） |
 
-供給系の応答の形は、公開済みのグラフ版から消費者ごとに最適化して導出する形を基本とする（編集都合のレイアウト・ラベルを最適化向けへ持ち込まない。レイアウトは版に含めず、下流へ供給しない）。観測点紐づけと QR 設置箇所は版に含め、版を指定して供給する。共有カーネル Graph の供給を除き、具体形は実装フェーズで確定する。
+供給系の応答の形は、公開済みのグラフ版から消費者ごとに最適化して導出する形を基本とする（編集都合のレイアウト・ラベルを最適化向けへ持ち込まない。レイアウトは版に含めず、下流へ供給しない）。観測点紐づけと QR 設置箇所、案内マップレイアウトは版に含め、版を指定して供給する。共有カーネル Graph の供給を除き、具体形は実装フェーズで確定する。
