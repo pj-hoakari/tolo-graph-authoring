@@ -18,7 +18,7 @@ package: `tolo.graph.v1`
 - サーバは文書の意味を変えずに保存し、`GetGraph` で構造的に同一の文書を返す（エディタはこれから編集状態を再構築する。バイト単位の同一性は要求しない。要素は種類ごとに ID 順に並べて返す）
 - サーバは保存時に構造検証を行い、公開時に公開の条件を検証して共有カーネルの Graph へ導出する
 
-供給（Supply）は、公開済みのグラフ版から消費者ごとに最適化した導出データを返す文脈。編集都合の情報（レイアウト・グループ・外部ポイント）は下流へ持ち込まず、各消費者が必要とする射影だけを渡す。観測経由で Flow／Line へ渡るグラフは共有カーネルの Graph（ポイント・ルートの関係と構造属性のみ。ラベル・レイアウトを持たない）であり、観測点の配置は紐づけの供給で渡す。ゲスト向け表示（ラベル）の供給は、言語を指定してラベル付きのデータを返す形か、言語ラベルのみを返す形かを含めて応答形が未確定であり、実装フェーズで確定する。共有カーネル Graph の供給を除き、後述の供給系の定義はこの方針での暫定形である。
+供給（Supply）は、公開済みのグラフ版から消費者ごとに最適化した導出データを返す文脈。編集都合の情報（レイアウト・グループへの所属と親・外部ポイント）は下流へ持ち込まず、各消費者が必要とする射影だけを渡す。観測経由で Flow／Line へ渡るグラフは共有カーネルの Graph（ポイント・ルートの関係と構造属性のみ。ラベル・レイアウトを持たない）であり、観測点の配置は紐づけの供給で渡す。ゲスト向け表示（ラベル）の供給は、言語を指定してラベル付きのデータを返す形か、言語ラベルのみを返す形かを含めて応答形が未確定であり、実装フェーズで確定する。共有カーネル Graph の供給を除き、後述の供給系の定義はこの方針での暫定形である。案内マップ用に Guest Service へ渡すのは、案内マップレイアウトが参照するポイントと、面になっているグループの ID とラベルだけである（ADR-0110）。案内マップレイアウトは会場設計の一部として本サービスが持ち、グラフ版に含めて GetGuideMapLayout で供給する。
 
 ## RPC 一覧
 
@@ -29,8 +29,9 @@ package: `tolo.graph.v1`
 | SaveGraph | グラフ文書を一括登録する。初回の登録がイベントへのグラフの新設（グラフはイベント単位）。保存は下書き（カーネルとラベル）とレイアウトを上書きし、公開までは下流に影響しない | `event_access` + events.manage | GraphCreated（初回）／GraphSaved |
 | MapObservationPoint | 観測点をグラフ要素（ポイント／ルート）に対応づける。本コンテキストが紐づけを所有。同一グラフ要素へカメラ方式と QR 方式を併存させない（QR 設置箇所が参照する要素への紐づけは `failed_precondition`）。紐づけは下書きの配置（観測点紐づけ・QR 設置箇所）を書き換え、公開までは下流に影響しない。応答は紐づけと更新後の `GraphMeta` を返す | 同上 | ObservationPointMappedToGraph |
 | AddQrLocation／UpdateQrLocation／RemoveQrLocation | QR 設置箇所（名称・種類・グラフ要素参照）の追加・編集・削除。掲示計画は会場設計の一部として本コンテキストが所有（URL の発行は Guest Service）。カメラ方式の観測点が紐づく要素への追加・付け替えは `failed_precondition`。下書きの配置を書き換え、公開までは下流に影響しない。応答は更新後の `GraphMeta` を含む | 同上 | QrLocationChanged |
-| GetGraph | 保存済みのグラフ文書と、下書きの観測点紐づけ・QR 設置箇所、版情報を返す。管理 UI の表示とエディタへの復元用。アーカイブ中のイベントでも読める。グラフを保存していないイベントは `not_found` | `event_access` + events.read | （参照のみ） |
-| PublishRevision | 保存済みのグラフ文書と下書きの配置をグラフ版として公開し、下流が消費可能にする。公開の条件を満たさない下書きは `failed_precondition`（「公開時の検証」） | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
+| SaveGuideMapLayout | 案内マップエディタで作った案内マップレイアウトを保存する。下書きの案内マップレイアウトを上書きし、公開までは下流に影響しない。部品が参照するポイント・ルート・グループが保存済みのグラフ文書にないときは `failed_precondition`。応答は更新後の `GraphMeta`（ADR-0110） | `event_access` + events.manage | GuideMapLayoutSaved |
+| GetGraph | 保存済みのグラフ文書と、下書きの観測点紐づけ・QR 設置箇所・案内マップレイアウト、版情報を返す。管理 UI の表示とエディタへの復元用。アーカイブ中のイベントでも読める。グラフを保存していないイベントは `not_found` | `event_access` + events.read | （参照のみ） |
+| PublishRevision | 保存済みのグラフ文書と下書きの配置・案内マップレイアウトをグラフ版として公開し、下流が消費可能にする。公開の条件を満たさない下書きは `failed_precondition`（「公開時の検証」） | `event_access` + events.manage（公開は下流の消費対象を変える書き込み操作） | GraphRevisionPublished |
 
 ### 供給（下流向け）
 
@@ -41,10 +42,11 @@ package: `tolo.graph.v1`
 | GetDisplayNames | ポイントのラベル（言語コード別）・ルート表示名・ルート端点を返す。ゲスト向け表示の組み立てに使用 | Guest Service | サービス間（token_use=service） | （参照のみ） |
 | GetGatePoints | 設計時にゲート指定されたポイントの一覧を返す。観測が GateState の初期構築に使用 | 観測 | サービス間（token_use=service） | （参照のみ） |
 | GetQrLocations | 指定した版の QR 設置箇所の一覧（名称・種類・グラフ要素参照）を返す。Guest Service が発行 URL の生成に使用し、観測が QR 方式の観測点として読み替える | Guest Service、観測 | サービス間（token_use=service） | （参照のみ） |
+| GetGuideMapLayout | 指定した版の案内マップレイアウトと、それが参照するポイントとグループの ID と言語コード別のラベルを返す。案内マップレイアウトが参照しないポイントとグループ、ルートは返さない。Guest Service が案内マップ（`GetGuideMap`）の読み取りモデルに使用（ADR-0110） | Guest Service | サービス間（token_use=service） | （参照のみ） |
 
-GetObservationPointMappings と GetQrLocations は `revision_id` を必須で受け取り、その版の配置を返す。公開済みの版であれば、現在の版でなくても返す。公開済みの版にない `revision_id` は `not_found`、`revision_id` の未指定は `invalid_argument` とする。
+GetObservationPointMappings、GetQrLocations、GetGuideMapLayout は `revision_id` を必須で受け取り、その版の配置または案内マップレイアウトを返す。公開済みの版であれば、現在の版でなくても返す。公開済みの版にない `revision_id` は `not_found`、`revision_id` の未指定は `invalid_argument` とする。
 
-GetQrLocations は `tenant_id` も必須で受け取る。本サービスは、グラフの保存時に Tenant Management の `GetEvent` で確かめたイベントの所属テナントと比べ、一致しなければ `permission_denied` を返す。`tenant_id` の未指定は `invalid_argument` とする。呼び出し元はマシン起点の `token_use=service` でテナントのクレームを持たないため、受け取った `tenant_id` を本サービスが持つ所属で確かめる。
+GetQrLocations と GetGuideMapLayout は `tenant_id` も必須で受け取る。本サービスは、グラフの保存時に Tenant Management の `GetEvent` で確かめたイベントの所属テナントと比べ、一致しなければ `permission_denied` を返す。`tenant_id` の未指定は `invalid_argument` とする。呼び出し元はマシン起点の `token_use=service` でテナントのクレームを持たないため、受け取った `tenant_id` を本サービスが持つ所属で確かめる。
 
 ## グラフ文書（GraphDocument）の構造
 
@@ -55,7 +57,7 @@ GetQrLocations は `tenant_id` も必須で受け取る。本サービスは、�
 - 入退出点: 外部ポイントとエッジで結ばれた、外部ポイント以外のノード。ノード種別は自身のものを保つ。向きは外部ポイントとのエッジから決まる。外部ポイントからの一方通行だけなら入場、外部ポイントへの一方通行だけなら退場、両通行のエッジを持つか入場と退場の両方の接続を持つなら入退場とする
 - グループ（`NodeGroup`）: レイアウト用のまとまり（フロア等）。`group_id` は文書内一意。`parent_group_id` で親グループを指して入れ子にできる（任意）。`min_width`／`min_height` は、エディタが子要素に合わせて決める寸法の下限（任意）。グラフ構造へは影響しない
 - エッジ（`GraphEdge`）: `edge_id` はエディタ採番で文書内一意。公開後はそのまま `route_id` になる。端点はノードのみ（グループを端点にしない）。`direction` は一方通行（source→target）または両通行。`label` は表示名（任意）。外部ポイントを端点に持つエッジは入退出点の向きを表すだけで、ルートにならない
-- レイアウト（`Layout`）: エディタ上の位置と寸法。表示用途のみ。ポイントと外部ポイントは中心の座標、グループは左上の座標で表し、グループに属する要素の座標は親グループからの相対座標とする。サーバは送られた値をそのまま保存し、座標の意味を解釈しない。ゲスト向けの地図に使う会場の実際の位置は、エディタのレイアウトとは別に扱う
+- レイアウト（`Layout`）: エディタ上の位置と寸法。表示用途のみ。ポイントと外部ポイントは中心の座標、グループは左上の座標で表し、グループに属する要素の座標は親グループからの相対座標とする。サーバは送られた値をそのまま保存し、座標の意味を解釈しない。ゲスト向けの地図はエディタのレイアウトとは別の案内マップレイアウトで描く（ADR-0110）
 
 ゲート指定・容量ヒント・入退出点の有効無効・エッジ表示名の多言語化は、`GraphDocument` への optional フィールドの追加として今後行う（フィールドの定義は実装フェーズで確定する）。追加までの導出の扱いは「共有カーネル Graph への導出」に示す。
 
@@ -172,6 +174,7 @@ service GraphAuthoringService {
   rpc AddQrLocation(AddQrLocationRequest) returns (AddQrLocationResponse);
   rpc UpdateQrLocation(UpdateQrLocationRequest) returns (UpdateQrLocationResponse);
   rpc RemoveQrLocation(RemoveQrLocationRequest) returns (RemoveQrLocationResponse);
+  rpc SaveGuideMapLayout(SaveGuideMapLayoutRequest) returns (GraphMeta);
   rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
   rpc PublishRevision(PublishRevisionRequest) returns (GraphMeta);
 }
@@ -184,12 +187,13 @@ service GraphSupplyService {
   rpc GetDisplayNames(GetDisplayNamesRequest) returns (GetDisplayNamesResponse);
   rpc GetGatePoints(GetGatePointsRequest) returns (GetGatePointsResponse);
   rpc GetQrLocations(GetQrLocationsRequest) returns (GetQrLocationsResponse);
+  rpc GetGuideMapLayout(GetGuideMapLayoutRequest) returns (GetGuideMapLayoutResponse);
 }
 
 message GraphMeta {
   string event_id = 1;
   string revision_id = 2;        // 公開済みの現在版
-  string draft_revision_id = 3;  // 下書きの版（文書と配置から導出。配置の編集でも変わる）
+  string draft_revision_id = 3;  // 下書きの版（文書と配置と案内マップレイアウトから導出。配置や案内マップレイアウトの編集でも変わる）
 }
 
 // グラフ文書: エディタで完成させたグラフの文書（構造・多言語ラベル・レイアウト）
@@ -371,6 +375,29 @@ message GetGraphResponse {
   GraphDocument document = 2;  // 保存した文書と構造的に同一の文書を返す（要素は種類ごとに ID 順）
   repeated ObservationPointMapping observation_point_mappings = 3;  // 下書きの紐づけ
   repeated QrLocation qr_locations = 4;                              // 下書きの QR 設置箇所
+  GuideMapLayout guide_map_layout = 5;                               // 下書きの案内マップレイアウト（未保存なら未設定）
+}
+
+// 案内マップレイアウト: 案内マップエディタで作るゲスト向けの地図の描画情報（ADR-0110）
+// 部品が point_id・route_id・group_id でグラフ文書の要素を参照する。フィールドの定義は実装フェーズで確定
+message GuideMapLayout {}
+
+message SaveGuideMapLayoutRequest {
+  string event_id = 1;
+  GuideMapLayout guide_map_layout = 2;
+}
+
+// 案内マップ用の供給（Guest Service の GetGuideMap の読み取りモデル用）
+message GetGuideMapLayoutRequest {
+  string event_id = 1;
+  string revision_id = 2;  // 必須。公開済みの版（現在の版でなくてよい）
+  string tenant_id = 3;    // 必須。イベントの所属テナントと一致しなければ permission_denied
+}
+message GetGuideMapLayoutResponse {
+  string revision_id = 1;
+  GuideMapLayout guide_map_layout = 2;               // その版の案内マップレイアウト（版に含まれなければ未設定）
+  map<string, LocalizedText> point_labels = 3;       // point_id → ラベル（案内マップレイアウトが参照するポイントだけ）
+  map<string, LocalizedText> group_labels = 4;       // group_id → ラベル（案内マップレイアウトが面にするグループだけ）
 }
 
 message PublishRevisionRequest {
@@ -421,7 +448,7 @@ message GetGatePointsResponse {
 ## 補足
 
 - 保存と配置の編集は下書きの上書きとして累積し、`PublishRevision` までは下流に影響しない
-- 参照整合は `failed_precondition`: 存在しないイベント ID へのグラフ新設（初回保存）、存在しないポイント／ルートへの紐づけ（観測点・QR 設置箇所とも。外部ポイントと、外部ポイントを端点に持つエッジはポイント／ルートではないため、紐づけ先にできない）、既存の観測点紐づけ・QR 設置箇所が参照するポイント／ルートを文書から消す保存（先に紐づけ側を削除してから保存し直す）
+- 参照整合は `failed_precondition`: 存在しないイベント ID へのグラフ新設（初回保存）、存在しないポイント／ルートへの紐づけ（観測点・QR 設置箇所とも。外部ポイントと、外部ポイントを端点に持つエッジはポイント／ルートではないため、紐づけ先にできない）、既存の観測点紐づけ・QR 設置箇所が参照するポイント／ルートと、下書きの案内マップレイアウトが参照するポイント・ルート・グループを文書から消す保存（先に参照する側を直してから保存し直す）
   同一のポイント／ルートへカメラ方式の観測点紐づけと QR 設置箇所を併存させる操作も `failed_precondition` とする。同じ来場者をカメラと QR で二重に数えないためで、MapObservationPoint と AddQrLocation／UpdateQrLocation の双方で検証する
 - QR 設置箇所（掲示計画）の正本は本コンテキスト。管理 UI がグラフと同じ画面で管理でき、Guest Service は GetQrLocations で pull して発行 URL（設置箇所×種類）を生成する
   観測も GetQrLocations で取得し、QR 設置箇所を QR 方式の観測点として読み替える（観測点として別途登録しない。Observation）
@@ -432,16 +459,16 @@ message GetGatePointsResponse {
 - 保存した文書は3つの部分に分けて持つ
   カーネルは入退出点の向きを含むポイントとルート、ラベルはポイント・グループ・ルートの表示名である
   レイアウトは座標と寸法、グループへの所属、グループの親と最小寸法、外部ポイント（表示名と座標を含む）、外部ポイントを端点に持つエッジ（向きと表示名を含む）である
-- グラフ版はカーネル・ラベル・配置（観測点紐づけ・QR 設置箇所）のスナップショット
-  版は、外部へ出る可能性があり、ある程度の頻度で変わる内容を管理する。配置は観測と Guest Service へ供給するため版に含める。レイアウトは管理 UI の表示にだけ使い、外部へ出ないため版に含めない
-  PublishRevision で、下書きの文書（カーネルとラベル）と配置を同じトランザクションで写し、その全体を1版として公開する。下流は常に整合した現在版を消費する。公開済み版の内容（配置を含む）と導出結果は変更しない。差分供給は将来の最適化
+- グラフ版はカーネル・ラベル・配置（観測点紐づけ・QR 設置箇所）・案内マップレイアウトのスナップショット
+  版は、外部へ出る可能性があり、ある程度の頻度で変わる内容を管理する。配置は観測と Guest Service へ供給するため版に含める。案内マップレイアウトも Guest Service を通じてゲストに出るため版に含める（ADR-0110）。レイアウトは管理 UI の表示にだけ使い、外部へ出ないため版に含めない
+  PublishRevision で、下書きの文書（カーネルとラベル）と配置と案内マップレイアウトを同じトランザクションで写し、その全体を1版として公開する。下流は常に整合した現在版を消費する。公開済み版の内容（配置を含む）と導出結果は変更しない。差分供給は将来の最適化
   供給系の配置は公開済みの版から返し、`GetGraph` は下書きの配置を返す
   レイアウトはイベントのグラフごとに版の外へ1つだけ保存し、保存のたびに上書きする。版管理せず、下流へも供給しない
-- 版の同一性はカーネル・ラベル・配置の内容で判定する。配置は識別子まで含めて比べるため、QR 設置箇所を消して同じ内容で足し直すと ID が変わる（`qr_location_id` はサーバがランダムに採番する）
-  `draft_revision_id` は2段で求める。まず、カーネルとラベルの要素を ID 順に並べて直列化した内容のハッシュ（文書のハッシュ）を求め、下書きとともに保存する。次に、文書のハッシュと、配置を ID 順に並べて直列化した内容の SHA-256 を求め、その先頭 8 バイトを hex で表したものを ID とする。同じ内容は同じ ID になり、要素と配置の順序は ID に影響しない。`SaveGraph` は同じ文書の再保存に対して同じ `GraphMeta` を返す（冪等）
+- 版の同一性はカーネル・ラベル・配置・案内マップレイアウトの内容で判定する。配置は識別子まで含めて比べるため、QR 設置箇所を消して同じ内容で足し直すと ID が変わる（`qr_location_id` はサーバがランダムに採番する）
+  `draft_revision_id` は2段で求める。まず、カーネルとラベルの要素を ID 順に並べて直列化した内容のハッシュ（文書のハッシュ）を求め、下書きとともに保存する。次に、文書のハッシュと、配置を ID 順に並べて直列化した内容と、案内マップレイアウトを直列化した内容の SHA-256 を求め、その先頭 8 バイトを hex で表したものを ID とする。同じ内容は同じ ID になり、要素と配置の順序は ID に影響しない。`SaveGraph` は同じ文書の再保存に対して同じ `GraphMeta` を返す（冪等）
   配置の編集は、保存してある文書のハッシュと編集後の配置から `draft_revision_id` を求め直し、応答の `GraphMeta` で返す
   レイアウトだけの変更は ID を変えない。要素の移動・寸法の変更・入れ子の付け替え、外部ポイントとのエッジを向きの同じ別の外部ポイントへ付け替えること、そのエッジの表示名の変更がこれに当たる。外部ポイントとの接続の追加・削除と向きの変更は、入退出点の向きが変わるため ID を変える
-  `PublishRevision` は公開時点の `draft_revision_id` をそのまま `revision_id` とする。`draft_revision_id` と `revision_id` が異なるとき、公開版に対して未公開の編集がある（編集中）とみなす。配置だけを変えた下書きも編集中とみなす。編集後に公開版と同じ内容へ戻した下書きと、レイアウトだけを変えた下書きは編集中とみなさない
+  `PublishRevision` は公開時点の `draft_revision_id` をそのまま `revision_id` とする。`draft_revision_id` と `revision_id` が異なるとき、公開版に対して未公開の編集がある（編集中）とみなす。配置だけ、または案内マップレイアウトだけを変えた下書きも編集中とみなす。編集後に公開版と同じ内容へ戻した下書きと、レイアウトだけを変えた下書きは編集中とみなさない
   同時編集の検出（後勝ちの防止）は本判定の対象外とする
 - イベントアーカイブ時はグラフ・紐づけを保持し、読み取り専用にする
   編集系 RPC は `failed_precondition`、供給系 RPC（GetCurrentRevision 等）と GetGraph は継続。復元（EventUnarchived）で編集を再開できる
