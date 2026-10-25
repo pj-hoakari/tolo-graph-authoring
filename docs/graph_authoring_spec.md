@@ -139,6 +139,26 @@ ID が空か重複する要素は、以降の検査の対象にしない（重�
 | ポイントが 20 件を超える | `TOO_MANY_POINTS` | `UNSPECIFIED` | 空文字列 | なし |
 | ルートが 100 件を超える | `TOO_MANY_ROUTES` | `UNSPECIFIED` | 空文字列 | なし |
 
+### 案内マップレイアウトの保存時の検証
+
+`SaveGuideMapLayout` は次を検証し、満たさない案内マップレイアウトは `invalid_argument` で拒否する。
+
+- 面の `group_id` が空でなく、レイアウト内で一意
+- 部品の `object_id` が空でなく、レイアウト内で一意
+- 部品の `group_id` が面のいずれかを指す
+- 部品の `kind` が設定されている
+- 場所の `shape`、階移動手段の `type` と `direction` が UNSPECIFIED でない。階移動手段の `link` が空でない
+- `start_object_id`（設定時）が場所の部品を指す
+- 座標・寸法・`north`・`scale` が有限の値である
+
+参照先は保存済みのグラフ文書で確かめ、ないときは `failed_precondition` で拒否する。
+
+- 面の `group_id` が文書内のグループを指す
+- 部品の `point_id`（設定時）が外部ポイント以外のノードを指す
+- 部品の `route_id`（設定時）が、外部ポイントを端点に持たないエッジを指す
+
+グラフを保存していないイベントへの保存は `not_found` とする。
+
 ## 共有カーネル Graph への導出
 
 公開時（`PublishRevision`）に、保存済みのグラフ文書から共有カーネルの Graph を導出する。
@@ -379,8 +399,100 @@ message GetGraphResponse {
 }
 
 // 案内マップレイアウト: 案内マップエディタで作るゲスト向けの地図の描画情報（ADR-0110）
-// 部品が point_id・route_id・group_id でグラフ文書の要素を参照する。フィールドの定義は実装フェーズで確定
-message GuideMapLayout {}
+// 部品が point_id・route_id・group_id でグラフ文書の要素を参照する。座標は px で左上原点。サーバは座標・色・寸法の意味を解釈しない
+message GuideMapLayout {
+  repeated GuideMapGroup groups = 1;    // 面（グラフのグループ）。並びが階の順（後ろほど上の階）
+  repeated GuideMapObject objects = 2;  // 部品。並びが描画の順
+  double north = 3;                     // 地図の上が指す方位角（度）。0 は未設定
+  double scale = 4;                     // 1px あたりのメートル。0 は未設定
+  string start_object_id = 5;           // 既定の出発地にする場所の object_id（任意。ADR-0111）
+}
+
+// 面: グラフのグループを案内マップの1枚の地図にする。下敷き画像は今後のフィールド追加で扱う
+message GuideMapGroup {
+  string group_id = 1;  // NodeGroup.group_id を指す。レイアウト内で一意
+}
+
+// 部品: 場所・線・エリア・文字のいずれか
+message GuideMapObject {
+  string object_id = 1;           // 案内マップエディタ採番。レイアウト内で一意
+  string group_id = 2;            // 置く面（GuideMapLayout.groups のいずれか）
+  LocalizedText title = 3;        // 名前（任意）。point_id があるときはポイントのラベルを優先して表示する
+  LocalizedText description = 4;  // 説明（任意）
+  string color = 5;               // 案内マップエディタの色キー
+  bool closed = 6;                // 通行止め。混雑回避経路の計算で通らない
+  string point_id = 7;            // 結び付けるポイント（任意。外部ポイントは不可）
+  string route_id = 8;            // 結び付けるルート（任意。外部ポイントを端点に持つエッジは不可）
+  oneof kind {
+    GuideMapPlace place = 9;
+    GuideMapLine line = 10;
+    GuideMapArea area = 11;
+    GuideMapText text = 12;
+  }
+}
+
+message GuideMapPosition {
+  double x = 1;
+  double y = 2;
+}
+
+// 場所: 部屋・屋台・ピン。connector があるものは階移動手段
+message GuideMapPlace {
+  GuideMapPosition center = 1;
+  GuideMapPlaceShape shape = 2;
+  double width = 3;                  // 四角・丸の大きさ（ピンでは使わない）
+  double height = 4;
+  bool pin = 5;                      // 四角・丸の中心にピンを付ける
+  GuideMapConnector connector = 6;   // 階移動手段のとき設定
+  optional double mark_width = 7;    // ピン型の階移動マークの大きさ（未設定ならゲスト用ページの既定）
+  optional double mark_height = 8;
+}
+
+enum GuideMapPlaceShape {
+  GUIDE_MAP_PLACE_SHAPE_UNSPECIFIED = 0;
+  GUIDE_MAP_PLACE_SHAPE_PIN = 1;
+  GUIDE_MAP_PLACE_SHAPE_RECT = 2;
+  GUIDE_MAP_PLACE_SHAPE_CIRCLE = 3;
+}
+
+// 階移動手段: 同じ link を持つ場所同士が面をまたいでつながる
+message GuideMapConnector {
+  GuideMapConnectorType type = 1;
+  string link = 2;
+  GuideMapConnectorDirection direction = 3;
+}
+
+enum GuideMapConnectorType {
+  GUIDE_MAP_CONNECTOR_TYPE_UNSPECIFIED = 0;
+  GUIDE_MAP_CONNECTOR_TYPE_STAIRS = 1;
+  GUIDE_MAP_CONNECTOR_TYPE_ESCALATOR = 2;
+  GUIDE_MAP_CONNECTOR_TYPE_ELEVATOR = 3;
+}
+
+enum GuideMapConnectorDirection {
+  GUIDE_MAP_CONNECTOR_DIRECTION_UNSPECIFIED = 0;
+  GUIDE_MAP_CONNECTOR_DIRECTION_BOTH = 1;
+  GUIDE_MAP_CONNECTOR_DIRECTION_UP = 2;    // groups の後ろの面へだけ進める
+  GUIDE_MAP_CONNECTOR_DIRECTION_DOWN = 3;  // groups の前の面へだけ進める
+}
+
+// 線: 折れ線（経路線とは別。経路線はゲスト用ページが計算して描く）
+message GuideMapLine {
+  repeated GuideMapPosition points = 1;
+  double width = 2;
+  bool dash = 3;
+}
+
+// エリア: 多角形
+message GuideMapArea {
+  repeated GuideMapPosition points = 1;
+}
+
+// 文字: title を表示する
+message GuideMapText {
+  GuideMapPosition position = 1;
+  double size = 2;
+}
 
 message SaveGuideMapLayoutRequest {
   string event_id = 1;
