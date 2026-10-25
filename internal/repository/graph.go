@@ -30,4 +30,5 @@ type GraphRepository interface {
 	AddQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error
 	UpdateQrLocation(ctx context.Context, graph domain.GraphRef, location domain.QrLocation) error
 	RemoveQrLocation(ctx context.Context, graph domain.GraphRef, qrLocationID string) error
+	SaveGuideMapLayout(ctx context.Context, graph domain.GraphRef, layout domain.GuideMapLayout) error
 }

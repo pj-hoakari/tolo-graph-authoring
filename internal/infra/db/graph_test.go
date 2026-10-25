@@ -23,7 +23,7 @@ const (
 func newTestGraphRepository(t *testing.T) *PostgresGraphRepository {
 	t.Helper()
 
-	if _, err := testDB.Exec(`TRUNCATE qr_locations, observation_point_mappings, graph_revisions, graph_layouts, graph_drafts, graphs`); err != nil {
+	if _, err := testDB.Exec(`TRUNCATE guide_map_layouts, qr_locations, observation_point_mappings, graph_revisions, graph_layouts, graph_drafts, graphs`); err != nil {
 		t.Fatalf("truncate graph tables: %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestPostgresGraphRepositoryFindReadsTheLockedGraphWithoutWaiting(t *testing
 	}
 }
 
-func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *testing.T) {
+func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsTheKernelAndLabelsWithoutTheLayout(t *testing.T) {
 	repo := newTestGraphRepository(t)
 	ctx := context.Background()
 	published := publishGraph(t, repo, saveGraph(t, repo, singleNode("a")))
@@ -276,7 +276,7 @@ func TestPostgresGraphRepositoryFindDraftKernelForUpdateReadsOnlyTheKernel(t *te
 		t.Fatalf("FindDraftKernelForUpdate() without a layout error = %v", err)
 	}
 
-	want := domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, DocumentHash: graph.DocumentHash(), RevisionID: published.RevisionID()}
+	want := domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, Labels: graph.DraftParts().Labels, DocumentHash: graph.DocumentHash(), RevisionID: published.RevisionID()}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindDraftKernelForUpdate() = %#v, want %#v", got, want)
 	}

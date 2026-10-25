@@ -13,6 +13,7 @@ var GraphAuthoringServicePolicies = authz.Policies{
 	GraphAuthoringServiceAddQrLocationProcedure:       {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.manage"}, TokenUses: []string{"event_access"}},
 	GraphAuthoringServiceUpdateQrLocationProcedure:    {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.manage"}, TokenUses: []string{"event_access"}},
 	GraphAuthoringServiceRemoveQrLocationProcedure:    {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.manage"}, TokenUses: []string{"event_access"}},
+	GraphAuthoringServiceSaveGuideMapLayoutProcedure:  {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.manage"}, TokenUses: []string{"event_access"}},
 	GraphAuthoringServiceGetGraphProcedure:            {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.read"}, TokenUses: []string{"event_access"}},
 	GraphAuthoringServicePublishRevisionProcedure:     {Level: authz.LevelAuthenticated, RequiredScopes: []string{"events.manage"}, TokenUses: []string{"event_access"}},
 }
@@ -24,4 +25,5 @@ var GraphSupplyServicePolicies = authz.Policies{
 	GraphSupplyServiceGetDisplayNamesProcedure:             {Level: authz.LevelInternal},
 	GraphSupplyServiceGetGatePointsProcedure:               {Level: authz.LevelInternal},
 	GraphSupplyServiceGetQrLocationsProcedure:              {Level: authz.LevelInternal},
+	GraphSupplyServiceGetGuideMapLayoutProcedure:           {Level: authz.LevelInternal},
 }

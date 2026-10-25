@@ -216,6 +216,20 @@ func (mr *MockGraphRepositoryMockRecorder) SaveDraftRevisionID(ctx, graph, revis
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveDraftRevisionID", reflect.TypeOf((*MockGraphRepository)(nil).SaveDraftRevisionID), ctx, graph, revisionID)
 }
 
+// SaveGuideMapLayout mocks base method.
+func (m *MockGraphRepository) SaveGuideMapLayout(ctx context.Context, graph domain.GraphRef, layout domain.GuideMapLayout) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveGuideMapLayout", ctx, graph, layout)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveGuideMapLayout indicates an expected call of SaveGuideMapLayout.
+func (mr *MockGraphRepositoryMockRecorder) SaveGuideMapLayout(ctx, graph, layout any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveGuideMapLayout", reflect.TypeOf((*MockGraphRepository)(nil).SaveGuideMapLayout), ctx, graph, layout)
+}
+
 // SaveObservationPointMapping mocks base method.
 func (m *MockGraphRepository) SaveObservationPointMapping(ctx context.Context, graph domain.GraphRef, mapping domain.ObservationPointMapping) error {
 	m.ctrl.T.Helper()
