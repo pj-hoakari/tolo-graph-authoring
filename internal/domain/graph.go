@@ -15,7 +15,15 @@ import (
 	"strings"
 )
 
-var ErrInvalidGraphDocument = errors.New("invalid graph document")
+var (
+	ErrInvalidGraphDocument = errors.New("invalid graph document")
+	ErrUnpublishableGraph   = errors.New("graph is not publishable")
+)
+
+const (
+	maxPublishedPoints = 20
+	maxPublishedRoutes = 100
+)
 
 type NodeType int
 
@@ -301,6 +309,10 @@ const (
 	ViolationKindExternalNodeWithoutEdge
 	ViolationKindNodeWithoutRoute
 	ViolationKindGroupWithoutMembers
+	ViolationKindGraphWithoutPoint
+	ViolationKindPointWithoutLabel
+	ViolationKindTooManyPoints
+	ViolationKindTooManyRoutes
 )
 
 type ElementKind int
@@ -327,12 +339,16 @@ func (v *GraphViolations) add(kind ViolationKind, element ElementKind, id string
 }
 
 func (v GraphViolations) Error() string {
+	return fmt.Sprintf("%v: %s", ErrInvalidGraphDocument, v.messages())
+}
+
+func (v GraphViolations) messages() string {
 	messages := make([]string, len(v))
 	for i, violation := range v {
 		messages[i] = violation.message
 	}
 
-	return fmt.Sprintf("%v: %s", ErrInvalidGraphDocument, strings.Join(messages, "; "))
+	return strings.Join(messages, "; ")
 }
 
 func (v GraphViolations) Unwrap() error { return ErrInvalidGraphDocument }
@@ -344,10 +360,62 @@ type GraphRef struct {
 	EventPublicID  string
 }
 
+type UnpublishableGraph struct {
+	Violations GraphViolations
+}
+
+func (e UnpublishableGraph) Error() string {
+	return fmt.Sprintf("%v: %s", ErrUnpublishableGraph, e.Violations.messages())
+}
+
+func (e UnpublishableGraph) Unwrap() error { return ErrUnpublishableGraph }
+
 type DraftRevision struct {
 	GraphRef
 
 	RevisionID string
+	Kernel     GraphKernel
+	Labels     GraphLabels
+}
+
+func (r DraftRevision) VerifyPublishable() error {
+	var violations GraphViolations
+
+	if len(r.Kernel.Points) == 0 {
+		violations.add(ViolationKindGraphWithoutPoint, ElementKindUnspecified, "", nil, "graph has no point")
+	}
+
+	for _, point := range r.Kernel.Points {
+		if !hasDisplayName(r.Labels.Points[point.ID]) {
+			violations.add(ViolationKindPointWithoutLabel, ElementKindNode, point.ID, nil, "point %q has no display name", point.ID)
+		}
+	}
+
+	if len(r.Kernel.Points) > maxPublishedPoints {
+		violations.add(ViolationKindTooManyPoints, ElementKindUnspecified, "", nil,
+			"graph has %d points, more than %d", len(r.Kernel.Points), maxPublishedPoints)
+	}
+
+	if len(r.Kernel.Routes) > maxPublishedRoutes {
+		violations.add(ViolationKindTooManyRoutes, ElementKindUnspecified, "", nil,
+			"graph has %d routes, more than %d", len(r.Kernel.Routes), maxPublishedRoutes)
+	}
+
+	if len(violations) > 0 {
+		return UnpublishableGraph{Violations: violations}
+	}
+
+	return nil
+}
+
+func hasDisplayName(labels map[string]string) bool {
+	for _, label := range labels {
+		if label != "" {
+			return true
+		}
+	}
+
+	return false
 }
 
 type Graph struct {

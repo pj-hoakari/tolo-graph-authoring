@@ -79,13 +79,15 @@ func (r *PostgresGraphRepository) FindDraftRevisionForUpdate(
 	ctx context.Context, tenantPublicID, eventPublicID string,
 ) (domain.DraftRevision, error) {
 	var row struct {
-		EventPublicID  string `db:"event_public_id"`
-		TenantPublicID string `db:"tenant_public_id"`
-		RevisionID     string `db:"revision_id"`
+		EventPublicID  string                         `db:"event_public_id"`
+		TenantPublicID string                         `db:"tenant_public_id"`
+		RevisionID     string                         `db:"revision_id"`
+		Kernel         jsonColumn[domain.GraphKernel] `db:"kernel"`
+		Labels         jsonColumn[domain.GraphLabels] `db:"labels"`
 	}
 
 	err := sqlx.GetContext(ctx, r.executor(ctx), &row, `
-		SELECT d.event_public_id, d.tenant_public_id, d.revision_id
+		SELECT d.event_public_id, d.tenant_public_id, d.revision_id, d.kernel, d.labels
 		FROM graph_drafts d
 		JOIN graphs g ON g.event_public_id = d.event_public_id
 		WHERE d.event_public_id = $1 AND d.tenant_public_id = $2
@@ -102,6 +104,8 @@ func (r *PostgresGraphRepository) FindDraftRevisionForUpdate(
 	return domain.DraftRevision{
 		GraphRef:   domain.GraphRef{TenantPublicID: row.TenantPublicID, EventPublicID: row.EventPublicID},
 		RevisionID: row.RevisionID,
+		Kernel:     row.Kernel.value,
+		Labels:     row.Labels.value,
 	}, nil
 }
 

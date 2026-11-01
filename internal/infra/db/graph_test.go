@@ -329,7 +329,8 @@ func TestPostgresGraphRepositoryFindDraftRevisionForUpdateReadsTheSavedRevision(
 		t.Fatalf("FindDraftRevisionForUpdate() error = %v", err)
 	}
 
-	if want := (domain.DraftRevision{GraphRef: graph.Ref(), RevisionID: graph.DraftRevisionID()}); got != want {
+	want := domain.DraftRevision{GraphRef: graph.Ref(), RevisionID: graph.DraftRevisionID(), Kernel: graph.DraftParts().Kernel, Labels: graph.DraftParts().Labels}
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindDraftRevisionForUpdate() = %+v, want %+v", got, want)
 	}
 

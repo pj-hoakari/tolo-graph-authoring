@@ -27,7 +27,7 @@ func placedGraph(t *testing.T) (*PostgresGraphRepository, *application.GraphServ
 	service := application.NewGraphService(repo, repo, callerTenantEvents{})
 
 	document := domain.GraphDocument{
-		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
+		Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly, Labels: map[string]string{"ja": "入口"}}, {ID: "hall", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": "ホール"}}},
 		Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionBothWays}},
 	}
 

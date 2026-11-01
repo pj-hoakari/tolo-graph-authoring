@@ -43,6 +43,10 @@ var protoViolationKinds = map[domain.ViolationKind]graphv1.ViolationKind{
 	domain.ViolationKindExternalNodeWithoutEdge:  graphv1.ViolationKind_VIOLATION_KIND_EXTERNAL_NODE_WITHOUT_EDGE,
 	domain.ViolationKindNodeWithoutRoute:         graphv1.ViolationKind_VIOLATION_KIND_NODE_WITHOUT_ROUTE,
 	domain.ViolationKindGroupWithoutMembers:      graphv1.ViolationKind_VIOLATION_KIND_GROUP_WITHOUT_MEMBERS,
+	domain.ViolationKindGraphWithoutPoint:        graphv1.ViolationKind_VIOLATION_KIND_GRAPH_WITHOUT_POINT,
+	domain.ViolationKindPointWithoutLabel:        graphv1.ViolationKind_VIOLATION_KIND_POINT_WITHOUT_LABEL,
+	domain.ViolationKindTooManyPoints:            graphv1.ViolationKind_VIOLATION_KIND_TOO_MANY_POINTS,
+	domain.ViolationKindTooManyRoutes:            graphv1.ViolationKind_VIOLATION_KIND_TOO_MANY_ROUTES,
 }
 
 var protoElementKinds = map[domain.ElementKind]graphv1.ElementKind{
