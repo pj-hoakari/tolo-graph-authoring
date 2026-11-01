@@ -323,6 +323,57 @@ func (r draftGraphRepository) FindDraftKernelForUpdate(_ context.Context, tenant
 	return domain.DraftKernel{GraphRef: graph.Ref(), Kernel: graph.DraftParts().Kernel, DocumentHash: graph.DocumentHash()}, err
 }
 
+func (r draftGraphRepository) FindDraftRevisionForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
+	graph, err := domain.NewGraph(tenantPublicID, eventPublicID, r.draft)
+	parts := graph.DraftParts()
+
+	return domain.DraftRevision{GraphRef: graph.Ref(), RevisionID: graph.DraftRevisionID(), Kernel: parts.Kernel, Labels: parts.Labels}, err
+}
+
+func TestPublishRevisionRejectsUnpublishableDraftWithFailedPrecondition(t *testing.T) {
+	t.Parallel()
+
+	authorization, keys := mintEventAccessJWT(t, "a1b2c3d4e5f60718", "fedcba9876543210")
+	graphs := application.NewGraphService(draftGraphRepository{
+		nopGraphRepository: nopGraphRepository{},
+		draft: domain.GraphDocument{
+			Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly, Labels: map[string]string{"ja": ""}}, {ID: "hall", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": "ホール"}}},
+			Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
+		},
+	}, inlineTransactor{}, callerTenantEvents{})
+	httpServer := httptest.NewServer(newTestHandler(t, keys, graphs))
+	t.Cleanup(httpServer.Close)
+	client := graphv1connect.NewGraphAuthoringServiceClient(connectrpc.NewClient(connecthttp.NewTransport(httpServer.Client(), httpServer.URL)))
+
+	req := &graphv1.PublishRevisionRequest{EventId: "fedcba9876543210"}
+	ctx, info := connectrpc.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", authorization)
+
+	_, err := client.PublishRevision(ctx, req)
+	if got, want := connectrpc.CodeOf(err), connectrpc.CodeFailedPrecondition; got != want {
+		t.Fatalf("PublishRevision() error code = %v, want %v", got, want)
+	}
+
+	var connectErr *connectrpc.Error
+	if !errors.As(err, &connectErr) || len(connectErr.Details()) != 1 {
+		t.Fatalf("PublishRevision() error = %v, want one error detail", err)
+	}
+
+	got, detailErr := connectproto.UnmarshalErrorDetail(connectErr.Details()[0])
+	if detailErr != nil {
+		t.Fatalf("UnmarshalErrorDetail() error = %v", detailErr)
+	}
+
+	want := &graphv1.GraphViolations{Violations: []*graphv1.GraphViolation{{
+		Kind:        graphv1.ViolationKind_VIOLATION_KIND_POINT_WITHOUT_LABEL,
+		ElementKind: graphv1.ElementKind_ELEMENT_KIND_NODE,
+		ElementId:   "gate",
+	}}}
+	if !proto.Equal(got, want) {
+		t.Errorf("PublishRevision() error detail = %v, want %v", got, want)
+	}
+}
+
 func TestMapObservationPoint(t *testing.T) {
 	t.Parallel()
 
@@ -587,11 +638,11 @@ func (r qrLocationRepository) SaveDraftRevisionID(_ context.Context, _ domain.Gr
 	return nil
 }
 
-func (r qrLocationRepository) FindDraftRevisionForUpdate(_ context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
-	return domain.DraftRevision{
-		GraphRef:   domain.GraphRef{TenantPublicID: tenantPublicID, EventPublicID: eventPublicID},
-		RevisionID: r.published.draftRevisionID,
-	}, nil
+func (r qrLocationRepository) FindDraftRevisionForUpdate(ctx context.Context, tenantPublicID, eventPublicID string) (domain.DraftRevision, error) {
+	draft, err := r.draftGraphRepository.FindDraftRevisionForUpdate(ctx, tenantPublicID, eventPublicID)
+	draft.RevisionID = r.published.draftRevisionID
+
+	return draft, err
 }
 
 func (r qrLocationRepository) Publish(_ context.Context, _ domain.GraphRef, placements domain.Placements) error {
@@ -645,7 +696,7 @@ func TestQrLocations(t *testing.T) {
 		draftGraphRepository: draftGraphRepository{
 			nopGraphRepository: nopGraphRepository{},
 			draft: domain.GraphDocument{
-				Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly}, {ID: "hall", Type: domain.NodeTypeGoal}},
+				Nodes: []domain.Node{{ID: "gate", Type: domain.NodeTypeTransitOnly, Labels: map[string]string{"ja": "入口"}}, {ID: "hall", Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": "ホール"}}},
 				Edges: []domain.Edge{{ID: "e1", SourceNodeID: "gate", TargetNodeID: "hall", Direction: domain.EdgeDirectionOneWay}},
 			},
 		},

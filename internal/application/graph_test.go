@@ -400,7 +400,7 @@ func publish(ctx context.Context, graphs repository.GraphRepository) (domain.Dra
 func TestPublishRevisionPublishesDraftWithItsPlacementsUnderLockInOneTransaction(t *testing.T) {
 	t.Parallel()
 
-	draft := domain.DraftRevision{GraphRef: domain.GraphRef{TenantPublicID: tenantID, EventPublicID: eventID}, RevisionID: "0123456789abcdef"}
+	draft := publishableDraft()
 	placements := domain.Placements{Mappings: []domain.ObservationPointMapping{pointMapping("n1")}, QrLocations: []domain.QrLocation{qrLocation("n1-peer")}}
 
 	graphs := NewMockGraphRepository(gomock.NewController(t))
@@ -415,8 +415,41 @@ func TestPublishRevisionPublishesDraftWithItsPlacementsUnderLockInOneTransaction
 		t.Fatalf("PublishRevision() error = %v", err)
 	}
 
-	if got != draft {
+	if !reflect.DeepEqual(got, draft) {
 		t.Errorf("PublishRevision() = %+v, want %+v", got, draft)
+	}
+}
+
+func publishableDraft() domain.DraftRevision {
+	return domain.DraftRevision{
+		GraphRef:   domain.GraphRef{TenantPublicID: tenantID, EventPublicID: eventID},
+		RevisionID: "0123456789abcdef",
+		Kernel: domain.GraphKernel{
+			Points: []domain.Point{{ID: "n1", Type: domain.PointTypeGoal}, {ID: "n1-peer", Type: domain.PointTypeGoal}},
+			Routes: []domain.Route{{ID: "n1-route", FromPointID: "n1", ToPointID: "n1-peer", Direction: domain.DirectionAttributeBothWays}},
+		},
+		Labels: domain.GraphLabels{Points: map[string]map[string]string{"n1": {"ja": "入口"}, "n1-peer": {"en": "Hall"}}},
+	}
+}
+
+func TestPublishRevisionRejectsUnpublishableDraftWithoutPublishing(t *testing.T) {
+	t.Parallel()
+
+	draft := publishableDraft()
+	draft.Labels.Points["n1-peer"] = map[string]string{"ja": ""}
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindDraftRevisionForUpdate(inTransaction, tenantID, eventID).Return(draft, nil)
+
+	_, err := publish(eventContext(tenantID, eventID), graphs)
+
+	var unpublishable domain.UnpublishableGraph
+	if !errors.As(err, &unpublishable) {
+		t.Fatalf("PublishRevision() error = %v, want domain.UnpublishableGraph", err)
+	}
+
+	if got := unpublishable.Violations; len(got) != 1 || got[0].Kind != domain.ViolationKindPointWithoutLabel || got[0].ElementID != "n1-peer" {
+		t.Errorf("PublishRevision() violations = %+v, want n1-peer without a display name", got)
 	}
 }
 

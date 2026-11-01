@@ -297,6 +297,10 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 			return err
 		}
 
+		if err := draft.VerifyPublishable(); err != nil {
+			return err
+		}
+
 		placements, err := s.graphs.FindPlacements(ctx, draft.GraphRef)
 		if err != nil {
 			return err

@@ -75,9 +75,14 @@ var clientErrors = []struct {
 }
 
 func connectError(ctx context.Context, err error) *connectrpc.Error {
+	var unpublishable domain.UnpublishableGraph
+	if errors.As(err, &unpublishable) {
+		return graphViolationsError(connectrpc.CodeFailedPrecondition, domain.ErrUnpublishableGraph, unpublishable.Violations, err)
+	}
+
 	var violations domain.GraphViolations
 	if errors.As(err, &violations) {
-		return graphViolationsError(violations, err)
+		return graphViolationsError(connectrpc.CodeInvalidArgument, domain.ErrInvalidGraphDocument, violations, err)
 	}
 
 	for _, clientErr := range clientErrors {
@@ -89,7 +94,7 @@ func connectError(ctx context.Context, err error) *connectrpc.Error {
 	return InternalError(ctx, err)
 }
 
-func graphViolationsError(violations domain.GraphViolations, err error) *connectrpc.Error {
+func graphViolationsError(code connectrpc.Code, reason error, violations domain.GraphViolations, err error) *connectrpc.Error {
 	messages := make([]string, 0, len(violations))
 	protoViolations := make([]*graphv1.GraphViolation, 0, len(violations))
 
@@ -103,7 +108,7 @@ func graphViolationsError(violations domain.GraphViolations, err error) *connect
 		})
 	}
 
-	connectErr := connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid graph document: "+strings.Join(messages, "; ")).WithCause(err)
+	connectErr := connectrpc.NewError(code, reason.Error()+": "+strings.Join(messages, "; ")).WithCause(err)
 
 	detail, detailErr := connectproto.NewErrorDetail(&graphv1.GraphViolations{Violations: protoViolations})
 	if detailErr != nil {

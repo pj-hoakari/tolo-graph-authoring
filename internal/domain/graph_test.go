@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"reflect"
 	"slices"
@@ -316,5 +317,121 @@ func TestPublishedRevisionServesItsKernel(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("KernelGraph() = %+v, want %+v", got, want)
+	}
+}
+
+func chain(points, routes, externals int) domain.GraphDocument {
+	var document domain.GraphDocument
+
+	for i := range points {
+		document.Nodes = append(document.Nodes, domain.Node{ID: fmt.Sprintf("p%02d", i), Type: domain.NodeTypeGoal, Labels: map[string]string{"ja": fmt.Sprintf("地点%d", i)}})
+	}
+
+	for i := range routes {
+		from := i % (points - 1)
+		document.Edges = append(document.Edges, domain.Edge{
+			ID: fmt.Sprintf("r%03d", i), SourceNodeID: fmt.Sprintf("p%02d", from), TargetNodeID: fmt.Sprintf("p%02d", from+1), Direction: domain.EdgeDirectionOneWay,
+		})
+	}
+
+	for i := range externals {
+		document.Nodes = append(document.Nodes, domain.Node{ID: fmt.Sprintf("x%02d", i), Type: domain.NodeTypeExternal})
+		document.Edges = append(document.Edges, domain.Edge{
+			ID: fmt.Sprintf("x%02d-in", i), SourceNodeID: fmt.Sprintf("x%02d", i), TargetNodeID: "p00", Direction: domain.EdgeDirectionOneWay,
+		})
+	}
+
+	return document
+}
+
+func withLabels(document domain.GraphDocument, labels map[string]map[string]string) domain.GraphDocument {
+	for i, node := range document.Nodes {
+		if label, ok := labels[node.ID]; ok {
+			document.Nodes[i].Labels = label
+		}
+	}
+
+	return document
+}
+
+func TestVerifyPublishableRejectsDraftsThatCannotBePublished(t *testing.T) {
+	t.Parallel()
+
+	type violation struct {
+		Kind        domain.ViolationKind
+		ElementKind domain.ElementKind
+		ElementID   string
+	}
+
+	unspecified, node := domain.ElementKindUnspecified, domain.ElementKindNode
+
+	for _, tc := range []struct {
+		name     string
+		document domain.GraphDocument
+		want     []violation
+	}{
+		{"graph without points", domain.GraphDocument{}, []violation{{domain.ViolationKindGraphWithoutPoint, unspecified, ""}}},
+		{"points without labels", venue(), []violation{{domain.ViolationKindPointWithoutLabel, node, "gate"}, {domain.ViolationKindPointWithoutLabel, node, "lobby"}}},
+		{"point whose labels are all empty strings", withLabels(chain(2, 1, 0), map[string]map[string]string{"p01": {"ja": "", "en": ""}}), []violation{{domain.ViolationKindPointWithoutLabel, node, "p01"}}},
+		{"more than 20 points", chain(21, 20, 0), []violation{{domain.ViolationKindTooManyPoints, unspecified, ""}}},
+		{"more than 100 routes", chain(2, 101, 0), []violation{{domain.ViolationKindTooManyRoutes, unspecified, ""}}},
+		{
+			"overlapping violations", withLabels(chain(21, 101, 0), map[string]map[string]string{"p03": {"ja": ""}, "p07": nil}),
+			[]violation{{domain.ViolationKindPointWithoutLabel, node, "p03"}, {domain.ViolationKindPointWithoutLabel, node, "p07"}, {domain.ViolationKindTooManyPoints, unspecified, ""}, {domain.ViolationKindTooManyRoutes, unspecified, ""}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graph := newGraph(t, tc.document)
+			parts := graph.DraftParts()
+
+			err := domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}.VerifyPublishable()
+			if !errors.Is(err, domain.ErrUnpublishableGraph) || errors.Is(err, domain.ErrInvalidGraphDocument) {
+				t.Fatalf("VerifyPublishable() error = %v, want only %v", err, domain.ErrUnpublishableGraph)
+			}
+
+			var unpublishable domain.UnpublishableGraph
+			if !errors.As(err, &unpublishable) {
+				t.Fatalf("VerifyPublishable() error = %v, want domain.UnpublishableGraph", err)
+			}
+
+			got := make([]violation, 0, len(unpublishable.Violations))
+			for _, v := range unpublishable.Violations {
+				got = append(got, violation{v.Kind, v.ElementKind, v.ElementID})
+
+				if v.RelatedIDs != nil {
+					t.Errorf("VerifyPublishable() violation %v has related IDs %v, want none", v.Kind, v.RelatedIDs)
+				}
+			}
+
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("VerifyPublishable() violations = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVerifyPublishableAcceptsDraftsThatCanBePublished(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		document domain.GraphDocument
+	}{
+		{"points labelled in only some languages, unlabelled groups, edges and externals", withLabels(venue(), map[string]map[string]string{"gate": {"en": "Gate", "ja": ""}, "lobby": {"ja": "ロビー"}})},
+		{"20 points and 100 routes", chain(20, 100, 0)},
+		{"external nodes and their edges are not counted", chain(20, 100, 5)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graph := newGraph(t, tc.document)
+			parts := graph.DraftParts()
+
+			if err := (domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}).VerifyPublishable(); err != nil {
+				t.Errorf("VerifyPublishable() error = %v, want nil", err)
+			}
+		})
 	}
 }
