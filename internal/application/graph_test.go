@@ -453,6 +453,26 @@ func TestPublishRevisionRejectsUnpublishableDraftWithoutPublishing(t *testing.T)
 	}
 }
 
+func TestPublishRevisionAppliesConfiguredGraphSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	graphs := NewMockGraphRepository(gomock.NewController(t))
+	graphs.EXPECT().FindDraftRevisionForUpdate(inTransaction, tenantID, eventID).Return(publishableDraft(), nil)
+
+	service := application.NewGraphService(graphs, fakeTransactor{}, activeEvent).WithGraphSizeLimit(domain.GraphSizeLimit{Points: 1, Routes: 100})
+
+	_, err := service.PublishRevision(eventContext(tenantID, eventID), application.PublishRevisionInput{EventPublicID: eventID})
+
+	var unpublishable domain.UnpublishableGraph
+	if !errors.As(err, &unpublishable) {
+		t.Fatalf("PublishRevision() error = %v, want domain.UnpublishableGraph", err)
+	}
+
+	if got := unpublishable.Violations; len(got) != 1 || got[0].Kind != domain.ViolationKindTooManyPoints {
+		t.Errorf("PublishRevision() violations = %+v, want too many points", got)
+	}
+}
+
 func TestPublishRevisionWithoutDraftPublishesNothing(t *testing.T) {
 	t.Parallel()
 
