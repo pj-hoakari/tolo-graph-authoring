@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/application"
+	"github.com/pj-hoakari/tolo-graph-authoring/internal/domain"
 	connectinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/connect"
 	dbinfra "github.com/pj-hoakari/tolo-graph-authoring/internal/infra/db"
 	"github.com/pj-hoakari/tolo-graph-authoring/internal/infra/httpapi"
@@ -62,6 +64,11 @@ func run() error {
 		return errors.New("TENANT_MANAGEMENT_URL is required")
 	}
 
+	graphSizeLimit, err := graphSizeLimitFromEnv()
+	if err != nil {
+		return err
+	}
+
 	shutdownTracing, err := telemetry.Setup(ctx)
 	if err != nil {
 		return fmt.Errorf("setup tracing: %w", err)
@@ -87,7 +94,7 @@ func run() error {
 		graphRepository,
 		graphRepository,
 		connectinfra.NewTenantClient(http.DefaultClient, tenantManagementURL),
-	)
+	).WithGraphSizeLimit(graphSizeLimit)
 
 	routes, err := connectinfra.RoutesWithJWTSettings(graphService, jwtSettings)
 	if err != nil {
@@ -171,4 +178,32 @@ func getenv(key, fallback string) string {
 	}
 
 	return fallback
+}
+
+func graphSizeLimitFromEnv() (domain.GraphSizeLimit, error) {
+	points, err := positiveIntEnv("TOLO_GRAPH_MAX_NODES", domain.DefaultGraphSizeLimit.Points)
+	if err != nil {
+		return domain.GraphSizeLimit{}, err
+	}
+
+	routes, err := positiveIntEnv("TOLO_GRAPH_MAX_EDGES", domain.DefaultGraphSizeLimit.Routes)
+	if err != nil {
+		return domain.GraphSizeLimit{}, err
+	}
+
+	return domain.GraphSizeLimit{Points: points, Routes: routes}, nil
+}
+
+func positiveIntEnv(key string, fallback int) (int, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback, nil
+	}
+
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("%s must be a positive integer, got %q", key, v)
+	}
+
+	return n, nil
 }

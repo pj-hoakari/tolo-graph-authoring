@@ -202,10 +202,17 @@ type GraphService struct {
 	graphs       repository.GraphRepository
 	transactions repository.Transactor
 	events       EventDirectory
+	sizeLimit    domain.GraphSizeLimit
 }
 
 func NewGraphService(graphs repository.GraphRepository, transactions repository.Transactor, events EventDirectory) *GraphService {
-	return &GraphService{graphs: graphs, transactions: transactions, events: events}
+	return &GraphService{graphs: graphs, transactions: transactions, events: events, sizeLimit: domain.DefaultGraphSizeLimit}
+}
+
+func (s *GraphService) WithGraphSizeLimit(limit domain.GraphSizeLimit) *GraphService {
+	s.sizeLimit = limit
+
+	return s
 }
 
 func (s *GraphService) SaveGraph(ctx context.Context, input SaveGraphInput) (domain.Graph, error) {
@@ -297,7 +304,7 @@ func (s *GraphService) PublishRevision(ctx context.Context, input PublishRevisio
 			return err
 		}
 
-		if err := draft.VerifyPublishable(); err != nil {
+		if err := draft.VerifyPublishable(s.sizeLimit); err != nil {
 			return err
 		}
 

@@ -20,10 +20,12 @@ var (
 	ErrUnpublishableGraph   = errors.New("graph is not publishable")
 )
 
-const (
-	maxPublishedPoints = 20
-	maxPublishedRoutes = 100
-)
+type GraphSizeLimit struct {
+	Points int
+	Routes int
+}
+
+var DefaultGraphSizeLimit = GraphSizeLimit{Points: 20, Routes: 100}
 
 type NodeType int
 
@@ -378,7 +380,7 @@ type DraftRevision struct {
 	Labels     GraphLabels
 }
 
-func (r DraftRevision) VerifyPublishable() error {
+func (r DraftRevision) VerifyPublishable(limit GraphSizeLimit) error {
 	var violations GraphViolations
 
 	if len(r.Kernel.Points) == 0 {
@@ -391,14 +393,14 @@ func (r DraftRevision) VerifyPublishable() error {
 		}
 	}
 
-	if len(r.Kernel.Points) > maxPublishedPoints {
+	if len(r.Kernel.Points) > limit.Points {
 		violations.add(ViolationKindTooManyPoints, ElementKindUnspecified, "", nil,
-			"graph has %d points, more than %d", len(r.Kernel.Points), maxPublishedPoints)
+			"graph has %d points, more than %d", len(r.Kernel.Points), limit.Points)
 	}
 
-	if len(r.Kernel.Routes) > maxPublishedRoutes {
+	if len(r.Kernel.Routes) > limit.Routes {
 		violations.add(ViolationKindTooManyRoutes, ElementKindUnspecified, "", nil,
-			"graph has %d routes, more than %d", len(r.Kernel.Routes), maxPublishedRoutes)
+			"graph has %d routes, more than %d", len(r.Kernel.Routes), limit.Routes)
 	}
 
 	if len(violations) > 0 {

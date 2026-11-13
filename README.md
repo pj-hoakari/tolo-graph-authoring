@@ -63,6 +63,8 @@ Compose は他サービスを起動せず、`mockdeps` が依存先の代わり�
 | `INTERNAL_JWT_ISSUER` | `service-gateway` | 内部 JWT に期待する `iss` |
 | `INTERNAL_JWT_AUDIENCE` | `tolo-graph-authoring` | 内部 JWT に期待する `aud` |
 | `TENANT_MANAGEMENT_URL` | なし（必須） | `TenantService.GetEvent` の送り先。Service Gateway の内部用受信口を指す（Compose では `mockdeps` の `http://mockdeps:8080`） |
+| `TOLO_GRAPH_MAX_NODES` | `20` | 公開できる版のポイント数の上限。Flow Control の同名の環境変数と同じ値にする |
+| `TOLO_GRAPH_MAX_EDGES` | `100` | 公開できる版のルート数の上限。Flow Control の同名の環境変数と同じ値にする |
 | `LOG_LEVEL` | `info` | ログに出力する最小レベル。`debug`／`info`／`warn`（`warning` も同義）／`error`／`critical` を取り、未知の値ならサーバーは起動しない |
 | `GOOGLE_CLOUD_PROJECT` | なし | 設定するとログの `logging.googleapis.com/trace` を `projects/<project>/traces/<trace_id>` 形式にし、Cloud Logging でトレースと相関させる。未設定なら素のトレース ID を出力する |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | なし | どちらかを設定したときだけ OTLP/HTTP で span を export する。未設定ならトレーシングは無効 |

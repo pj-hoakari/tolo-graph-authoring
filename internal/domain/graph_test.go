@@ -386,7 +386,7 @@ func TestVerifyPublishableRejectsDraftsThatCannotBePublished(t *testing.T) {
 			graph := newGraph(t, tc.document)
 			parts := graph.DraftParts()
 
-			err := domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}.VerifyPublishable()
+			err := domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}.VerifyPublishable(domain.DefaultGraphSizeLimit)
 			if !errors.Is(err, domain.ErrUnpublishableGraph) || errors.Is(err, domain.ErrInvalidGraphDocument) {
 				t.Fatalf("VerifyPublishable() error = %v, want only %v", err, domain.ErrUnpublishableGraph)
 			}
@@ -429,9 +429,27 @@ func TestVerifyPublishableAcceptsDraftsThatCanBePublished(t *testing.T) {
 			graph := newGraph(t, tc.document)
 			parts := graph.DraftParts()
 
-			if err := (domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}).VerifyPublishable(); err != nil {
+			if err := (domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}).VerifyPublishable(domain.DefaultGraphSizeLimit); err != nil {
 				t.Errorf("VerifyPublishable() error = %v, want nil", err)
 			}
 		})
+	}
+}
+
+func TestVerifyPublishableAppliesTheGivenGraphSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	graph := newGraph(t, chain(21, 101, 0))
+	parts := graph.DraftParts()
+	draft := domain.DraftRevision{GraphRef: graph.Ref(), Kernel: parts.Kernel, Labels: parts.Labels}
+
+	if err := draft.VerifyPublishable(domain.GraphSizeLimit{Points: 21, Routes: 101}); err != nil {
+		t.Errorf("VerifyPublishable() error = %v, want nil", err)
+	}
+
+	var unpublishable domain.UnpublishableGraph
+	if err := draft.VerifyPublishable(domain.GraphSizeLimit{Points: 20, Routes: 101}); !errors.As(err, &unpublishable) ||
+		len(unpublishable.Violations) != 1 || unpublishable.Violations[0].Kind != domain.ViolationKindTooManyPoints {
+		t.Errorf("VerifyPublishable() error = %v, want only too many points", err)
 	}
 }
